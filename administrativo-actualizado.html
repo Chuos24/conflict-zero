@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConflictZero | Panel de Administración</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold: #D4AF37;
+            --gold-light: #F4E8C1;
+            --dark: #0a0a0a;
+            --dark-secondary: #141414;
+            --dark-tertiary: #1a1a1a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .bg-gradient {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(ellipse at top, rgba(212, 175, 55, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(147, 51, 234, 0.1) 0%, transparent 50%),
+                var(--dark);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .header {
+            background: rgba(20, 20, 20, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+            padding: 1.5rem 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--gold) 0%, #B8941F 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--dark);
+            font-size: 1.2rem;
+        }
+
+        .logo-text {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid rgba(220, 38, 38, 0.5);
+            color: var(--danger);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(220, 38, 38, 0.1);
+            border-color: var(--danger);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 3rem;
+        }
+
+        /* Login View */
+        .login-container {
+            min-height: calc(100vh - 200px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-card {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
+            padding: 3rem;
+            width: 100%;
+            max-width: 400px;
+            backdrop-filter: blur(20px);
+        }
+
+        .login-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 1.8rem;
+            text-align: center;
+            margin-bottom: 2rem;
+            background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            background: rgba(212, 175, 55, 0.05);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--gold) 0%, #B8941F 100%);
+            color: var(--dark);
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Dashboard */
+        .dashboard-header {
+            margin-bottom: 2rem;
+        }
+
+        .dashboard-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .dashboard-subtitle {
+            color: var(--text-secondary);
+        }
+
+        .search-section {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 1rem 1.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+
+        .btn-search {
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--gold) 0%, #B8941F 100%);
+            color: var(--dark);
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .help-text {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gold);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(212, 175, 55, 0.3);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        /* Results */
+        .results-card {
+            background: rgba(20, 20, 20, 0.6);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .status-banner {
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-banner.clean {
+            background: linear-gradient(135deg, rgba(22, 163, 74, 0.2) 0%, rgba(22, 163, 74, 0.1) 100%);
+            border-left: 4px solid var(--success);
+        }
+
+        .status-banner.problems {
+            background: linear-gradient(135deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%);
+            border-left: 4px solid var(--danger);
+        }
+
+        .status-banner.observed {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.1) 100%);
+            border-left: 4px solid var(--warning);
+        }
+
+        .status-icon {
+            font-size: 2rem;
+        }
+
+        .status-text h3 {
+            font-size: 1.2rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .status-text p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .data-section {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            color: var(--gold);
+            font-weight: 600;
+        }
+
+        .section-title {
+            color: var(--text-primary);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .data-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .badge-danger {
+            background: rgba(220, 38, 38, 0.2);
+            color: #fca5a5;
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .badge-success {
+            background: rgba(22, 163, 74, 0.2);
+            color: #86efac;
+        }
+
+        .certificate-section {
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .btn-certificate {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, var(--gold) 0%, #B8941F 100%);
+            color: var(--dark);
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-certificate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.3);
+        }
+
+        .btn-certificate:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Score display */
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            padding: 1.5rem 2rem;
+            background: rgba(255, 255, 255, 0.02);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .score-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            position: relative;
+        }
+
+        .score-circle.low {
+            background: conic-gradient(var(--success) calc(var(--score) * 3.6deg), rgba(255,255,255,0.1) 0deg);
+        }
+
+        .score-circle.medium {
+            background: conic-gradient(var(--warning) calc(var(--score) * 3.6deg), rgba(255,255,255,0.1) 0deg);
+        }
+
+        .score-circle.high {
+            background: conic-gradient(var(--danger) calc(var(--score) * 3.6deg), rgba(255,255,255,0.1) 0deg);
+        }
+
+        .score-inner {
+            width: 65px;
+            height: 65px;
+            background: var(--dark-secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .score-info h4 {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .score-info p {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .score-level {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .score-level.bajo {
+            background: rgba(22, 163, 74, 0.2);
+            color: #86efac;
+        }
+
+        .score-level.moderado {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fcd34d;
+        }
+
+        .score-level.alto {
+            background: rgba(220, 38, 38, 0.2);
+            color: #fca5a5;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+
+    <!-- Login View -->
+    <div id="loginView" class="login-container">
+        <div class="login-card">
+            <h1 class="login-title">Panel de Administración</h1>
+            <div class="form-group">
+                <label class="form-label">Usuario</label>
+                <input type="text" id="username" class="form-input" placeholder="Ingrese usuario">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Contraseña</label>
+                <input type="password" id="password" class="form-input" placeholder="Ingrese contraseña">
+            </div>
+            <button class="btn-primary" onclick="login()">Ingresar</button>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboardView" class="hidden">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">CZ</div>
+                <div class="logo-text">ConflictZero</div>
+            </div>
+            <div class="user-info">
+                <span>admin</span>
+                <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="dashboard-header">
+                <h1 class="dashboard-title">Consulta de RUC</h1>
+                <p class="dashboard-subtitle">Verifique el estado de empresas contratistas en tiempo real</p>
+            </div>
+
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" id="rucInput" class="search-input" placeholder="Ingrese RUC (11 dígitos)" maxlength="11">
+                    <button class="btn-search" onclick="consultarRUC()">Consultar</button>
+                </div>
+                <p class="help-text">Ingrese un RUC válido de 11 dígitos para consultar el estado en OSCE, TCE y SUNAT</p>
+            </div>
+
+            <div id="loadingIndicator" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Consultando información...</p>
+            </div>
+
+            <div id="errorMessage" class="error-message hidden"></div>
+
+            <div id="resultsCard" class="results-card hidden">
+                <!-- Results will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://xvyrpa0bhf.execute-api.us-east-1.amazonaws.com/prod';
+
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            
+            if (user === 'admin' && pass === 'cz2026') {
+                document.getElementById('loginView').classList.add('hidden');
+                document.getElementById('dashboardView').classList.remove('hidden');
+            } else {
+                alert('Credenciales incorrectas');
+            }
+        }
+
+        function logout() {
+            document.getElementById('loginView').classList.remove('hidden');
+            document.getElementById('dashboardView').classList.add('hidden');
+            document.getElementById('rucInput').value = '';
+            document.getElementById('resultsCard').classList.add('hidden');
+            document.getElementById('resultsCard').innerHTML = '';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.add('hidden');
+        }
+
+        async function consultarRUC() {
+            const ruc = document.getElementById('rucInput').value.trim();
+            
+            if (ruc.length !== 11 || !/^\d+$/.test(ruc)) {
+                showError('Por favor ingrese un RUC válido de 11 dígitos');
+                return;
+            }
+
+            hideError();
+            document.getElementById('loadingIndicator').classList.remove('hidden');
+            document.getElementById('resultsCard').classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/consulta-osce/${ruc}`);
+                
+                if (!response.ok) {
+                    throw new Error('Error en la consulta');
+                }
+
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    mostrarResultados(result.data, result.score || 0, ruc);
+                } else {
+                    showError('Error: ' + (result.message || 'No se pudo obtener información'));
+                }
+                
+            } catch (error) {
+                showError('Error al consultar: ' + error.message);
+            } finally {
+                document.getElementById('loadingIndicator').classList.add('hidden');
+            }
+        }
+
+        function mostrarResultados(data, score, ruc) {
+            const resultsCard = document.getElementById('resultsCard');
+            const isClean = data.estado === 'LIMPIO';
+            const hasProblems = data.estado === 'CON_PROBLEMAS';
+            
+            // Determinar clase del banner según score
+            let bannerClass = 'clean';
+            if (score < 40) bannerClass = 'problems';
+            else if (score < 70) bannerClass = 'observed';
+            
+            // Clase del círculo de score
+            let scoreClass = 'low';
+            if (score < 40) scoreClass = 'high';
+            else if (score < 70) scoreClass = 'medium';
+            
+            // Nivel de riesgo
+            let riskLevel = 'bajo';
+            let riskText = 'Riesgo Bajo';
+            if (score < 40) {
+                riskLevel = 'alto';
+                riskText = 'Riesgo Alto';
+            } else if (score < 70) {
+                riskLevel = 'moderado';
+                riskText = 'Riesgo Moderado';
+            }
+
+            let html = `
+                <div class="status-banner ${bannerClass}">
+                    <div class="status-icon">${isClean ? '✓' : '⚠'}</div>
+                    <div class="status-text">
+                        <h3>${isClean ? 'Empresa Verificada - Sin Problemas' : 'Empresa con Problemas Detectados'}</h3>
+                        <p>RUC: ${data.ruc} • Total registros: ${data.total_registros || 0}</p>
+                    </div>
+                </div>
+
+                <div class="score-display">
+                    <div class="score-circle ${scoreClass}" style="--score: ${score}">
+                        <div class="score-inner">${score}</div>
+                    </div>
+                    <div class="score-info">
+                        <h4>Score de Riesgo</h4>
+                        <p>${score}/100</p>
+                        <span class="score-level ${riskLevel}">${riskText}</span>
+                    </div>
+                </div>
+            `;
+
+            // Sanciones OSCE
+            if (data.sanciones && data.sanciones.length > 0) {
+                html += `
+                    <div class="data-section">
+                        <div class="section-header">
+                            <span>🚨</span>
+                            <span class="section-title">Sanciones OSCE</span>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Motivo</th>
+                                    <th>Entidad</th>
+                                    <th>Resolución</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.sanciones.map(s => `
+                                    <tr>
+                                        <td><span class="badge badge-danger">${s.tipo_sancion || 'SANCION'}</span></td>
+                                        <td>${s.motivo || 'N/A'}</td>
+                                        <td>${s.entidad || 'N/A'}</td>
+                                        <td>${s.numero_resolucion || 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // Inhabilitaciones
+            if (data.inhabilitaciones && data.inhabilitaciones.length > 0) {
+                html += `
+                    <div class="data-section">
+                        <div class="section-header">
+                            <span>🚫</span>
+                            <span class="section-title">Inhabilitaciones Judiciales</span>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th>Días</th>
+                                    <th>Entidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.inhabilitaciones.map(i => `
+                                    <tr>
+                                        <td>${i.tipo_inhabilitacion || 'N/A'}</td>
+                                        <td><span class="badge ${i.estado === 'VIGENTE' ? 'badge-danger' : 'badge-success'}">${i.estado || 'N/A'}</span></td>
+                                        <td>${i.dias_inhabilitacion || 'N/A'}</td>
+                                        <td>${i.entidad || 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // Multas
+            if (data.sanciones_multa && data.sanciones_multa.length > 0) {
+                html += `
+                    <div class="data-section">
+                        <div class="section-header">
+                            <span>💰</span>
+                            <span class="section-title">Sanciones con Multa</span>
+                        </div>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Razón Social</th>
+                                    <th>Monto</th>
+                                    <th>Motivo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.sanciones_multa.map(m => `
+                                    <tr>
+                                        <td>${m.razon_social || 'N/A'}</td>
+                                        <td>S/ ${m.monto_multa?.toLocaleString() || '0'}</td>
+                                        <td>${m.motivo || 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            // Si no hay problemas, mostrar mensaje
+            if ((!data.sanciones || data.sanciones.length === 0) && 
+                (!data.inhabilitaciones || data.inhabilitaciones.length === 0) && 
+                (!data.sanciones_multa || data.sanciones_multa.length === 0)) {
+                html += `
+                    <div class="data-section" style="text-align: center; padding: 2rem;">
+                        <p style="color: var(--success); font-size: 1.1rem;">✓ No se encontraron sanciones ni inhabilitaciones registradas</p>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="certificate-section">
+                    <button class="btn-certificate" onclick="generarCertificado('${ruc}')">
+                        <span>📄</span>
+                        <span>Generar Certificado de Verificación</span>
+                    </button>
+                </div>
+            `;
+
+            resultsCard.innerHTML = html;
+            resultsCard.classList.remove('hidden');
+        }
+
+        async function generarCertificado(ruc) {
+            const btn = document.querySelector('.btn-certificate');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span><span>Generando...</span>';
+
+            try {
+                const response = await fetch(`${API_URL}/generar-certificado/${ruc}`);
+                
+                if (!response.ok) {
+                    throw new Error('Error al generar certificado');
+                }
+
+                const result = await response.json();
+                
+                // La API retorna data.certificado.pdf_url
+                if (result.success && result.certificado && result.certificado.pdf_url) {
+                    const pdfUrl = result.certificado.pdf_url;
+                    
+                    // Abrir en nueva pestaña
+                    window.open(pdfUrl, '_blank');
+                } else {
+                    throw new Error('No se recibió URL del certificado');
+                }
+            } catch (error) {
+                alert('Error al generar certificado: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        // Enter key support
+        document.getElementById('rucInput')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') consultarRUC();
+        });
+
+        document.getElementById('password')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+</html>
