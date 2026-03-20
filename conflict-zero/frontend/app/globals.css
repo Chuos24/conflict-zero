@@ -57,3 +57,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* UHNW Dark Theme - Conflict Zero */
+.uhnw-dark {
+  --background: 210 45% 10%;
+  --foreground: 210 40% 98%;
+  --card: 210 35% 15%;
+  --card-foreground: 210 40% 98%;
+  --popover: 210 35% 15%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 45 70% 47%;
+  --primary-foreground: 210 45% 10%;
+  --secondary: 210 30% 20%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 210 25% 25%;
+  --muted-foreground: 210 20% 60%;
+  --accent: 45 70% 47%;
+  --accent-foreground: 210 45% 10%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 210 25% 20%;
+  --input: 210 25% 20%;
+  --ring: 45 70% 47%;
+}
+
+/* Custom Scrollbar for dark theme */
+.uhnw-dark ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.uhnw-dark ::-webkit-scrollbar-track {
+  background: #0d1b2a;
+}
+
+.uhnw-dark ::-webkit-scrollbar-thumb {
+  background: #415a77;
+  border-radius: 4px;
+}
+
+.uhnw-dark ::-webkit-scrollbar-thumb:hover {
+  background: #c9a227;
+}

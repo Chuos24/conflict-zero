@@ -1,115 +1,192 @@
-# Conflict Zero - Plataforma de Verificación Predictiva de Riesgo Contractual
+# Conflict Zero
 
-SaaS B2B para reducir el proceso de due diligence de 3 horas a 30 segundos mediante análisis automatizado de RUCs peruanos.
+A modern web application built with FastAPI and Next.js.
 
-## 🚀 Stack Tecnológico
-
-| Capa | Tecnología | Versión |
-|------|-----------|---------|
-| Frontend | Next.js + React | 14.0.3 |
-| Backend | Python FastAPI | 0.104.1 |
-| Database | PostgreSQL | 15.3 |
-| Caché | Redis | 7.0 |
-| Hosting | AWS EC2 | t3.medium |
-
-## 📁 Estructura del Proyecto
+## Project Structure
 
 ```
 conflict-zero/
-├── backend/          # API FastAPI
-├── frontend/         # Next.js 14 App Router
-├── infrastructure/   # Docker, Terraform, Scripts AWS
-└── docs/            # Documentación técnica
+├── backend/              # FastAPI backend
+│   ├── app/             # Application code
+│   ├── tests/           # Test files
+│   ├── Dockerfile       # Backend container
+│   └── pyproject.toml   # Python dependencies
+├── frontend/            # Next.js frontend
+│   ├── app/             # Next.js app directory
+│   ├── components/      # React components
+│   ├── tests/           # Test files
+│   ├── Dockerfile       # Frontend container
+│   └── package.json     # Node dependencies
+├── infrastructure/      # Docker Compose and infrastructure
+│   ├── docker-compose.yml
+│   ├── nginx/           # Nginx configuration
+│   └── README.md
+├── Makefile            # Common commands
+└── .env.example        # Environment template
 ```
 
-## 🛠️ Instalación Local
+## Quick Start
 
-### Requisitos Previos
-- Python 3.11+
-- Node.js 18+
-- Docker & Docker Compose
-- PostgreSQL 15+
-- Redis 7+
+### Prerequisites
 
-### Backend
+- Docker and Docker Compose
+- Make (optional, for convenience commands)
+
+### 1. Clone and Setup
 
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-# Configurar variables de entorno
+git clone <repository-url>
+cd conflict-zero
 cp .env.example .env
-# Editar .env con tus credenciales
-
-# Ejecutar migraciones
-alembic upgrade head
-
-# Iniciar servidor
-uvicorn app.main:app --reload --port 8000
+# Edit .env with your settings
 ```
 
-### Frontend
+### 2. Start Services
 
+Using Make:
 ```bash
-cd frontend
-npm install
-npm run dev
+make setup    # Initial setup
+make up       # Start all services
 ```
 
-### Docker (Todo en uno)
-
+Or using Docker Compose directly:
 ```bash
 cd infrastructure
 docker-compose up -d
 ```
 
-## 🔑 Variables de Entorno
+### 3. Access the Application
 
-### Backend (.env)
-```env
-# Database
-DATABASE_URL=postgresql://user:pass@localhost/conflictzero
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/docs
 
-# Redis
-REDIS_URL=redis://localhost:6379/0
+## Development
 
-# JWT
-SECRET_KEY=your-secret-key-here
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
+### Available Make Commands
 
-# APIs Externas
-DECOLECTA_API_KEY=your-api-key
-DECOLECTA_BASE_URL=https://api.decolecta.com/v1
-
-# AWS (opcional para local)
-AWS_ACCESS_KEY_ID=
-AWS_SECRET_ACCESS_KEY=
-AWS_REGION=us-east-1
+```bash
+make help              # Show all available commands
+make build             # Build Docker images
+make up                # Start services
+make down              # Stop services
+make logs              # View logs
+make migrate           # Run database migrations
+make test-backend      # Run backend tests
+make test-frontend     # Run frontend tests
+make lint-backend      # Run backend linters
+make lint-frontend     # Run frontend linters
+make shell-backend     # Open backend shell
+make shell-frontend    # Open frontend shell
 ```
 
-## 📊 Algoritmo de Scoring
+### Backend Development
 
-El motor calcula una puntuación 0-100 basada en:
+The backend is built with FastAPI and includes:
+- Async SQLAlchemy with PostgreSQL
+- Redis caching
+- JWT authentication
+- Alembic migrations
+- Comprehensive test suite
 
-| Factor | Peso | Descripción |
-|--------|------|-------------|
-| Deuda SUNAT | 30% | Escala logarítmica para normalizar montos |
-| Sanciones OSCE | 40% | Indicador binario crítico |
-| Patrones Predictivos | 30% | ML para detección de anomalías |
+```bash
+# Run migrations
+make migrate
 
-## 📚 Documentación API
+# Create a new migration
+make migrate-create msg="add users table"
 
-Una vez iniciado el backend, visita:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+# Run tests
+make test-backend
 
-## 🏗️ Despliegue AWS
+# Access PostgreSQL
+make psql
+```
 
-Ver `infrastructure/aws-deploy/` para scripts de despliegue automatizado.
+### Frontend Development
 
-## 📄 Licencia
+The frontend is built with Next.js 14 and includes:
+- App Router
+- TypeScript
+- Tailwind CSS
+- React Query
+- Zustand state management
+- NextAuth.js authentication
 
-© 2026 Conflict Zero S.A.C. - Todos los derechos reservados.
+```bash
+# Run linter
+make lint-frontend
+
+# Run tests
+make test-frontend
+```
+
+## Production Deployment
+
+### Using Docker Compose
+
+```bash
+# Production mode with Nginx
+make up-prod
+
+# Or manually:
+BACKEND_BUILD_TARGET=production \
+FRONTEND_BUILD_TARGET=production \
+docker-compose --profile nginx up -d
+```
+
+### Environment Variables
+
+Key variables to set for production:
+
+```bash
+ENVIRONMENT=production
+DEBUG=false
+SECRET_KEY=<generate-strong-secret>
+NEXTAUTH_SECRET=<generate-strong-secret>
+POSTGRES_PASSWORD=<strong-db-password>
+REDIS_PASSWORD=<strong-redis-password>
+```
+
+Generate secrets:
+```bash
+# Python
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+
+# OpenSSL
+openssl rand -base64 32
+```
+
+## Architecture
+
+### Services
+
+| Service | Technology | Purpose |
+|---------|------------|---------|
+| Frontend | Next.js 14 | React SSR/SSG application |
+| Backend | FastAPI | Python async API |
+| Database | PostgreSQL 15 | Primary data store |
+| Cache | Redis 7 | Caching & sessions |
+| Proxy | Nginx | Reverse proxy & SSL |
+
+### Network
+
+All services communicate via Docker network `conflict-zero-network`.
+
+### Volumes
+
+- `postgres_data` - Persistent database storage
+- `redis_data` - Redis persistence
+- `backend_logs` - Application logs
+- `nginx_logs` - Access/error logs
+
+## Contributing
+
+1. Create a feature branch
+2. Make your changes
+3. Run tests and linters
+4. Submit a pull request
+
+## License
+
+[Your License Here]

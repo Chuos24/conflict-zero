@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conflict Zero - Verificación de RUC</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 2px solid #D4AF37;
+            margin-bottom: 40px;
+        }
+        .logo {
+            font-size: 42px;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -1px;
+        }
+        .logo span { color: #D4AF37; }
+        .subtitle {
+            color: #8892b0;
+            font-size: 16px;
+            margin-top: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(212,175,55,0.3);
+            border-radius: 16px;
+            padding: 40px;
+            backdrop-filter: blur(10px);
+        }
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 18px 24px;
+            font-size: 18px;
+            border: 2px solid rgba(212,175,55,0.3);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            outline: none;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus {
+            border-color: #D4AF37;
+            box-shadow: 0 0 20px rgba(212,175,55,0.2);
+        }
+        input::placeholder { color: #8892b0; }
+        button {
+            padding: 18px 36px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #D4AF37 0%, #B8941F 100%);
+            color: #0a0e1a;
+        }
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(212,175,55,0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 2px solid #D4AF37;
+            color: #D4AF37;
+            margin-top: 20px;
+        }
+        .btn-secondary:hover {
+            background: rgba(212,175,55,0.1);
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+        .loading.active { display: block; }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(212,175,55,0.3);
+            border-top-color: #D4AF37;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .result {
+            display: none;
+            margin-top: 30px;
+        }
+        .result.active { display: block; }
+        .razon-social {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(212,175,55,0.3);
+        }
+        .score-container {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+            margin: 30px 0;
+            padding: 25px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            position: relative;
+        }
+        .score-circle::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            padding: 4px;
+            background: conic-gradient(var(--score-color) var(--score-deg), rgba(255,255,255,0.1) 0);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+        }
+        .score-value {
+            font-size: 32px;
+            color: var(--score-color);
+        }
+        .score-label {
+            font-size: 12px;
+            color: #8892b0;
+            text-transform: uppercase;
+        }
+        .score-info h3 {
+            font-size: 24px;
+            color: var(--score-color);
+            margin-bottom: 5px;
+        }
+        .score-info p {
+            color: #8892b0;
+            font-size: 14px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .info-item {
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            border-left: 3px solid #D4AF37;
+        }
+        .info-label {
+            font-size: 12px;
+            color: #8892b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .info-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .sanciones-list {
+            margin-top: 20px;
+        }
+        .sancion-item {
+            padding: 15px;
+            background: rgba(220,38,38,0.1);
+            border-left: 3px solid #dc2626;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .sancion-entidad {
+            font-weight: 600;
+            color: #dc2626;
+            font-size: 14px;
+        }
+        .sancion-motivo {
+            color: #cbd5e1;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .error {
+            display: none;
+            padding: 20px;
+            background: rgba(220,38,38,0.1);
+            border: 1px solid #dc2626;
+            border-radius: 12px;
+            color: #fca5a5;
+            margin-top: 20px;
+        }
+        .error.active { display: block; }
+        .error-title { font-weight: 600; margin-bottom: 5px; }
+        .error-detail { font-size: 14px; opacity: 0.8; }
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            color: #8892b0;
+            font-size: 14px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-success { background: rgba(34,197,94,0.2); color: #22c55e; }
+        .badge-warning { background: rgba(245,158,11,0.2); color: #f59e0b; }
+        .badge-danger { background: rgba(220,38,38,0.2); color: #ef4444; }
+        .data-source {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 12px;
+            color: #8892b0;
+        }
+        .data-source strong { color: #D4AF37; }
+        .retry-btn {
+            background: transparent;
+            border: 1px solid #fca5a5;
+            color: #fca5a5;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .retry-btn:hover { background: rgba(220,38,38,0.2); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">CONFLICT<span>ZERO</span></div>
+            <div class="subtitle">Verificación Predictiva de RUC</div>
+        </div>
+
+        <div class="card">
+            <div class="input-group">
+                <input type="text" id="rucInput" placeholder="Ingrese RUC (11 dígitos)" maxlength="11">
+                <button class="btn-primary" id="verifyBtn" onclick="verifyRUC()">Verificar</button>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Consultando SUNAT, OSCE, TCE...</p>
+            </div>
+
+            <div class="error" id="error">
+                <div class="error-title" id="errorTitle">Error</div>
+                <div class="error-detail" id="errorDetail"></div>
+                <button class="retry-btn" onclick="verifyRUC()">Reintentar</button>
+            </div>
+
+            <div class="result" id="result">
+                <div class="razon-social" id="razonSocial"></div>
+                
+                <div class="score-container">
+                    <div class="score-circle" id="scoreCircle">
+                        <div class="score-value" id="scoreValue"></div>
+                        <div class="score-label">Score</div>
+                    </div>
+                    <div class="score-info">
+                        <h3 id="riskLevel"></h3>
+                        <p id="riskDescription"></p>
+                    </div>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">RUC</div>
+                        <div class="info-value" id="rucValue"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estado SUNAT</div>
+                        <div class="info-value" id="estadoSunat"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Condición</div>
+                        <div class="info-value" id="condicion"></div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Total Sanciones</div>
+                        <div class="info-value" id="totalSanciones"></div>
+                    </div>
+                </div>
+
+                <div class="sanciones-list" id="sancionesList"></div>
+
+                <div class="data-source">
+                    <strong>Fuentes de datos:</strong> 
+                    SUNAT: <span id="fuenteSunat"></span> | 
+                    OSCE: <span id="fuenteOsce"></span> | 
+                    TCE: <span id="fuenteTce"></span>
+                </div>
+
+                <button class="btn-secondary" id="certBtn" onclick="generateCertificate()">
+                    📄 Generar Certificado PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2024 Conflict Zero - Inteligencia de Riesgo para Licitaciones</p>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration - Cambia esto según el entorno
+        const API_BASE = 'https://xvyrpa0bhf.execute-api.us-east-1.amazonaws.com/prod';
+        
+        let currentData = null;
+
+        async function verifyRUC() {
+            const ruc = document.getElementById('rucInput').value.trim();
+            const errorDiv = document.getElementById('error');
+            const errorTitle = document.getElementById('errorTitle');
+            const errorDetail = document.getElementById('errorDetail');
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            // Reset
+            errorDiv.classList.remove('active');
+            result.classList.remove('active');
+
+            // Validation
+            if (!ruc || ruc.length !== 11 || !/^\d{11}$/.test(ruc)) {
+                errorTitle.textContent = 'RUC inválido';
+                errorDetail.textContent = 'Por favor ingrese un RUC válido de 11 dígitos numéricos.';
+                errorDiv.classList.add('active');
+                return;
+            }
+
+            // Show loading
+            loading.classList.add('active');
+            document.getElementById('verifyBtn').disabled = true;
+
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seg timeout
+                
+                const response = await fetch(`${API_BASE}/consulta-osce/${ruc}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+
+                loading.classList.remove('active');
+                document.getElementById('verifyBtn').disabled = false;
+
+                if (response.status === 403) {
+                    errorTitle.textContent = 'Error de autenticación (403)';
+                    errorDetail.textContent = 'La API requiere redeploy. Contacta al administrador o usa la versión local.';
+                    errorDiv.classList.add('active');
+                    return;
+                }
+
+                if (response.status === 404) {
+                    errorTitle.textContent = 'RUC no encontrado';
+                    errorDetail.textContent = 'El RUC no existe en nuestra base de datos.';
+                    errorDiv.classList.add('active');
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    errorTitle.textContent = 'Error en la consulta';
+                    errorDetail.textContent = data.message || 'Error desconocido';
+                    errorDiv.classList.add('active');
+                    return;
+                }
+
+                if (data.success) {
+                    currentData = data;
+                    displayResult(data);
+                } else {
+                    errorTitle.textContent = 'Error';
+                    errorDetail.textContent = 'No se pudo obtener información del RUC';
+                    errorDiv.classList.add('active');
+                }
+            } catch (err) {
+                loading.classList.remove('active');
+                document.getElementById('verifyBtn').disabled = false;
+                
+                console.error('Error:', err);
+                
+                if (err.name === 'AbortError') {
+                    errorTitle.textContent = 'Tiempo de espera agotado';
+                    errorDetail.textContent = 'La consulta tomó demasiado tiempo. Intenta nuevamente.';
+                } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+                    errorTitle.textContent = 'Error de conexión';
+                    errorDetail.textContent = 'No se pudo conectar con el servidor. Verifica tu conexión a internet o que la API esté disponible.';
+                } else {
+                    errorTitle.textContent = 'Error inesperado';
+                    errorDetail.textContent = err.message || 'Ocurrió un error desconocido.';
+                }
+                errorDiv.classList.add('active');
+            }
+        }
+
+        function displayResult(data) {
+            const result = document.getElementById('result');
+            const d = data.data;
+            const score = data.score;
+
+            // Razon social
+            document.getElementById('razonSocial').textContent = d.razon_social || 'Nombre no disponible';
+
+            // Score circle
+            const scoreCircle = document.getElementById('scoreCircle');
+            const scoreValue = document.getElementById('scoreValue');
+            const riskLevel = document.getElementById('riskLevel');
+            const riskDesc = document.getElementById('riskDescription');
+
+            scoreValue.textContent = score + '/100';
+
+            // Colors and risk level
+            let color, level, desc;
+            if (score >= 80) {
+                color = '#22c55e';
+                level = 'Riesgo Bajo';
+                desc = 'La empresa cumple con los requisitos para contratación pública';
+            } else if (score >= 60) {
+                color = '#f59e0b';
+                level = 'Riesgo Moderado';
+                desc = 'Se recomienda revisión adicional antes de contratar';
+            } else if (score >= 40) {
+                color = '#f97316';
+                level = 'Riesgo Alto';
+                desc = 'La empresa presenta sanciones significativas';
+            } else {
+                color = '#dc2626';
+                level = 'Riesgo Crítico';
+                desc = 'No recomendado para contratación pública';
+            }
+
+            scoreCircle.style.setProperty('--score-color', color);
+            scoreCircle.style.setProperty('--score-deg', (score / 100 * 360) + 'deg');
+            riskLevel.textContent = level;
+            riskLevel.style.color = color;
+            riskDesc.textContent = desc;
+
+            // Info grid
+            document.getElementById('rucValue').textContent = d.ruc;
+            document.getElementById('estadoSunat').innerHTML = `<span class="badge ${d.estado_sunat === 'ACTIVO' ? 'badge-success' : 'badge-danger'}">${d.estado_sunat}</span>`;
+            document.getElementById('condicion').innerHTML = `<span class="badge ${d.condicion === 'HABIDO' ? 'badge-success' : 'badge-warning'}">${d.condicion}</span>`;
+            document.getElementById('totalSanciones').innerHTML = `<span class="badge ${d.total_registros === 0 ? 'badge-success' : 'badge-danger'}">${d.total_registros}</span>`;
+
+            // Data sources
+            const fuentes = data.fuentes_datos || {};
+            document.getElementById('fuenteSunat').textContent = fuentes.sunat === 'decolecta_sunat' ? '✅ Decolecta' : '⚠️ Simulado';
+            document.getElementById('fuenteOsce').textContent = fuentes.osce === 'osce_scraper' ? '✅ OSCE Scraper' : '⚠️ Simulado';
+            document.getElementById('fuenteTce').textContent = fuentes.tce === 'osce_scraper' ? '✅ OSCE Scraper' : '⚠️ Simulado';
+
+            // Sanciones list
+            const sancionesDiv = document.getElementById('sancionesList');
+            sancionesDiv.innerHTML = '';
+            
+            if (d.inhabilitaciones && d.inhabilitaciones.length > 0) {
+                const title = document.createElement('h3');
+                title.textContent = '⚠️ Inhabilitaciones';
+                title.style.color = '#dc2626';
+                title.style.marginBottom = '15px';
+                sancionesDiv.appendChild(title);
+
+                d.inhabilitaciones.forEach(inh => {
+                    const div = document.createElement('div');
+                    div.className = 'sancion-item';
+                    div.innerHTML = `
+                        <div class="sancion-entidad">${inh.entidad} - ${inh.tipo_inhabilitacion}</div>
+                        <div class="sancion-motivo">Expediente: ${inh.expediente} | Estado: ${inh.estado} | ${inh.dias_inhabilitacion} días</div>
+                        <div class="sancion-motivo" style="margin-top:5px;font-style:italic">${inh.motivo || 'Sin detalle adicional'}</div>
+                    `;
+                    sancionesDiv.appendChild(div);
+                });
+            }
+
+            if (d.sanciones && d.sanciones.length > 0) {
+                const title = document.createElement('h3');
+                title.textContent = '⚠️ Sanciones';
+                title.style.color = '#f59e0b';
+                title.style.margin = '20px 0 15px';
+                sancionesDiv.appendChild(title);
+
+                d.sanciones.forEach(sanc => {
+                    const div = document.createElement('div');
+                    div.className = 'sancion-item';
+                    div.style.borderLeftColor = '#f59e0b';
+                    div.style.background = 'rgba(245,158,11,0.1)';
+                    div.innerHTML = `
+                        <div class="sancion-entidad" style="color:#f59e0b">${sanc.entidad} - ${sanc.tipo_sancion}</div>
+                        <div class="sancion-motivo">${sanc.motivo}</div>
+                        <div class="sancion-motivo" style="font-size:12px;margin-top:5px">Resolución: ${sanc.numero_resolucion} | ${sanc.fecha_resolucion}</div>
+                    `;
+                    sancionesDiv.appendChild(div);
+                });
+            }
+
+            result.classList.add('active');
+        }
+
+        async function generateCertificate() {
+            if (!currentData) return;
+
+            const btn = document.getElementById('certBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Generando certificado...';
+
+            try {
+                const ruc = currentData.data.ruc;
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+                
+                const response = await fetch(`${API_BASE}/generar-certificado/${ruc}`, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+
+                if (response.status === 403) {
+                    alert('Error 403: La API requiere redeploy. Contacta al administrador.');
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+
+                if (data.success && data.certificado.pdf_url) {
+                    window.open(data.certificado.pdf_url, '_blank');
+                } else {
+                    alert('Error al generar certificado: ' + (data.message || 'Error desconocido'));
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                alert('Error de conexión: ' + (err.message || 'No se pudo generar el certificado'));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '📄 Generar Certificado PDF';
+            }
+        }
+
+        // Allow Enter key
+        document.getElementById('rucInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') verifyRUC();
+        });
+    </script>
+</body>
+</html>

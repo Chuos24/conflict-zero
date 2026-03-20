@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conflict Zero | Panel de Administración UHNW</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --gold: #c9a227;
+            --gold-light: #e8d5a3;
+            --dark: #0d1b2a;
+            --dark-secondary: #1b263b;
+            --text: #415a77;
+            --white: #ffffff;
+            --success: #16a34a;
+            --warning: #f59e0b;
+            --danger: #dc2626;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 100%);
+            min-height: 100vh;
+            color: var(--white);
+        }
+        
+        /* Header */
+        .header {
+            background: rgba(13, 27, 42, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+            padding: 0 40px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 80px;
+        }
+        
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 3px;
+        }
+        
+        .logo span { color: var(--gold); font-weight: 400; }
+        
+        .nav-links {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .nav-links a {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            padding: 10px 0;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .nav-links a:hover, .nav-links a.active {
+            color: var(--gold);
+            border-bottom-color: var(--gold);
+        }
+        
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        /* Main Content */
+        .main-content {
+            padding: 120px 40px 40px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+            padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(201, 162, 39, 0.05) 100%);
+            border: 1px solid rgba(201, 162, 39, 0.2);
+            border-radius: 16px;
+        }
+        
+        .hero h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 48px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .hero p {
+            color: rgba(255,255,255,0.6);
+            font-size: 18px;
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+        
+        /* Search Box */
+        .search-container {
+            max-width: 700px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .search-box {
+            display: flex;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(201, 162, 39, 0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        
+        .search-box:focus-within {
+            border-color: var(--gold);
+            box-shadow: 0 0 30px rgba(201, 162, 39, 0.2);
+        }
+        
+        .search-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            padding: 24px 30px;
+            color: var(--white);
+            font-size: 18px;
+            outline: none;
+        }
+        
+        .search-box input::placeholder { color: rgba(255,255,255,0.4); }
+        
+        .search-box button {
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            border: none;
+            padding: 0 40px;
+            color: var(--dark);
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .search-box button:hover {
+            padding: 0 50px;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 25px;
+            margin-bottom: 50px;
+        }
+        
+        .stat-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(201, 162, 39, 0.15);
+            border-radius: 12px;
+            padding: 30px;
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(201, 162, 39, 0.4);
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 10px;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--gold);
+            margin-bottom: 5px;
+        }
+        
+        .stat-change {
+            font-size: 13px;
+            color: var(--success);
+        }
+        
+        .stat-change.negative { color: var(--danger); }
+        
+        /* Results Section */
+        .results-section {
+            display: none;
+        }
+        
+        .results-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .result-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(201, 162, 39, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+        
+        .result-header {
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(201, 162, 39, 0.05) 100%);
+            border-bottom: 1px solid rgba(201, 162, 39, 0.2);
+        }
+        
+        .company-name {
+            font-family: 'Playfair Display', serif;
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .company-ruc {
+            font-size: 16px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 2px;
+        }
+        
+        .score-display {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            margin-top: 30px;
+        }
+        
+        .score-ring {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: conic-gradient(var(--score-color) var(--score-deg), rgba(255,255,255,0.1) 0);
+        }
+        
+        .score-ring::before {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            border-radius: 50%;
+            background: var(--dark-secondary);
+        }
+        
+        .score-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+        
+        .score-number {
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--score-color);
+        }
+        
+        .score-text {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        .score-details h3 {
+            font-size: 24px;
+            color: var(--score-color);
+            margin-bottom: 8px;
+        }
+        
+        .score-details p {
+            color: rgba(255,255,255,0.6);
+            font-size: 15px;
+            max-width: 400px;
+        }
+        
+        /* Info Grid */
+        .info-section {
+            padding: 40px;
+        }
+        
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--gold);
+            display: inline-block;
+        }
+        
+        .info-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+        
+        .info-item {
+            padding: 25px;
+            background: rgba(255,255,255,0.02);
+            border-left: 3px solid var(--gold);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .info-item-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 8px;
+        }
+        
+        .info-item-value {
+            font-size: 18px;
+            font-weight: 500;
+        }
+        
+        /* Sanctions */
+        .sanctions-section {
+            padding: 0 40px 40px;
+        }
+        
+        .sanction-item {
+            padding: 25px;
+            background: rgba(220, 38, 38, 0.05);
+            border-left: 4px solid var(--danger);
+            border-radius: 0 8px 8px 0;
+            margin-bottom: 15px;
+        }
+        
+        .sanction-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--danger);
+            margin-bottom: 8px;
+        }
+        
+        .sanction-desc {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+        }
+        
+        /* Actions */
+        .actions {
+            padding: 30px 40px;
+            background: rgba(255,255,255,0.02);
+            border-top: 1px solid rgba(201, 162, 39, 0.1);
+            display: flex;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            color: var(--dark);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(201, 162, 39, 0.3);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(201, 162, 39, 0.4);
+            color: var(--gold);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(201, 162, 39, 0.1);
+        }
+        
+        /* Loading */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(13, 27, 42, 0.95);
+            z-index: 2000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .loading-overlay.active {
+            display: flex;
+        }
+        
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(201, 162, 39, 0.2);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.6);
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .info-grid-2 { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .header { padding: 0 20px; }
+            .nav-links { display: none; }
+            .main-content { padding: 100px 20px 20px; }
+            .hero h1 { font-size: 32px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .info-grid-2 { grid-template-columns: 1fr; }
+            .score-display { flex-direction: column; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">CONFLICT<span>ZERO</span></div>
+        <nav class="nav-links">
+            <a href="#" class="active">Dashboard</a>
+            <a href="#">Verificación</a>
+            <a href="#">Certificados</a>
+            <a href="#">Reportes</a>
+            <a href="#">Configuración</a>
+        </nav>
+        <div class="user-menu">
+            <span style="font-size: 13px; color: rgba(255,255,255,0.6);">Admin</span>
+            <div class="user-avatar">A</div>
+        </div>
+    </header>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="loader"></div>
+        <div class="loading-text">Consultando fuentes oficiales...</div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Hero -->
+        <section class="hero">
+            <h1>Verificación de Proveedores</h1>
+            <p>Consulte en tiempo real el estado de empresas en SUNAT, OSCE y TCE. Emita certificados de verificación con validez legal.</p>
+            
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="rucInput" placeholder="Ingrese RUC (11 dígitos)" maxlength="11">
+                    <button onclick="verifyRUC()">Verificar</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Verificaciones Hoy</div>
+                <div class="stat-value">1,284</div>
+                <div class="stat-change">+12% vs ayer</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Certificados Emitidos</div>
+                <div class="stat-value">856</div>
+                <div class="stat-change">+8% vs ayer</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Alertas de Riesgo</div>
+                <div class="stat-value" style="color: var(--danger);">23</div>
+                <div class="stat-change negative">+3 nuevas</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Empresas Verificadas</div>
+                <div class="stat-value">12,450</div>
+                <div class="stat-change">Base total</div>
+            </div>
+        </section>
+
+        <!-- Results -->
+        <section class="results-section" id="results">
+            <div class="result-card">
+                <div class="result-header">
+                    <h2 class="company-name" id="companyName">-</h2>
+                    <div class="company-ruc" id="companyRuc">RUC: -</div>
+                    
+                    <div class="score-display">
+                        <div class="score-ring" id="scoreRing">
+                            <div class="score-content">
+                                <div class="score-number" id="scoreNumber">-</div>
+                                <div class="score-text">Score</div>
+                            </div>
+                        </div>
+                        <div class="score-details">
+                            <h3 id="riskLevel">-</h3>
+                            <p id="riskDescription">-</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-section">
+                    <h3 class="section-title">Información General</h3>
+                    
+                    <div class="info-grid-2">
+                        <div class="info-item">
+                            <div class="info-item-label">Estado SUNAT</div>
+                            <div class="info-item-value" id="estadoSunat">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-item-label">Condición</div>
+                            <div class="info-item-value" id="condicionSunat">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-item-label">Dirección</div>
+                            <div class="info-item-value" id="direccion">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-item-label">Departamento</div>
+                            <div class="info-item-value" id="departamento">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-item-label">Sanciones OSCE/TCE</div>
+                            <div class="info-item-value" id="totalSanciones">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-item-label">Fuente de Datos</div>
+                            <div class="info-item-value" id="fuenteDatos">-</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sanctions-section" id="sanctionsSection">
+                    <h3 class="section-title">Sanciones e Inhabilitaciones</h3>
+                    <div id="sanctionsList"></div>
+                </div>
+                
+                <div class="actions">
+                    <button class="btn btn-primary" onclick="generateCertificate()">
+                        📄 Emitir Certificado PDF
+                    </button>
+                    <button class="btn btn-secondary" onclick="newSearch()">
+                        Nueva Verificación
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const API_BASE = 'https://xvyrpa0bhf.execute-api.us-east-1.amazonaws.com/prod';
+        let currentData = null;
+
+        async function verifyRUC() {
+            const ruc = document.getElementById('rucInput').value.trim();
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            if (!ruc || ruc.length !== 11 || !/^\d{11}$/.test(ruc)) {
+                alert('Por favor ingrese un RUC válido de 11 dígitos');
+                return;
+            }
+
+            loading.classList.add('active');
+            results.classList.remove('active');
+
+            try {
+                const response = await fetch(`${API_BASE}/consulta-osce/${ruc}`);
+                const data = await response.json();
+
+                loading.classList.remove('active');
+
+                if (data.success) {
+                    currentData = data;
+                    displayResults(data);
+                } else {
+                    alert(data.message || 'Error al consultar');
+                }
+            } catch (err) {
+                loading.classList.remove('active');
+                alert('Error de conexión: ' + err.message);
+            }
+        }
+
+        function displayResults(data) {
+            const d = data.data;
+            const score = data.score;
+
+            // Header info
+            document.getElementById('companyName').textContent = d.razon_social;
+            document.getElementById('companyRuc').textContent = `RUC: ${d.ruc}`;
+
+            // Score ring
+            const scoreRing = document.getElementById('scoreRing');
+            const scoreNumber = document.getElementById('scoreNumber');
+            const riskLevel = document.getElementById('riskLevel');
+            const riskDesc = document.getElementById('riskDescription');
+
+            scoreNumber.textContent = score;
+
+            let color, level, desc;
+            if (score >= 80) {
+                color = '#16a34a';
+                level = 'Riesgo Bajo';
+                desc = 'La empresa cumple con los requisitos para contratación pública';
+            } else if (score >= 60) {
+                color = '#f59e0b';
+                level = 'Riesgo Moderado';
+                desc = 'Se recomienda evaluación adicional';
+            } else if (score >= 40) {
+                color = '#f97316';
+                level = 'Riesgo Alto';
+                desc = 'La empresa presenta sanciones significativas';
+            } else {
+                color = '#dc2626';
+                level = 'Riesgo Crítico';
+                desc = 'No recomendado para contratación';
+            }
+
+            scoreRing.style.setProperty('--score-color', color);
+            scoreRing.style.setProperty('--score-deg', (score / 100 * 360) + 'deg');
+            scoreNumber.style.color = color;
+            riskLevel.textContent = level;
+            riskLevel.style.color = color;
+            riskDesc.textContent = desc;
+
+            // Info grid
+            document.getElementById('estadoSunat').textContent = d.estado_sunat;
+            document.getElementById('condicionSunat').textContent = d.condicion;
+            document.getElementById('direccion').textContent = d.direccion || 'No disponible';
+            document.getElementById('departamento').textContent = d.departamento;
+            document.getElementById('totalSanciones').textContent = `${d.total_registros} registros`;
+            
+            const fuentes = data.fuentes_datos;
+            const fuenteText = fuentes.sunat === 'decolecta_sunat' ? 'SUNAT (Real)' : 'No verificado';
+            document.getElementById('fuenteDatos').textContent = fuenteText;
+
+            // Sanctions
+            const sanctionsSection = document.getElementById('sanctionsSection');
+            const sanctionsList = document.getElementById('sanctionsList');
+            sanctionsList.innerHTML = '';
+
+            if (d.inhabilitaciones && d.inhabilitaciones.length > 0) {
+                sanctionsSection.style.display = 'block';
+                d.inhabilitaciones.forEach(inh => {
+                    const div = document.createElement('div');
+                    div.className = 'sanction-item';
+                    div.innerHTML = `
+                        <div class="sanction-title">${inh.entidad} - ${inh.tipo_inhabilitacion}</div>
+                        <div class="sanction-desc">Expediente: ${inh.expediente} | Estado: ${inh.estado} | ${inh.dias_inhabilitacion} días</div>
+                    `;
+                    sanctionsList.appendChild(div);
+                });
+            } else if (d.sanciones && d.sanciones.length > 0) {
+                sanctionsSection.style.display = 'block';
+                d.sanciones.forEach(sanc => {
+                    const div = document.createElement('div');
+                    div.className = 'sanction-item';
+                    div.innerHTML = `
+                        <div class="sanction-title">${sanc.entidad} - ${sanc.tipo_sancion}</div>
+                        <div class="sanction-desc">${sanc.motivo} | ${sanc.fecha_resolucion}</div>
+                    `;
+                    sanctionsList.appendChild(div);
+                });
+            } else {
+                sanctionsSection.style.display = 'none';
+            }
+
+            document.getElementById('results').classList.add('active');
+            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function generateCertificate() {
+            if (!currentData) return;
+            
+            const btn = event.target;
+            btn.textContent = '⏳ Generando...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE}/generar-certificado/${currentData.data.ruc}`);
+                const data = await response.json();
+
+                if (data.success && data.certificado.pdf_url) {
+                    window.open(data.certificado.pdf_url, '_blank');
+                } else {
+                    alert('Error al generar certificado');
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                btn.textContent = '📄 Emitir Certificado PDF';
+                btn.disabled = false;
+            }
+        }
+
+        function newSearch() {
+            document.getElementById('results').classList.remove('active');
+            document.getElementById('rucInput').value = '';
+            document.getElementById('rucInput').focus();
+        }
+
+        document.getElementById('rucInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') verifyRUC();
+        });
+    </script>
+</body>
+</html>
