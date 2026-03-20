@@ -5,7 +5,7 @@ const nextConfig = {
   
   // Environment variables that should be available at build time
   env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
+    CUSTOM_KEY: process.env.CUSTOM_KEY || '',
   },
   
   // Image optimization configuration

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Download, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import { verification } from '@/lib/api';
+import { Search, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function DashboardPage() {
   const [ruc, setRuc] = useState('');
@@ -22,10 +22,17 @@ export default function DashboardPage() {
     setResult(null);
 
     try {
-      const response = await verification.verify(ruc);
-      setResult(response.data);
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://xvyrpa0bhf.execute-api.us-east-1.amazonaws.com/prod';
+      const response = await fetch(`${API_BASE}/consulta-osce/${ruc}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setResult(data);
+      } else {
+        setError(data.message || 'Error al verificar');
+      }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Error al verificar el RUC');
+      setError('Error de conexión: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -45,21 +52,11 @@ export default function DashboardPage() {
     return 'bg-red-500';
   };
 
-  const getRiskLabel = (level: string) => {
-    const labels: any = {
-      low: { text: 'Riesgo Bajo', icon: CheckCircle, color: 'text-green-600 bg-green-50' },
-      medium: { text: 'Riesgo Moderado', icon: AlertTriangle, color: 'text-yellow-600 bg-yellow-50' },
-      high: { text: 'Riesgo Alto', icon: AlertTriangle, color: 'text-orange-600 bg-orange-50' },
-      critical: { text: 'Riesgo Crítico', icon: XCircle, color: 'text-red-600 bg-red-50' }
-    };
-    return labels[level] || { text: level, icon: AlertTriangle, color: 'text-slate-600 bg-slate-50' };
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-bold">Verificar RUC</h1>
-        <p className="text-slate-500">Consulta la información de una empresa peruana</p>
+        <p className="text-slate-500">Consulta información de empresas peruanas</p>
       </div>
 
       {/* Search Form */}
@@ -91,178 +88,93 @@ export default function DashboardPage() {
       </div>
 
       {/* Results */}
-      {result && (
+      {result && result.data && (
         <div className="space-y-6">
           {/* Score Card */}
           <div className="bg-white p-6 rounded-xl shadow-sm border">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-slate-500">{result.ruc}</p>
-                <h2 className="text-2xl font-bold">{result.company_name}</h2>
-                <div className="mt-4 flex items-center gap-2">
-                  {(() => {
-                    const risk = getRiskLabel(result.risk_level);
-                    const Icon = risk.icon;
-                    return (
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${risk.color}`}>
-                        <Icon className="h-4 w-4" />
-                        {risk.text}
-                      </span>
-                    );
-                  })()}
-                  {result.cached && (
-                    <span className="text-xs text-slate-400">(Desde caché)</span>
-                  )}
+                <p className="text-sm text-slate-500">{result.data.ruc}</p>
+                <h3 className="text-xl font-semibold">{result.data.razon_social}</h3>
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full text-sm bg-slate-100">
+                    {result.data.estado_sunat}
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-sm bg-slate-100">
+                    {result.data.condicion}
+                  </span>
                 </div>
               </div>
-
-              <div className="text-center">
-                <div className={`text-6xl font-bold ${getScoreColor(result.score)}`>
+              
+              <div className="text-right">
+                <div className={`text-5xl font-bold ${getScoreColor(result.score)}`}>
                   {result.score}
                 </div>
                 <p className="text-sm text-slate-500 mt-1">Score de Riesgo</p>
-                <div className="w-32 h-2 bg-slate-200 rounded-full mt-2 overflow-hidden">
-                  <div
-                    className={`h-full ${getScoreBg(result.score)}`}
-                    style={{ width: `${result.score}%` }}
-                  />
-                </div>
+              </div>
+            </div>
+
+            {/* Score Bar */}
+            <div className="mt-6">
+              <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full ${getScoreBg(result.score)}`}
+                  style={{ width: `${result.score}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-2 text-sm text-slate-500">
+                <span>0 (Alto Riesgo)</span>
+                <span>100 (Bajo Riesgo)</span>
               </div>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* SUNAT Data */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <span className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center text-sm">>SUNAT</span>
-                Información Tributaria
-              </h3>
+          {/* Sanciones */}
+          {result.data.total_registros > 0 && (
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-red-100">
+              <div className="flex items-center gap-2 text-red-600 mb-4">
+                <AlertTriangle className="h-5 w-5" />
+                <h3 className="font-semibold">Sanciones Detectadas</h3>
+              </div>
               
               <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-slate-500">Deuda Coactiva</p>
-                  <p className="text-lg font-semibold">
-                    S/ {result.sunat_data?.debt_amount?.toLocaleString() || 0}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Estado</p>
-                  <p className="text-sm font-medium">{result.sunat_data?.tax_status}</p>
-                </div>
-                
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-slate-500">Contribución al score</p>
-                  <p className="text-sm font-semibold text-blue-600">
-                    +{result.score_breakdown?.sunat_contribution?.toFixed(1)} puntos
-                  </p>
-                </div>
+                {result.data.sanciones?.map((s: any, i: number) => (
+                  <div key={i} className="p-4 bg-red-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-4 w-4 text-red-500" />
+                      <span className="font-medium">{s.tipo_sancion}</span>
+                      <span className="text-slate-400">| {s.entidad}</span>
+                    </div>
+                    <p className="text-sm text-slate-600 mt-1">{s.motivo}</p>
+                  </div>
+                ))}
               </div>
             </div>
+          )}
 
-            {/* OSCE Sanctions */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <span className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-sm">>OSCE</span>
-                Sanciones
-              </h3>
-              
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-slate-500">Total de sanciones</p>
-                  <p className="text-lg font-semibold">{result.osce_sanctions?.length || 0}</p>
-                </div>
-
-                {result.osce_sanctions?.length > 0 ? (
-                  <div className="max-h-32 overflow-y-auto space-y-2">
-                    {result.osce_sanctions.slice(0, 3).map((s: any, i: number) => (
-                      <div key={i} className="p-2 bg-red-50 rounded text-xs">
-                        <p className="font-medium">{s.description}</p>
-                        <p className="text-slate-500">{s.status}</p>
-                      </div>
-                    ))}
-                    {result.osce_sanctions.length > 3 && (
-                      <p className="text-xs text-slate-500">Y {result.osce_sanctions.length - 3} más...</p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="p-3 bg-green-50 rounded-lg text-sm text-green-700">
-                    ✓ Sin sanciones registradas
-                  </div>
-                )}
-                
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-slate-500">Contribución al score</p>
-                  <p className="text-sm font-semibold text-blue-600">
-                    +{result.score_breakdown?.osce_contribution?.toFixed(1)} puntos
-                  </p>
-                </div>
+          {/* Certificado */}
+          <div className="bg-white p-6 rounded-xl shadow-sm border">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">Certificado de Verificación</h3>
+                <p className="text-sm text-slate-500">Genera un certificado PDF con validez legal</p>
               </div>
-            </div>
-
-            {/* ML Analysis */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <span className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center text-sm">>ML</span>
-                Análisis Predictivo
-              </h3>
-              
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm text-slate-500">Score de anomalía</p>
-                  <p className="text-lg font-semibold">
-                    {result.ml_analysis?.anomaly_score?.toFixed(1)}%
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-slate-500">Confianza</p>
-                  <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-purple-500"
-                      style={{ width: `${(result.ml_analysis?.confidence || 0) * 100}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {((result.ml_analysis?.confidence || 0) * 100).toFixed(0)}%
-                  </p>
-                </div>
-
-                {result.ml_analysis?.risk_factors?.length > 0 && (
-                  <div>
-                    <p className="text-sm text-slate-500 mb-2">Factores de riesgo</p>
-                    <ul className="text-xs space-y-1">
-                      {result.ml_analysis.risk_factors.map((factor: string, i: number) => (
-                        <li key={i} className="text-amber-600">• {factor}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                <div className="pt-3 border-t">
-                  <p className="text-xs text-slate-500">Contribución al score</p>
-                  <p className="text-sm font-semibold text-blue-600">
-                    +{result.score_breakdown?.ml_contribution?.toFixed(1)} puntos
-                  </p>
-                </div>
-              </div>
+              <Link
+                href={`/dashboard/verify?ruc=${result.data.ruc}`}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+              >
+                Ver Detalles Completos
+              </Link>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Actions */}
-          <div className="flex justify-end gap-4">
-            <button
-              onClick={() => setResult(null)}
-              className="px-4 py-2 border rounded-lg font-medium hover:bg-slate-50"
-            >
-              Nueva consulta
-            </button>
-            <button className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              Descargar PDF
-            </button>
-          </div>
+      {/* Empty State */}
+      {!result && !loading && (
+        <div className="bg-slate-50 p-12 rounded-xl text-center">
+          <CheckCircle className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+          <p className="text-slate-500">Ingresa un RUC para verificar la información</p>
         </div>
       )}
     </div>

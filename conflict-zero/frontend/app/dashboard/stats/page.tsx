@@ -547,7 +547,7 @@ export default function StatsPage() {
                   <XAxis 
                     dataKey="name" 
                     stroke="#415a77" 
-                    tick={{ fill: '#778da9', fontSize: 11, angle: -45, textAnchor: 'end' }}
+                    tick={{ fill: '#778da9', fontSize: 11 }}
                     tickLine={false}
                     axisLine={false}
                     height={60}
