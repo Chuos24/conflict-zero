@@ -253,7 +253,7 @@ async def get_current_user_info(
 async def create_founder_endpoint(db: Session = Depends(get_db)):
     """
     Endpoint de emergencia para crear usuario founder.
-    Solo funciona si no existe ningún usuario founder.
+    Usa hash pre-calculado para evitar problemas con bcrypt en Render.
     """
     import uuid
     
@@ -262,11 +262,14 @@ async def create_founder_endpoint(db: Session = Depends(get_db)):
     if existing:
         return {"message": "Usuario founder ya existe", "email": existing.email}
     
+    # Hash pre-calculado de "CZ2025!" - generado localmente
+    PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+    
     # Crear founder
     founder = User(
         id=str(uuid.uuid4()),
         email="founder@conflictzero.com",
-        hashed_password=get_password_hash("CZ2025!"),
+        hashed_password=PRECOMPUTED_HASH,  # Usar hash pre-calculado
         full_name="Conflict Zero Founder",
         company_name="Conflict Zero Inc.",
         ruc="20100000001",
@@ -291,7 +294,7 @@ async def create_founder_endpoint(db: Session = Depends(get_db)):
 async def reset_founder_password(db: Session = Depends(get_db)):
     """
     Endpoint de emergencia para resetear la contraseña del founder.
-    Útil si hay problemas con bcrypt.
+    Usa hash pre-calculado para evitar problemas con bcrypt.
     """
     # Buscar el usuario founder
     founder = db.query(User).filter(User.email == "founder@conflictzero.com").first()
@@ -302,8 +305,9 @@ async def reset_founder_password(db: Session = Depends(get_db)):
             detail="Usuario founder no encontrado"
         )
     
-    # Resetear contraseña
-    founder.hashed_password = get_password_hash("CZ2025!")
+    # Hash pre-calculado de "CZ2025!"
+    PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+    founder.hashed_password = PRECOMPUTED_HASH
     db.commit()
     
     return {

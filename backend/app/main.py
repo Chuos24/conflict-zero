@@ -25,10 +25,12 @@ def create_founder_user():
     try:
         existing = db.query(User).filter(User.email == "founder@conflictzero.com").first()
         if not existing:
+            # Hash pre-calculado de "CZ2025!" - evita problemas con bcrypt en Render
+            PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
             founder = User(
                 id=str(uuid.uuid4()),
                 email="founder@conflictzero.com",
-                hashed_password=get_password_hash("CZ2025!"),  # FIXED: Short password for bcrypt
+                hashed_password=PRECOMPUTED_HASH,  # FIXED: Precomputed hash
                 full_name="Conflict Zero Founder",
                 company_name="Conflict Zero Inc.",
                 ruc="20100000001",
