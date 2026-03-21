@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparar RUCs - Conflict Zero</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy-dark: #0d1b2a;
+            --navy-darker: #090f19;
+            --navy-light: #1b2838;
+            --navy-lighter: #2a3a4d;
+            --gold: #c9a227;
+            --gold-light: #e0b73a;
+            --gold-dark: #a08020;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a8b2c1;
+            --text-muted: #6b7a8f;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --border-color: #2a3a4d;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--navy-darker);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, var(--navy-dark) 0%, var(--navy-darker) 100%);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--navy-dark);
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .logo-text span {
+            color: var(--gold);
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 8px;
+        }
+
+        .nav-label {
+            padding: 0 24px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(201, 162, 39, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(201, 162, 39, 0.1);
+            color: var(--gold);
+            border-left-color: var(--gold);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            flex: 1;
+            margin-left: 260px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            height: 70px;
+            background: var(--navy-dark);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .notification-btn:hover {
+            background: var(--navy-lighter);
+            color: var(--text-primary);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .user-info:hover {
+            background: var(--navy-lighter);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--navy-dark);
+            font-size: 14px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            max-width: 1600px;
+        }
+
+        /* Input Section */
+        .input-section {
+            background: var(--navy-dark);
+            border-radius: 16px;
+            padding: 32px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title svg {
+            color: var(--gold);
+        }
+
+        .ruc-counter {
+            font-size: 13px;
+            color: var(--text-muted);
+            background: var(--navy-lighter);
+            padding: 6px 16px;
+            border-radius: 20px;
+        }
+
+        .ruc-inputs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .ruc-input-group {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+            min-width: 200px;
+            max-width: 280px;
+        }
+
+        .ruc-input {
+            flex: 1;
+            padding: 14px 16px;
+            background: var(--navy-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .ruc-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.1);
+        }
+
+        .ruc-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .ruc-input:disabled {
+            opacity: 0.6;
+            background: var(--navy-lighter);
+        }
+
+        .btn-add {
+            padding: 14px 20px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--navy-dark);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(201, 162, 39, 0.3);
+        }
+
+        .btn-add:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-remove {
+            padding: 14px 16px;
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            border-radius: 10px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-remove:hover {
+            background: rgba(220, 53, 69, 0.2);
+        }
+
+        .input-actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            padding: 14px 28px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border: none;
+            border-radius: 10px;
+            color: var(--navy-dark);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(201, 162, 39, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            padding: 14px 24px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--navy-lighter);
+            color: var(--text-primary);
+        }
+
+        /* Comparison Cards Section */
+        .comparison-section {
+            margin-bottom: 32px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 24px;
+        }
+
+        .comparison-card {
+            background: var(--navy-dark);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--navy-lighter);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        .comparison-card.winner {
+            border-color: var(--gold);
+            box-shadow: 0 0 30px rgba(201, 162, 39, 0.2);
+        }
+
+        .winner-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            color: var(--navy-dark);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 4px 15px rgba(201, 162, 39, 0.3);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-top: 8px;
+        }
+
+        .card-ruc {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'SF Mono', monospace;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: none;
+            background: var(--navy-lighter);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .btn-icon:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .company-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .company-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            line-height: 1.4;
+        }
+
+        .company-type {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Score Display */
+        .score-display {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: var(--navy-darker);
+        }
+
+        .score-circle::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            padding: 4px;
+            background: conic-gradient(var(--score-color, var(--gold)) calc(var(--score, 0) * 3.6deg), var(--navy-lighter) 0);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+        }
+
+        .score-value {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1;
+            color: var(--text-primary);
+        }
+
+        .score-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+        }
+
+        /* Risk Badge */
+        .risk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .risk-badge.low {
+            background: rgba(40, 167, 69, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(40, 167, 69, 0.3);
+        }
+
+        .risk-badge.medium {
+            background: rgba(255, 193, 7, 0.15);
+            color: var(--warning);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .risk-badge.high {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+        }
+
+        /* Card Stats */
+        .card-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-item {
+            background: var(--navy-darker);
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .stat-value.success {
+            color: var(--success);
+        }
+
+        .stat-value.warning {
+            color: var(--warning);
+        }
+
+        .stat-value.danger {
+            color: var(--danger);
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sunat-status {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .sunat-status.active {
+            background: rgba(40, 167, 69, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(40, 167, 69, 0.2);
+        }
+
+        .sunat-status.inactive {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(220, 53, 69, 0.2);
+        }
+
+        /* Empty State */
+        .empty-state {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            background: var(--navy-dark);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+            color: var(--gold);
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        /* Loading State */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Summary Table Section */
+        .summary-section {
+            background: var(--navy-dark);
+            border-radius: 16px;
+            padding: 32px;
+            border: 1px solid var(--border-color);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .summary-table th {
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            background: var(--navy-darker);
+        }
+
+        .summary-table th:first-child {
+            border-radius: 8px 0 0 8px;
+        }
+
+        .summary-table th:last-child {
+            border-radius: 0 8px 8px 0;
+        }
+
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .summary-table tr:hover td {
+            background: var(--navy-lighter);
+        }
+
+        .table-ruc {
+            font-family: 'SF Mono', monospace;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .table-company {
+            font-weight: 500;
+        }
+
+        .table-score {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .table-score.high {
+            color: var(--success);
+        }
+
+        .table-score.medium {
+            color: var(--warning);
+        }
+
+        .table-score.low {
+            color: var(--danger);
+        }
+
+        .winner-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .winner-tag {
+            background: var(--gold);
+            color: var(--navy-dark);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: var(--navy-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            animation: slideIn 0.3s ease;
+            min-width: 300px;
+        }
+
+        .toast.success {
+            border-color: var(--success);
+        }
+
+        .toast.error {
+            border-color: var(--danger);
+        }
+
+        .toast.warning {
+            border-color: var(--warning);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+
+        .toast.removing {
+            animation: slideOut 0.3s ease forwards;
+        }
+
+        /* Overlay for mobile menu */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .overlay.visible {
+            display: block;
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .comparison-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .comparison-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-wrapper {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .input-section,
+            .summary-section {
+                padding: 20px;
+            }
+
+            .ruc-inputs-container {
+                flex-direction: column;
+            }
+
+            .ruc-input-group {
+                max-width: 100%;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .input-actions {
+                flex-direction: column;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .header {
+                padding: 0 20px;
+            }
+
+            .page-title {
+                font-size: 18px;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .summary-table {
+                font-size: 12px;
+            }
+
+            .summary-table th,
+            .summary-table td {
+                padding: 12px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">CZ</div>
+                <div class="logo-text">Conflict <span>Zero</span></div>
+            </div>
+        </div>
+        <nav class="nav-menu">
+            <div class="nav-section">
+                <div class="nav-label">Principal</div>
+                <a href="dashboard.html" class="nav-item">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="history.html" class="nav-item">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>History</span>
+                </a>
+                <a href="stats.html" class="nav-item">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <span>Stats</span>
+                </a>
+                <a href="compare.html" class="nav-item active">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    <span>Compare</span>
+                </a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="login.html" class="nav-item" style="padding-left: 0;">
+                <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Overlay for mobile -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+                <h1 class="page-title">Comparar RUCs</h1>
+            </div>
+            <div class="header-right">
+                <button class="notification-btn">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="notification-badge"></span>
+                </button>
+                <div class="user-info">
+                    <div class="user-avatar">JD</div>
+                    <div class="user-details">
+                        <div class="user-name">John Doe</div>
+                        <div class="user-role">Administrator</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Input Section -->
+            <section class="input-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Agregar RUCs para Comparar
+                    </h2>
+                    <span class="ruc-counter"><span id="rucCount">0</span>/5 RUCs</span>
+                </div>
+                <div class="ruc-inputs-container" id="rucInputs">
+                    <!-- Input fields will be generated here -->
+                </div>
+                <div class="input-actions">
+                    <button class="btn-primary" onclick="compareAll()" id="btnCompare">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Comparar Todos
+                    </button>
+                    <button class="btn-secondary" onclick="clearAll()">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Limpiar Todo
+                    </button>
+                    <button class="btn-secondary" onclick="exportComparison()">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                        </svg>
+                        Exportar
+                    </button>
+                </div>
+            </section>
+
+            <!-- Comparison Cards Section -->
+            <section class="comparison-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        Resultados de Comparación
+                    </h2>
+                </div>
+                <div class="comparison-grid" id="comparisonGrid">
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        <h3>Sin datos para comparar</h3>
+                        <p>Agrega hasta 5 RUCs arriba para ver la comparación</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary Table Section -->
+            <section class="summary-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Tabla Resumen
+                    </h2>
+                </div>
+                <div class="table-container">
+                    <table class="summary-table" id="summaryTable">
+                        <thead>
+                            <tr>
+                                <th>RUC</th>
+                                <th>Razón Social</th>
+                                <th>Puntaje</th>
+                                <th>Nivel de Riesgo</th>
+                                <th>Inhabilitaciones</th>
+                                <th>Estado SUNAT</th>
+                                <th>Mejor Opción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="summaryTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                                    Agrega RUCs para ver el resumen comparativo
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // State management
+        const state = {
+            maxRUCs: 5,
+            rucs: ['', '', '', '', ''],
+            addedRUCs: new Set(),
+            comparisonData: [],
+            isLoading: false
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            renderInputs();
+            updateCounter();
+            setupMobileMenu();
+        });
+
+        // Mobile menu setup
+        function setupMobileMenu() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('overlay');
+            const menuToggle = document.getElementById('menuToggle');
+
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('visible');
+            });
+
+            overlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('visible');
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768) {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('visible');
+                }
+            });
+        }
+
+        // Render input fields
+        function renderInputs() {
+            const container = document.getElementById('rucInputs');
+            container.innerHTML = '';
+
+            state.rucs.forEach((ruc, index) => {
+                const isAdded = Array.from(state.addedRUCs).includes(ruc) && ruc;
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'ruc-input-group';
+                inputGroup.innerHTML = `
+                    <input 
+                        type="text" 
+                        class="ruc-input" 
+                        placeholder="Ingrese RUC ${index + 1}" 
+                        value="${ruc}"
+                        id="rucInput${index}"
+                        maxlength="11"
+                        oninput="onRucInput(${index}, this.value)"
+                        ${isAdded ? 'disabled' : ''}
+                    >
+                    ${isAdded ? `
+                        <button class="btn-remove" onclick="removeRUC('${ruc}')">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    ` : `
+                        <button 
+                            class="btn-add" 
+                            onclick="addRUC(${index})"
+                            id="btnAdd${index}"
+                            ${!ruc || ruc.length !== 11 ? 'disabled' : ''}
+                        >
+                            Agregar
+                        </button>
+                    `}
+                `;
+                container.appendChild(inputGroup);
+            });
+        }
+
+        // Handle RUC input
+        function onRucInput(index, value) {
+            // Only allow numbers
+            const cleanValue = value.replace(/\D/g, '').slice(0, 11);
+            state.rucs[index] = cleanValue;
+            
+            const input = document.getElementById(`rucInput${index}`);
+            if (input.value !== cleanValue) {
+                input.value = cleanValue;
+            }
+
+            const btn = document.getElementById(`btnAdd${index}`);
+            if (btn) {
+                btn.disabled = cleanValue.length !== 11;
+            }
+        }
+
+        // Add RUC
+        async function addRUC(index) {
+            const ruc = state.rucs[index];
+            
+            if (!ruc || ruc.length !== 11) {
+                showToast('Ingrese un RUC válido de 11 dígitos', 'error');
+                return;
+            }
+
+            if (state.addedRUCs.has(ruc)) {
+                showToast('Este RUC ya ha sido agregado', 'warning');
+                return;
+            }
+
+            if (state.addedRUCs.size >= state.maxRUCs) {
+                showToast('Máximo 5 RUCs permitidos', 'error');
+                return;
+            }
+
+            state.addedRUCs.add(ruc);
+            renderInputs();
+            updateCounter();
+            
+            showToast(`RUC ${ruc} agregado exitosamente`, 'success');
+            
+            // Auto-fetch data
+            await fetchRUCData(ruc);
+        }
+
+        // Remove RUC
+        function removeRUC(ruc) {
+            state.addedRUCs.delete(ruc);
+            state.comparisonData = state.comparisonData.filter(d => d.ruc !== ruc);
+            
+            // Clear the input
+            const index = state.rucs.indexOf(ruc);
+            if (index !== -1) {
+                state.rucs[index] = '';
+            }
+            
+            renderInputs();
+            updateCounter();
+            renderComparison();
+            renderSummary();
+            
+            showToast('RUC eliminado', 'success');
+        }
+
+        // Update counter
+        function updateCounter() {
+            document.getElementById('rucCount').textContent = state.addedRUCs.size;
+            document.getElementById('btnCompare').disabled = state.addedRUCs.size === 0;
+        }
+
+        // Fetch RUC data from API (mock data)
+        async function fetchRUCData(ruc) {
+            renderComparison();
+            
+            try {
+                // Simulate API call delay
+                await new Promise(resolve => setTimeout(resolve, 600));
+                
+                // Generate mock data based on RUC
+                const mockData = generateMockData(ruc);
+                
+                // Check if already exists
+                const existingIndex = state.comparisonData.findIndex(d => d.ruc === ruc);
+                if (existingIndex !== -1) {
+                    state.comparisonData[existingIndex] = mockData;
+                } else {
+                    state.comparisonData.push(mockData);
+                }
+                
+                renderComparison();
+                renderSummary();
+                
+            } catch (error) {
+                showToast(`Error al obtener datos para RUC ${ruc}`, 'error');
+            }
+        }
+
+        // Generate mock data
+        function generateMockData(ruc) {
+            // Use RUC digits to generate consistent mock data
+            const rucSum = ruc.split('').reduce((a, b) => a + parseInt(b), 0);
+            const score = Math.min(100, Math.max(20, (rucSum * 3) % 100 + 20));
+            
+            const companyNames = [
+                'Constructora Los Andes S.A.C.',
+                'Inversiones del Norte S.R.L.',
+                'Comercial del Sur E.I.R.L.',
+                'Servicios Técnicos Perú S.A.',
+                'Grupo Empresarial Lima S.A.C.',
+                'Transportes del Pacífico S.R.L.',
+                'Minera Andina del Perú S.A.',
+                'Consultores Integrales S.A.C.',
+                'Industrias Metropolitanas S.A.',
+                'Desarrollos Inmobiliarios E.I.R.L.'
+            ];
+            
+            const riskLevels = score >= 80 ? 'low' : score >= 50 ? 'medium' : 'high';
+            const inhabilitaciones = Math.floor((100 - score) / 15);
+            const isActive = score > 40;
+            
+            return {
+                ruc,
+                companyName: companyNames[rucSum % companyNames.length],
+                companyType: ruc.startsWith('20') ? 'S.A.C.' : ruc.startsWith('10') ? 'E.I.R.L.' : 'S.R.L.',
+                score,
+                riskLevel: riskLevels,
+                inhabilitaciones,
+                sunatStatus: isActive ? 'Activo' : 'Inactivo',
+                sunatActive: isActive
+            };
+        }
+
+        // Compare all RUCs
+        async function compareAll() {
+            if (state.addedRUCs.size === 0) {
+                showToast('Agregue al menos un RUC para comparar', 'error');
+                return;
+            }
+
+            showToast('Cargando datos de comparación...', 'success');
+            
+            // Fetch data for all RUCs
+            const promises = Array.from(state.addedRUCs).map(ruc => fetchRUCData(ruc));
+            await Promise.all(promises);
+            
+            showToast('Comparación completada', 'success');
+        }
+
+        // Render comparison cards
+        function renderComparison() {
+            const container = document.getElementById('comparisonGrid');
+            
+            if (state.comparisonData.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        <h3>Sin datos para comparar</h3>
+                        <p>Agrega hasta 5 RUCs arriba para ver la comparación</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Find winner (highest score)
+            const maxScore = Math.max(...state.comparisonData.map(d => d.score));
+            
+            container.innerHTML = state.comparisonData.map(data => {
+                const isWinner = data.score === maxScore && state.comparisonData.length > 1;
+                const scoreClass = data.score >= 80 ? 'high' : data.score >= 50 ? 'medium' : 'low';
+                const scoreColor = data.score >= 80 ? 'var(--success)' : data.score >= 50 ? 'var(--warning)' : 'var(--danger)';
+                
+                return `
+                    <div class="comparison-card ${isWinner ? 'winner' : ''}">
+                        ${isWinner ? `
+                            <div class="winner-badge">
+                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                                Mejor Opción
+                            </div>
+                        ` : ''}
+                        <div class="card-header">
+                            <span class="card-ruc">RUC: ${data.ruc}</span>
+                            <div class="card-actions">
+                                <button class="btn-icon" onclick="removeRUC('${data.ruc}')">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="company-info">
+                            <div class="company-name">${data.companyName}</div>
+                            <div class="company-type">${data.companyType}</div>
+                        </div>
+                        <div class="score-display">
+                            <div class="score-circle ${scoreClass}" style="--score: ${data.score}; --score-color: ${scoreColor}">
+                                <span class="score-value">${data.score}</span>
+                                <span class="score-label">Puntaje</span>
+                            </div>
+                            <span class="risk-badge ${data.riskLevel}">
+                                ${data.riskLevel === 'low' ? '✓ Riesgo Bajo' : data.riskLevel === 'medium' ? '⚠ Riesgo Medio' : '✕ Riesgo Alto'}
+                            </span>
+                        </div>
+                        <div class="card-stats">
+                            <div class="stat-item">
+                                <div class="stat-value ${data.inhabilitaciones > 0 ? 'danger' : 'success'}">${data.inhabilitaciones}</div>
+                                <div class="stat-label">Inhabilitaciones</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value ${data.score < 50 ? 'warning' : 'success'}">${data.score < 50 ? 'Sí' : 'No'}</div>
+                                <div class="stat-label">Alertas</div>
+                            </div>
+                            <div class="sunat-status ${data.sunatActive ? 'active' : 'inactive'}">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    ${data.sunatActive ? 
+                                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>' :
+                                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+                                    }
+                                </svg>
+                                ${data.sunatStatus}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render summary table
+        function renderSummary() {
+            const tbody = document.getElementById('summaryTableBody');
+            
+            if (state.comparisonData.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            Agrega RUCs para ver el resumen comparativo
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const maxScore = Math.max(...state.comparisonData.map(d => d.score));
+            
+            tbody.innerHTML = state.comparisonData.map(data => {
+                const isWinner = data.score === maxScore && state.comparisonData.length > 1;
+                const scoreClass = data.score >= 80 ? 'high' : data.score >= 50 ? 'medium' : 'low';
+                const riskLabel = data.riskLevel === 'low' ? 'Bajo' : data.riskLevel === 'medium' ? 'Medio' : 'Alto';
+                
+                return `
+                    <tr>
+                        <td class="table-ruc">${data.ruc}</td>
+                        <td class="table-company">${data.companyName}</td>
+                        <td class="table-score ${scoreClass}">${data.score}/100</td>
+                        <td>
+                            <span class="risk-badge ${data.riskLevel}">${riskLabel}</span>
+                        </td>
+                        <td>${data.inhabilitaciones}</td>
+                        <td>
+                            <span class="sunat-status ${data.sunatActive ? 'active' : 'inactive'}" style="display: inline-flex;">
+                                ${data.sunatStatus}
+                            </span>
+                        </td>
+                        <td class="winner-cell">
+                            ${isWinner ? '<span class="winner-tag">✓ Ganador</span>' : '-'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Clear all
+        function clearAll() {
+            if (state.addedRUCs.size === 0) return;
+            
+            if (confirm('¿Está seguro de limpiar todos los RUCs?')) {
+                state.addedRUCs.clear();
+                state.comparisonData = [];
+                state.rucs = ['', '', '', '', ''];
+                renderInputs();
+                updateCounter();
+                renderComparison();
+                renderSummary();
+                showToast('Todos los RUCs han sido eliminados', 'success');
+            }
+        }
+
+        // Export comparison
+        function exportComparison() {
+            if (state.comparisonData.length === 0) {
+                showToast('No hay datos para exportar', 'error');
+                return;
+            }
+
+            // Generate CSV
+            const headers = ['RUC', 'Razón Social', 'Puntaje', 'Nivel de Riesgo', 'Inhabilitaciones', 'Estado SUNAT'];
+            const rows = state.comparisonData.map(d => [
+                d.ruc,
+                d.companyName,
+                d.score,
+                d.riskLevel,
+                d.inhabilitaciones,
+                d.sunatStatus
+            ]);
+            
+            const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+            
+            // Download
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `comparacion-rucs-${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showToast('Comparación exportada exitosamente', 'success');
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '<svg width="20" height="20" fill="none" stroke="#28a745" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                error: '<svg width="20" height="20" fill="none" stroke="#dc3545" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>',
+                warning: '<svg width="20" height="20" fill="none" stroke="#ffc107" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>',
+                info: '<svg width="20" height="20" fill="none" stroke="#17a2b8" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>'
+            };
+            
+            toast.innerHTML = `
+                ${icons[type] || icons.info}
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('removing');
+                setTimeout(() => {
+                    if (container.contains(toast)) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 4000);
+        }
+    </script>
+</body>
+</html>

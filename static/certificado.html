@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conflict Zero | Certificado de Verificación</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --gold: #c9a227;
+            --gold-light: #e8d5a3;
+            --dark: #0d1b2a;
+            --dark-secondary: #1b263b;
+            --text: #415a77;
+            --white: #ffffff;
+            --success: #16a34a;
+            --danger: #dc2626;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--dark-secondary) 100%);
+            min-height: 100vh;
+            color: var(--white);
+            padding: 40px;
+        }
+        
+        .certificate-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.03);
+            border: 2px solid rgba(201, 162, 39, 0.3);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+        }
+        
+        .certificate-header {
+            background: linear-gradient(135deg, rgba(201, 162, 39, 0.2) 0%, rgba(201, 162, 39, 0.05) 100%);
+            padding: 50px;
+            text-align: center;
+            border-bottom: 2px solid rgba(201, 162, 39, 0.3);
+        }
+        
+        .logo {
+            font-family: 'Playfair Display', serif;
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            margin-bottom: 20px;
+        }
+        
+        .logo span { color: var(--gold); font-weight: 400; }
+        
+        .certificate-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .certificate-subtitle {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .certificate-id {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: rgba(201, 162, 39, 0.15);
+            border: 1px solid rgba(201, 162, 39, 0.4);
+            border-radius: 50px;
+            display: inline-block;
+            font-size: 14px;
+            letter-spacing: 2px;
+            color: var(--gold);
+        }
+        
+        .certificate-body {
+            padding: 50px;
+        }
+        
+        .verification-result {
+            display: flex;
+            align-items: center;
+            gap: 40px;
+            margin-bottom: 50px;
+            padding: 40px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            border: 1px solid rgba(201, 162, 39, 0.15);
+        }
+        
+        .score-circle {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: conic-gradient(var(--score-color, var(--success)) var(--score-deg, 270deg), rgba(255,255,255,0.1) 0);
+            flex-shrink: 0;
+        }
+        
+        .score-circle::before {
+            content: '';
+            position: absolute;
+            inset: 10px;
+            border-radius: 50%;
+            background: var(--dark-secondary);
+        }
+        
+        .score-content {
+            position: relative;
+            z-index: 1;
+            text-align: center;
+        }
+        
+        .score-number {
+            font-size: 56px;
+            font-weight: 700;
+            color: var(--score-color, var(--success));
+            line-height: 1;
+        }
+        
+        .score-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.6);
+            margin-top: 5px;
+        }
+        
+        .result-details h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .result-status {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(22, 163, 74, 0.15);
+            border: 1px solid var(--success);
+            border-radius: 50px;
+            color: var(--success);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+        }
+        
+        .result-status.critical {
+            background: rgba(220, 38, 38, 0.15);
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+        
+        .result-details p {
+            color: rgba(255,255,255,0.6);
+            line-height: 1.6;
+        }
+        
+        .company-info {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 18px;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--gold);
+            display: inline-block;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .info-item {
+            padding: 20px;
+            background: rgba(255,255,255,0.02);
+            border-left: 3px solid var(--gold);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .info-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 6px;
+        }
+        
+        .info-value {
+            font-size: 16px;
+            font-weight: 500;
+        }
+        
+        .verification-details {
+            margin-bottom: 40px;
+        }
+        
+        .detail-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 10px;
+            border: 1px solid rgba(201, 162, 39, 0.1);
+        }
+        
+        .detail-name {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .detail-icon {
+            width: 36px;
+            height: 36px;
+            background: rgba(201, 162, 39, 0.1);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .detail-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            background: rgba(22, 163, 74, 0.15);
+            border-radius: 20px;
+            color: var(--success);
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .detail-status.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+        
+        .certificate-footer {
+            padding: 40px 50px;
+            background: rgba(255,255,255,0.02);
+            border-top: 1px solid rgba(201, 162, 39, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .qr-placeholder {
+            width: 100px;
+            height: 100px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+        }
+        
+        .validity-info {
+            text-align: right;
+        }
+        
+        .validity-info p {
+            color: rgba(255,255,255,0.5);
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        
+        .validity-info .date {
+            color: var(--gold);
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+        
+        .btn {
+            padding: 16px 32px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+            color: var(--dark);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(201, 162, 39, 0.3);
+        }
+        
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid rgba(201, 162, 39, 0.4);
+            color: var(--gold);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(201, 162, 39, 0.1);
+        }
+        
+        @media print {
+            body { background: white; }
+            .certificate-container { 
+                box-shadow: none; 
+                border: 2px solid var(--gold);
+            }
+            .actions { display: none; }
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 20px; }
+            .certificate-header, .certificate-body { padding: 30px; }
+            .verification-result { flex-direction: column; text-align: center; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate-container">
+        <div class="certificate-header">
+            <div class="logo">CONFLICT<span>ZERO</span></div>
+            <h1 class="certificate-title">Certificado de Verificación</h1>
+            <p class="certificate-subtitle">Validación de Riesgo para Contratación Pública</p>
+            <div class="certificate-id" id="certId">CZ-20611944668-20250320044530</div>
+        </div>
+        
+        <div class="certificate-body">
+            <div class="verification-result">
+                <div class="score-circle" id="scoreCircle">
+                    <div class="score-content">
+                        <div class="score-number" id="scoreNumber">85</div>
+                        <div class="score-label">Score</div>
+                    </div>
+                </div>
+                <div class="result-details">
+                    <h2 id="companyName">ZAMORA JARA INGENIEROS SAC</h2>
+                    <span class="result-status" id="riskStatus">APTO PARA CONTRATACIÓN</span>
+                    <p id="riskDescription">La empresa cumple con los requisitos legales para participar en procesos de contratación pública. No presenta sanciones activas ni inhabilitaciones registradas en OSCE o TCE.</p>
+                </div>
+            </div>
+            
+            <div class="company-info">
+                <h3 class="section-title">Información de la Empresa</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">RUC</div>
+                        <div class="info-value" id="rucValue">20611944668</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Razón Social</div>
+                        <div class="info-value" id="razonValue">ZAMORA JARA INGENIEROS SAC</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Estado SUNAT</div>
+                        <div class="info-value" id="estadoValue">ACTIVO</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Condición</div>
+                        <div class="info-value" id="condicionValue">HABIDO</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="verification-details">
+                <h3 class="section-title">Verificación de Fuentes</h3>
+                <div class="detail-list">
+                    <div class="detail-item">
+                        <div class="detail-name">
+                            <div class="detail-icon">🏛️</div>
+                            <span>SUNAT - Registro Único de Contribuyentes</span>
+                        </div>
+                        <span class="detail-status">✓ Verificado</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-name">
+                            <div class="detail-icon">⚖️</div>
+                            <span>OSCE - Organismo Supervisor de Contratación del Estado</span>
+                        </div>
+                        <span class="detail-status">✓ Sin sanciones</span>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-name">
+                            <div class="detail-icon">🏢</div>
+                            <span>TCE - Tribunal de Contrataciones del Estado</span>
+                        </div>
+                        <span class="detail-status">✓ Sin sanciones</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="certificate-footer">
+            <div class="qr-placeholder">📱</div>
+            <div class="validity-info">
+                <p>Fecha de emisión: <span class="date" id="fechaEmision">20/03/2025 04:45:30</span></p>
+                <p>Válido hasta: <span class="date" id="fechaValidez">20/06/2025</span></p>
+                <p style="margin-top: 10px; font-size: 11px; color: rgba(255,255,255,0.3);">
+                    Verificar autenticidad en: czperu.com/verificar
+                </p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="actions">
+        <button class="btn btn-primary" onclick="window.print()">
+            🖨️ Imprimir / Guardar PDF
+        </button>
+        <button class="btn btn-secondary" onclick="shareCertificate()">
+            📤 Compartir
+        </button>
+        <button class="btn btn-secondary" onclick="window.location.href='dashboard.html'">
+            ← Volver al Dashboard
+        </button>
+    </div>
+    
+    <script>
+        // Get URL parameters
+        const params = new URLSearchParams(window.location.search);
+        const ruc = params.get('ruc');
+        const score = params.get('score');
+        
+        // If params exist, update the certificate
+        if (ruc && score) {
+            document.getElementById('rucValue').textContent = ruc;
+            document.getElementById('scoreNumber').textContent = score;
+            
+            // Update score circle color
+            const scoreNum = parseInt(score);
+            const circle = document.getElementById('scoreCircle');
+            const scoreEl = document.getElementById('scoreNumber');
+            const status = document.getElementById('riskStatus');
+            const desc = document.getElementById('riskDescription');
+            
+            let color, statusText, descText;
+            if (scoreNum >= 80) {
+                color = '#16a34a';
+                statusText = 'APTO PARA CONTRATACIÓN';
+                descText = 'La empresa cumple con los requisitos legales para participar en procesos de contratación pública.';
+            } else if (scoreNum >= 60) {
+                color = '#f59e0b';
+                statusText = 'RIESGO MODERADO';
+                descText = 'Se recomienda evaluación adicional antes de la contratación.';
+            } else {
+                color = '#dc2626';
+                statusText = 'NO RECOMENDADO';
+                descText = 'La empresa presenta sanciones o inhabilitaciones significativas.';
+                status.classList.add('critical');
+            }
+            
+            circle.style.setProperty('--score-color', color);
+            circle.style.setProperty('--score-deg', (scoreNum / 100 * 360) + 'deg');
+            scoreEl.style.color = color;
+            status.textContent = statusText;
+            desc.textContent = descText;
+        }
+        
+        function shareCertificate() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Certificado Conflict Zero',
+                    text: 'Certificado de verificación para RUC ' + document.getElementById('rucValue').textContent,
+                    url: window.location.href
+                });
+            } else {
+                // Copy to clipboard
+                navigator.clipboard.writeText(window.location.href);
+                alert('Enlace copiado al portapapeles');
+            }
+        }
+        
+        // Update dates
+        const now = new Date();
+        document.getElementById('fechaEmision').textContent = now.toLocaleString('es-PE');
+        const validUntil = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000));
+        document.getElementById('fechaValidez').textContent = validUntil.toLocaleDateString('es-PE');
+    </script>
+</body>
+</html>

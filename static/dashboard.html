@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conflict Zero - Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy-dark: #0d1b2a;
+            --navy-darker: #090f19;
+            --navy-light: #1b2838;
+            --navy-lighter: #2a3a4d;
+            --gold: #c9a227;
+            --gold-light: #e0b73a;
+            --gold-dark: #a08020;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a8b2c1;
+            --text-muted: #6b7a8f;
+            --success: #28a745;
+            --warning: #ffc107;
+            --danger: #dc3545;
+            --info: #17a2b8;
+            --border-color: #2a3a4d;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--navy-darker);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: linear-gradient(180deg, var(--navy-dark) 0%, var(--navy-darker) 100%);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 100;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--navy-dark);
+            font-size: 18px;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .logo-text span {
+            color: var(--gold);
+        }
+
+        .nav-menu {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 8px;
+        }
+
+        .nav-label {
+            padding: 0 24px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 24px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(201, 162, 39, 0.05);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: rgba(201, 162, 39, 0.1);
+            color: var(--gold);
+            border-left-color: var(--gold);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-item span {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .sidebar-footer {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            flex: 1;
+            margin-left: 260px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            height: 70px;
+            background: var(--navy-dark);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 32px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .notification-btn:hover {
+            background: var(--navy-lighter);
+            color: var(--text-primary);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            padding: 6px 12px;
+            border-radius: 10px;
+            transition: all 0.2s ease;
+        }
+
+        .user-info:hover {
+            background: var(--navy-lighter);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--navy-dark);
+            font-size: 14px;
+        }
+
+        .user-details {
+            text-align: right;
+        }
+
+        .user-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            max-width: 1400px;
+        }
+
+        /* Verification Section */
+        .verify-section {
+            background: var(--navy-dark);
+            border-radius: 16px;
+            padding: 40px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 32px;
+        }
+
+        .verify-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .verify-header h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .verify-header p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .verify-form {
+            display: flex;
+            gap: 16px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .input-wrapper svg {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        .ruc-input {
+            width: 100%;
+            padding: 16px 16px 16px 48px;
+            background: var(--navy-darker);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.2s ease;
+        }
+
+        .ruc-input:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.1);
+        }
+
+        .ruc-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .verify-btn {
+            padding: 16px 32px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border: none;
+            border-radius: 12px;
+            color: var(--navy-dark);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .verify-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(201, 162, 39, 0.3);
+        }
+
+        .verify-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .verify-btn .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--navy-dark);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results Section */
+        .results-section {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .results-section.visible {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Error Message */
+        .error-message {
+            background: rgba(220, 53, 69, 0.1);
+            border: 1px solid var(--danger);
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .error-message.visible {
+            display: flex;
+        }
+
+        .error-message svg {
+            color: var(--danger);
+            flex-shrink: 0;
+        }
+
+        .error-content h4 {
+            color: var(--danger);
+            margin-bottom: 4px;
+        }
+
+        .error-content p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Results Grid */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .result-card {
+            background: var(--navy-dark);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-header svg {
+            color: var(--gold);
+        }
+
+        .card-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        /* Score Card */
+        .score-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .score-circle {
+            width: 160px;
+            height: 160px;
+            position: relative;
+        }
+
+        .score-circle svg {
+            transform: rotate(-90deg);
+        }
+
+        .score-circle-bg {
+            fill: none;
+            stroke: var(--navy-lighter);
+            stroke-width: 12;
+        }
+
+        .score-circle-progress {
+            fill: none;
+            stroke: var(--gold);
+            stroke-width: 12;
+            stroke-linecap: round;
+            stroke-dasharray: 440;
+            stroke-dashoffset: 440;
+            transition: stroke-dashoffset 1s ease;
+        }
+
+        .score-circle.low .score-circle-progress {
+            stroke: var(--success);
+        }
+
+        .score-circle.medium .score-circle-progress {
+            stroke: var(--warning);
+        }
+
+        .score-circle.high .score-circle-progress {
+            stroke: var(--danger);
+        }
+
+        .score-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .score-value {
+            font-size: 42px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .score-circle.low .score-value {
+            color: var(--success);
+        }
+
+        .score-circle.medium .score-value {
+            color: var(--warning);
+        }
+
+        .score-circle.high .score-value {
+            color: var(--danger);
+        }
+
+        .score-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Risk Level */
+        .risk-display {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .risk-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .risk-badge.low {
+            background: rgba(40, 167, 69, 0.15);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .risk-badge.medium {
+            background: rgba(255, 193, 7, 0.15);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+
+        .risk-badge.high {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        .risk-badge svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .risk-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Company Data */
+        .company-data {
+            display: grid;
+            gap: 16px;
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-row:last-child {
+            border-bottom: none;
+        }
+
+        .data-label {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .data-value {
+            color: var(--text-primary);
+            font-size: 14px;
+            font-weight: 500;
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+
+        .data-value.status-active {
+            color: var(--success);
+        }
+
+        .data-value.status-inactive {
+            color: var(--danger);
+        }
+
+        /* Inhabilitaciones List */
+        .inhabilitaciones-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .inhabilitaciones-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .inhabilitaciones-list::-webkit-scrollbar-track {
+            background: var(--navy-darker);
+            border-radius: 3px;
+        }
+
+        .inhabilitaciones-list::-webkit-scrollbar-thumb {
+            background: var(--navy-lighter);
+            border-radius: 3px;
+        }
+
+        .inhabilitacion-item {
+            background: var(--navy-darker);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-left: 4px solid var(--danger);
+        }
+
+        .inhabilitacion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .inhabilitacion-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .inhabilitacion-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .inhabilitacion-badge.activo {
+            background: rgba(220, 53, 69, 0.15);
+            color: var(--danger);
+        }
+
+        .inhabilitacion-badge.resuelto {
+            background: rgba(40, 167, 69, 0.15);
+            color: var(--success);
+        }
+
+        .inhabilitacion-details {
+            display: grid;
+            gap: 8px;
+        }
+
+        .inhabilitacion-detail {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .inhabilitacion-detail .label {
+            color: var(--text-muted);
+        }
+
+        .inhabilitacion-detail .value {
+            color: var(--text-secondary);
+        }
+
+        .no-inhabilitaciones {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .no-inhabilitaciones svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 16px;
+            color: var(--success);
+        }
+
+        /* Certificate Section */
+        .certificate-section {
+            background: linear-gradient(135deg, rgba(201, 162, 39, 0.1) 0%, rgba(201, 162, 39, 0.05) 100%);
+            border: 1px solid var(--gold);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .certificate-info {
+            flex: 1;
+        }
+
+        .certificate-info h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .certificate-info p {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .generate-btn {
+            padding: 14px 28px;
+            background: var(--gold);
+            border: none;
+            border-radius: 10px;
+            color: var(--navy-dark);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .generate-btn:hover {
+            background: var(--gold-light);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(201, 162, 39, 0.3);
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            background: var(--navy-dark);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            transform: translateX(120%);
+            transition: transform 0.3s ease;
+            z-index: 200;
+        }
+
+        .toast.visible {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            border-color: var(--success);
+        }
+
+        .toast.error {
+            border-color: var(--danger);
+        }
+
+        .toast svg {
+            flex-shrink: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-wrapper {
+                margin-left: 0;
+            }
+
+            .menu-toggle {
+                display: block;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .verify-form {
+                flex-direction: column;
+            }
+
+            .verify-btn {
+                justify-content: center;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .certificate-section {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .score-circle {
+                width: 140px;
+                height: 140px;
+            }
+
+            .score-value {
+                font-size: 36px;
+            }
+        }
+
+        /* Overlay for mobile menu */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 99;
+        }
+
+        .overlay.visible {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <div class="logo-icon">CZ</div>
+                <div class="logo-text">Conflict <span>Zero</span></div>
+            </div>
+        </div>
+        <nav class="nav-menu">
+            <div class="nav-section">
+                <div class="nav-label">Principal</div>
+                <a href="#" class="nav-item active">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                    </svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>History</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                    <span>Stats</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    <span>Compare</span>
+                </a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <a href="#" class="nav-item" style="padding-left: 0;">
+                <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <!-- Overlay for mobile -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+                <h1 class="page-title">Dashboard</h1>
+            </div>
+            <div class="header-right">
+                <button class="notification-btn">
+                    <svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                    <span class="notification-badge"></span>
+                </button>
+                <div class="user-info">
+                    <div class="user-avatar">JD</div>
+                    <div class="user-details">
+                        <div class="user-name">John Doe</div>
+                        <div class="user-role">Administrator</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Verification Section -->
+            <section class="verify-section">
+                <div class="verify-header">
+                    <h2>Verificación de RUC</h2>
+                    <p>Ingrese el número de RUC para consultar el estado de inhabilitaciones</p>
+                </div>
+                <form class="verify-form" id="verifyForm">
+                    <div class="input-wrapper">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        <input type="text" class="ruc-input" id="rucInput" placeholder="Ingrese RUC (11 dígitos)" maxlength="11" autocomplete="off">
+                    </div>
+                    <button type="submit" class="verify-btn" id="verifyBtn">
+                        <span>Verificar</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Error Message -->
+            <div class="error-message" id="errorMessage">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="error-content">
+                    <h4>Error en la consulta</h4>
+                    <p id="errorText">No se pudo obtener la información. Por favor, intente nuevamente.</p>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <section class="results-section" id="resultsSection">
+                <div class="results-grid">
+                    <!-- Score Card -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <h3>Riesgo Score</h3>
+                        </div>
+                        <div class="score-display">
+                            <div class="score-circle" id="scoreCircle">
+                                <svg width="160" height="160" viewBox="0 0 160 160">
+                                    <circle class="score-circle-bg" cx="80" cy="80" r="70"/>
+                                    <circle class="score-circle-progress" id="scoreProgress" cx="80" cy="80" r="70"/>
+                                </svg>
+                                <div class="score-content">
+                                    <div class="score-value" id="scoreValue">0</div>
+                                    <div class="score-label">de 100</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Level Card -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                            </svg>
+                            <h3>Nivel de Riesgo</h3>
+                        </div>
+                        <div class="risk-display">
+                            <div class="risk-badge" id="riskBadge">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                <span id="riskText">Bajo</span>
+                            </div>
+                            <p class="risk-description" id="riskDescription">
+                                La empresa presenta bajo riesgo de inhabilitaciones
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Company Data Card -->
+                    <div class="result-card">
+                        <div class="card-header">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                            </svg>
+                            <h3>Datos de la Empresa</h3>
+                        </div>
+                        <div class="company-data" id="companyData">
+                            <div class="data-row">
+                                <span class="data-label">RUC</span>
+                                <span class="data-value" id="dataRuc">-</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Razón Social</span>
+                                <span class="data-value" id="dataName">-</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Estado</span>
+                                <span class="data-value" id="dataStatus">-</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Tipo</span>
+                                <span class="data-value" id="dataType">-</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Fecha de Inscripción</span>
+                                <span class="data-value" id="dataDate">-</span>
+                            </div>
+                            <div class="data-row">
+                                <span class="data-label">Dirección</span>
+                                <span class="data-value" id="dataAddress">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inhabilitaciones Card -->
+                <div class="result-card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                        </svg>
+                        <h3>Inhabilitaciones Encontradas</h3>
+                    </div>
+                    <div class="inhabilitaciones-list" id="inhabilitacionesList">
+                        <!-- Inhabilitaciones will be inserted here -->
+                    </div>
+                </div>
+
+                <!-- Certificate Section -->
+                <div class="certificate-section">
+                    <div class="certificate-info">
+                        <h3>Generar Certificado</h3>
+                        <p>Descargue un certificado oficial con los resultados de esta verificación</p>
+                    </div>
+                    <button class="generate-btn" id="generateBtn">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Descargar Certificado
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <span id="toastMessage">Operation successful</span>
+    </div>
+
+    <script>
+        // DOM Elements
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const menuToggle = document.getElementById('menuToggle');
+        const verifyForm = document.getElementById('verifyForm');
+        const rucInput = document.getElementById('rucInput');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorMessage = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const generateBtn = document.getElementById('generateBtn');
+        const toast = document.getElementById('toast');
+        const toastMessage = document.getElementById('toastMessage');
+
+        // Results elements
+        const scoreCircle = document.getElementById('scoreCircle');
+        const scoreProgress = document.getElementById('scoreProgress');
+        const scoreValue = document.getElementById('scoreValue');
+        const riskBadge = document.getElementById('riskBadge');
+        const riskText = document.getElementById('riskText');
+        const riskDescription = document.getElementById('riskDescription');
+        const inhabilitacionesList = document.getElementById('inhabilitacionesList');
+
+        // Company data elements
+        const dataRuc = document.getElementById('dataRuc');
+        const dataName = document.getElementById('dataName');
+        const dataStatus = document.getElementById('dataStatus');
+        const dataType = document.getElementById('dataType');
+        const dataDate = document.getElementById('dataDate');
+        const dataAddress = document.getElementById('dataAddress');
+
+        // Current data storage
+        let currentData = null;
+        let currentRuc = '';
+
+        // Mobile menu toggle
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('visible');
+        });
+
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('visible');
+        });
+
+        // RUC input formatting (numbers only)
+        rucInput.addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        // Form submission
+        verifyForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ruc = rucInput.value.trim();
+            
+            if (ruc.length !== 11) {
+                showError('El RUC debe contener 11 dígitos numéricos');
+                return;
+            }
+            
+            await consultarRUC(ruc);
+        });
+
+        // API Call
+        async function consultarRUC(ruc) {
+            setLoading(true);
+            hideError();
+            resultsSection.classList.remove('visible');
+            
+            try {
+                const response = await fetch(`https://xvyrpa0bhf.execute-api.us-east-1.amazonaws.com/prod/consulta-osce/${ruc}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('No se encontraron datos para el RUC ingresado');
+                    }
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                currentData = data;
+                currentRuc = ruc;
+                
+                displayResults(data);
+                
+            } catch (error) {
+                console.error('API Error:', error);
+                showError(error.message || 'Error al consultar el servicio. Por favor, intente nuevamente.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // Display results
+        function displayResults(data) {
+            // Calculate score based on inhabilitaciones
+            const inhabilitaciones = data.inhabilitaciones || [];
+            const activeInhabilitaciones = inhabilitaciones.filter(i => i.estado === 'ACTIVO');
+            const score = calculateScore(inhabilitaciones.length, activeInhabilitaciones.length);
+            
+            // Update score display
+            updateScore(score);
+            
+            // Update risk level
+            updateRiskLevel(score, inhabilitaciones.length);
+            
+            // Update company data
+            updateCompanyData(data.empresa || data);
+            
+            // Update inhabilitaciones list
+            updateInhabilitacionesList(inhabilitaciones);
+            
+            // Show results
+            resultsSection.classList.add('visible');
+            
+            // Scroll to results
+            setTimeout(() => {
+                resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 100);
+        }
+
+        // Calculate risk score
+        function calculateScore(total, active) {
+            let score = 0;
+            
+            if (total === 0) {
+                score = 0;
+            } else if (active === 0) {
+                score = Math.min(total * 10, 40);
+            } else {
+                score = Math.min(50 + (active * 15), 100);
+            }
+            
+            return Math.round(score);
+        }
+
+        // Update score circle
+        function updateScore(score) {
+            scoreValue.textContent = score;
+            
+            // Calculate stroke offset (440 is circumference)
+            const offset = 440 - (440 * score / 100);
+            scoreProgress.style.strokeDashoffset = offset;
+            
+            // Update color class
+            scoreCircle.classList.remove('low', 'medium', 'high');
+            if (score <= 30) {
+                scoreCircle.classList.add('low');
+            } else if (score <= 70) {
+                scoreCircle.classList.add('medium');
+            } else {
+                scoreCircle.classList.add('high');
+            }
+        }
+
+        // Update risk level
+        function updateRiskLevel(score, count) {
+            riskBadge.classList.remove('low', 'medium', 'high');
+            
+            if (score <= 30) {
+                riskBadge.classList.add('low');
+                riskText.textContent = 'Bajo';
+                riskDescription.textContent = count === 0 
+                    ? 'La empresa no presenta inhabilitaciones registradas'
+                    : `La empresa presenta ${count} inhabilitación(es) histórica(s) sin registros activos`;
+            } else if (score <= 70) {
+                riskBadge.classList.add('medium');
+                riskText.textContent = 'Medio';
+                riskDescription.textContent = 'La empresa presenta algunas inhabilitaciones que requieren revisión';
+            } else {
+                riskBadge.classList.add('high');
+                riskText.textContent = 'Alto';
+                riskDescription.textContent = 'La empresa presenta inhabilitaciones activas significativas';
+            }
+        }
+
+        // Update company data
+        function updateCompanyData(empresa) {
+            dataRuc.textContent = empresa.ruc || currentRuc || '-';
+            dataName.textContent = empresa.razonSocial || empresa.nombre || '-';
+            
+            const status = empresa.estado || 'ACTIVO';
+            dataStatus.textContent = status;
+            dataStatus.className = 'data-value ' + (status === 'ACTIVO' ? 'status-active' : 'status-inactive');
+            
+            dataType.textContent = empresa.tipo || empresa.tipoEmpresa || '-';
+            dataDate.textContent = empresa.fechaInscripcion || empresa.fecha || '-';
+            dataAddress.textContent = empresa.direccion || empresa.direccionCompleta || '-';
+        }
+
+        // Update inhabilitaciones list
+        function updateInhabilitacionesList(inhabilitaciones) {
+            if (!inhabilitaciones || inhabilitaciones.length === 0) {
+                inhabilitacionesList.innerHTML = `
+                    <div class="no-inhabilitaciones">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p>No se encontraron inhabilitaciones registradas</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            inhabilitacionesList.innerHTML = inhabilitaciones.map(item => `
+                <div class="inhabilitacion-item">
+                    <div class="inhabilitacion-header">
+                        <span class="inhabilitacion-title">${item.numeroResolucion || item.resolucion || 'Resolución N/A'}</span>
+                        <span class="inhabilitacion-badge ${(item.estado || '').toLowerCase()}">${item.estado || 'DESCONOCIDO'}</span>
+                    </div>
+                    <div class="inhabilitacion-details">
+                        <div class="inhabilitacion-detail">
+                            <span class="label">Entidad:</span>
+                            <span class="value">${item.entidad || 'N/A'}</span>
+                        </div>
+                        <div class="inhabilitacion-detail">
+                            <span class="label">Motivo:</span>
+                            <span class="value">${item.motivo || item.motivoInhabilitacion || 'N/A'}</span>
+                        </div>
+                        <div class="inhabilitacion-detail">
+                            <span class="label">Fecha Inicio:</span>
+                            <span class="value">${item.fechaInicio || item.fecha || 'N/A'}</span>
+                        </div>
+                        <div class="inhabilitacion-detail">
+                            <span class="label">Fecha Fin:</span>
+                            <span class="value">${item.fechaFin || 'N/A'}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Set loading state
+        function setLoading(loading) {
+            if (loading) {
+                verifyBtn.innerHTML = '<div class="spinner"></div>';
+                verifyBtn.disabled = true;
+            } else {
+                verifyBtn.innerHTML = '<span>Verificar</span>';
+                verifyBtn.disabled = false;
+            }
+        }
+
+        // Show error
+        function showError(message) {
+            errorText.textContent = message;
+            errorMessage.classList.add('visible');
+        }
+
+        // Hide error
+        function hideError() {
+            errorMessage.classList.remove('visible');
+        }
+
+        // Show toast
+        function showToast(message, type = 'success') {
+            toast.className = 'toast visible ' + type;
+            toastMessage.textContent = message;
+            
+            // Update icon based on type
+            const svg = toast.querySelector('svg');
+            if (type === 'error') {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>';
+            } else {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+
+        // Generate certificate
+        generateBtn.addEventListener('click', () => {
+            if (!currentData) {
+                showToast('No hay datos para generar certificado', 'error');
+                return;
+            }
+            
+            // Simulate certificate generation
+            showToast('Generando certificado...', 'success');
+            
+            setTimeout(() => {
+                showToast('Certificado descargado exitosamente', 'success');
+                
+                // In a real implementation, this would trigger a PDF download
+                // window.open(`/api/certificado/${currentRuc}`, '_blank');
+            }, 1500);
+        });
+
+        // Sidebar navigation click handlers
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                if (item.getAttribute('href') === '#') {
+                    e.preventDefault();
+                    const text = item.querySelector('span').textContent;
+                    if (text !== 'Dashboard') {
+                        showToast(`${text} - Próximamente disponible`, 'success');
+                    }
+                }
+            });
+        });
+
+        // Close mobile menu on window resize
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('visible');
+            }
+        });
+    </script>
+</body>
+</html>
