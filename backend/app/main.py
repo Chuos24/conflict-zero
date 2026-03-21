@@ -24,7 +24,7 @@ def create_founder_user():
             founder = User(
                 id=str(uuid.uuid4()),
                 email="founder@conflictzero.com",
-                hashed_password=get_password_hash("FounderPass2025!"),
+                hashed_password=get_password_hash("CZ2025!"),
                 full_name="Conflict Zero Founder",
                 company_name="Conflict Zero Inc.",
                 ruc="20100000001",

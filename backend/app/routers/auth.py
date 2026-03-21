@@ -283,7 +283,7 @@ async def create_founder_endpoint(db: Session = Depends(get_db)):
     return {
         "message": "Usuario founder creado exitosamente",
         "email": founder.email,
-        "password": "FounderPass2025!"
+        "password": "CZ2025!"
     }
 
 
@@ -303,12 +303,12 @@ async def reset_founder_password(db: Session = Depends(get_db)):
         )
     
     # Resetear contraseña
-    founder.hashed_password = get_password_hash("FounderPass2025!")
+    founder.hashed_password = get_password_hash("CZ2025!")
     db.commit()
     
     return {
         "message": "Contraseña del founder reseteada exitosamente",
         "email": founder.email,
-        "password": "FounderPass2025!",
+        "password": "CZ2025!",
         "action": "Intenta hacer login ahora"
     }
