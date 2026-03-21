@@ -285,3 +285,30 @@ async def create_founder_endpoint(db: Session = Depends(get_db)):
         "email": founder.email,
         "password": "FounderPass2025!"
     }
+
+
+@router.post("/setup/reset-founder-password")
+async def reset_founder_password(db: Session = Depends(get_db)):
+    """
+    Endpoint de emergencia para resetear la contraseña del founder.
+    Útil si hay problemas con bcrypt.
+    """
+    # Buscar el usuario founder
+    founder = db.query(User).filter(User.email == "founder@conflictzero.com").first()
+    
+    if not founder:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario founder no encontrado"
+        )
+    
+    # Resetear contraseña
+    founder.hashed_password = get_password_hash("FounderPass2025!")
+    db.commit()
+    
+    return {
+        "message": "Contraseña del founder reseteada exitosamente",
+        "email": founder.email,
+        "password": "FounderPass2025!",
+        "action": "Intenta hacer login ahora"
+    }
