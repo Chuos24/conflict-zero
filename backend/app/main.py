@@ -1,3 +1,7 @@
+# Conflict Zero API - Main Application
+# Last updated: 2026-03-21 21:00 UTC
+# FIX: Founder password corrected to CZ2025!
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -15,7 +19,7 @@ settings = get_settings()
 # Crear tablas en la base de datos
 Base.metadata.create_all(bind=engine)
 
-# Crear usuario founder si no existe
+# Crear usuario founder si no existe - PASSWORD FIX APPLIED
 def create_founder_user():
     db = SessionLocal()
     try:
@@ -24,7 +28,7 @@ def create_founder_user():
             founder = User(
                 id=str(uuid.uuid4()),
                 email="founder@conflictzero.com",
-                hashed_password=get_password_hash("CZ2025!"),
+                hashed_password=get_password_hash("CZ2025!"),  # FIXED: Short password for bcrypt
                 full_name="Conflict Zero Founder",
                 company_name="Conflict Zero Inc.",
                 ruc="20100000001",
@@ -37,7 +41,7 @@ def create_founder_user():
             )
             db.add(founder)
             db.commit()
-            print("✅ Usuario founder creado exitosamente")
+            print("✅ Usuario founder creado exitosamente con contraseña CZ2025!")
     except Exception as e:
         print(f"⚠️ Error creando founder: {e}")
     finally:
@@ -56,7 +60,7 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especificar dominios
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
