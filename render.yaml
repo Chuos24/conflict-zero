@@ -5,8 +5,12 @@ services:
     runtime: python
     plan: free
     region: oregon
-    buildCommand: cd backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: |
+      cd backend
+      pip install -r requirements.txt
+    startCommand: |
+      cd backend
+      uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -17,7 +21,7 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: PERU_API_KEY
-        sync: false  # Manual entry required
+        value: d02bb5a71984e759885a4e47a575715c
       - key: ENVIRONMENT
         value: production
       - key: ALLOWED_HOSTS
@@ -25,17 +29,9 @@ services:
       - key: USE_CACHE
         value: "false"
 
-# PostgreSQL Database
 databases:
   - name: conflict-zero-db
     plan: free
     region: oregon
     databaseName: conflictzero
     user: conflictzero
-
-# Environment Groups (for sharing config)
-envVarGroups:
-  - name: conflict-zero-secrets
-    envVars:
-      - key: PERU_API_KEY
-        sync: false
