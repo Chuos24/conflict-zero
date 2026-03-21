@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
@@ -28,7 +28,7 @@ class UserResponse(UserBase):
     created_at: datetime
     
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # ============== Auth Schemas ==============
 
@@ -48,7 +48,7 @@ class LoginRequest(BaseModel):
 # ============== Verification Schemas ==============
 
 class VerificationRequest(BaseModel):
-    ruc: str = Field(..., min_length=11, max_length=11, pattern=r"^\d{11}$")
+    ruc: str = Field(..., min_length=11, max_length=11, regex=r"^\d{11}$")
     
 class SunatData(BaseModel):
     debt_amount: float
@@ -108,18 +108,18 @@ class VerificationResponse(BaseModel):
     cached: bool = False
     
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class VerificationHistory(BaseModel):
     id: UUID
     ruc: str
-    company_name: Optional[str]
+    company_name: Optional[str] = None
     score: int
     risk_level: str
     created_at: datetime
     
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # ============== API Key Schemas ==============
 
@@ -133,21 +133,21 @@ class ApiKeyResponse(BaseModel):
     is_active: bool
     usage_count: int
     created_at: datetime
-    expires_at: Optional[datetime]
+    expires_at: Optional[datetime] = None
     
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 class ApiKeyListItem(BaseModel):
     id: UUID
     name: str
     is_active: bool
-    last_used_at: Optional[datetime]
+    last_used_at: Optional[datetime] = None
     usage_count: int
     created_at: datetime
     
     class Config:
-        from_attributes = True
+        orm_mode = True
 
 # ============== Dashboard Schemas ==============
 
