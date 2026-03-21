@@ -79,6 +79,55 @@ async def verify_ruc(
         )
 
 @router.get(
+    "/consulta-osce/{ruc}",
+    summary="Consulta OSCE por RUC",
+    description="Endpoint compatible con el frontend. Consulta datos de SUNAT/OSCE para un RUC."
+)
+async def consulta_osce(
+    ruc: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint compatible con el frontend para consultar RUC.
+    URL: /api/v1/verify/consulta-osce/{ruc}
+    """
+    # Validar RUC
+    if len(ruc) != 11 or not ruc.isdigit():
+        return {"success": False, "error": "RUC debe tener 11 dígitos numéricos"}
+    
+    # Verificar límite de consultas
+    if current_user.monthly_requests >= current_user.monthly_limit:
+        return {"success": False, "error": "Límite mensual de consultas alcanzado"}
+    
+    try:
+        result = verification_service.verify_ruc(
+            ruc=ruc,
+            user=current_user,
+            db=db
+        )
+        
+        return {
+            "success": True,
+            "data": {
+                "ruc": result["ruc"],
+                "razon_social": result.get("company_name", "No disponible"),
+                "estado_sunat": result["sunat_data"].get("tax_status", "No disponible"),
+                "condicion": result["sunat_data"].get("contributor_status", "No disponible"),
+                "direccion": result["sunat_data"].get("address", "No disponible"),
+                "distrito": result["sunat_data"].get("district", ""),
+                "provincia": result["sunat_data"].get("province", ""),
+                "departamento": result["sunat_data"].get("department", "")
+            },
+            "score": result["score"],
+            "risk_level": result["risk_level"]
+        }
+    
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.get(
     "/history",
     response_model=List[VerificationHistory],
     summary="Historial de Verificaciones",
