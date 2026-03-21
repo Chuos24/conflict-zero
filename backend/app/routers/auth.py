@@ -249,7 +249,7 @@ async def get_current_user_info(
     return current_user
 
 
-@router.post("/setup/create-founder")
+@router.api_route("/setup/create-founder", methods=["GET", "POST"])
 async def create_founder_endpoint(db: Session = Depends(get_db)):
     """
     Endpoint de emergencia para crear usuario founder.
@@ -287,7 +287,7 @@ async def create_founder_endpoint(db: Session = Depends(get_db)):
     }
 
 
-@router.post("/setup/reset-founder-password")
+@router.api_route("/setup/reset-founder-password", methods=["GET", "POST"])
 async def reset_founder_password(db: Session = Depends(get_db)):
     """
     Endpoint de emergencia para resetear la contraseña del founder.
