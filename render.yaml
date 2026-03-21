@@ -3,7 +3,7 @@ services:
   - type: web
     name: conflict-zero-api
     runtime: python
-    plan: free
+    plan: starter
     region: oregon
     buildCommand: |
       cd backend
@@ -15,7 +15,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: DATABASE_URL
-        value: sqlite:///./conflictzero.db
+        fromDatabase:
+          name: conflict-zero-db
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: PERU_API_KEY
@@ -26,7 +28,10 @@ services:
         value: "*"
       - key: USE_CACHE
         value: "false"
-    disk:
-      name: conflictzero-data
-      mountPath: /opt/render/project/src/backend
-      sizeGB: 1
+
+databases:
+  - name: conflict-zero-db
+    plan: starter
+    region: oregon
+    databaseName: conflictzero
+    user: conflictzero

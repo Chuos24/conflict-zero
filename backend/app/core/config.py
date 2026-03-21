@@ -7,8 +7,8 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     VERSION: str = "1.0.0"
     
-    # Database - SQLite por defecto para estabilidad
-    DATABASE_URL: str = "sqlite:///./conflictzero.db"
+    # Database - PostgreSQL para producción
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost/conflictzero"
     
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
