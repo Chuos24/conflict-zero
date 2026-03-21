@@ -247,3 +247,41 @@ async def get_current_user_info(
 ):
     """Retorna la información del usuario actual."""
     return current_user
+
+
+@router.post("/setup/create-founder")
+async def create_founder_endpoint(db: Session = Depends(get_db)):
+    """
+    Endpoint de emergencia para crear usuario founder.
+    Solo funciona si no existe ningún usuario founder.
+    """
+    import uuid
+    
+    # Verificar si ya existe
+    existing = db.query(User).filter(User.email == "founder@conflictzero.com").first()
+    if existing:
+        return {"message": "Usuario founder ya existe", "email": existing.email}
+    
+    # Crear founder
+    founder = User(
+        id=str(uuid.uuid4()),
+        email="founder@conflictzero.com",
+        hashed_password=get_password_hash("FounderPass2025!"),
+        full_name="Conflict Zero Founder",
+        company_name="Conflict Zero Inc.",
+        ruc="20100000001",
+        is_active=True,
+        is_admin=True,
+        plan_type="enterprise",
+        monthly_requests=0,
+        monthly_limit=999999,
+        api_key="cz_founder_" + str(uuid.uuid4()).replace("-", "")
+    )
+    db.add(founder)
+    db.commit()
+    
+    return {
+        "message": "Usuario founder creado exitosamente",
+        "email": founder.email,
+        "password": "FounderPass2025!"
+    }
