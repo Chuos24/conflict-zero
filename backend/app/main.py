@@ -4,13 +4,46 @@ from fastapi.responses import JSONResponse
 import time
 
 from app.core.config import get_settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, SessionLocal
+from app.core.security import get_password_hash
+from app.models import User
 from app.routers import auth_router, verification_router, dashboard_router, health_router
+import uuid
 
 settings = get_settings()
 
 # Crear tablas en la base de datos
 Base.metadata.create_all(bind=engine)
+
+# Crear usuario founder si no existe
+def create_founder_user():
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == "founder@conflictzero.com").first()
+        if not existing:
+            founder = User(
+                id=str(uuid.uuid4()),
+                email="founder@conflictzero.com",
+                hashed_password=get_password_hash("FounderPass2025!"),
+                full_name="Conflict Zero Founder",
+                company_name="Conflict Zero Inc.",
+                ruc="20100000001",
+                is_active=True,
+                is_admin=True,
+                plan_type="enterprise",
+                monthly_requests=0,
+                monthly_limit=999999,
+                api_key="cz_founder_" + str(uuid.uuid4()).replace("-", "")
+            )
+            db.add(founder)
+            db.commit()
+            print("✅ Usuario founder creado exitosamente")
+    except Exception as e:
+        print(f"⚠️ Error creando founder: {e}")
+    finally:
+        db.close()
+
+create_founder_user()
 
 app = FastAPI(
     title=settings.APP_NAME,
