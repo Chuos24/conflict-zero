@@ -123,8 +123,16 @@ async def consulta_osce(
             "risk_level": result["risk_level"]
         }
     
+    except HTTPException as he:
+        return {"success": False, "error": he.detail}
+    except ValueError as ve:
+        return {"success": False, "error": str(ve)}
     except Exception as e:
-        return {"success": False, "error": str(e)}
+        import traceback
+        error_detail = f"{type(e).__name__}: {str(e)}"
+        print(f"Error en consulta_osce: {error_detail}")
+        print(traceback.format_exc())
+        return {"success": False, "error": error_detail}
 
 
 @router.get(
