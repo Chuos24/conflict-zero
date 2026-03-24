@@ -1,6 +1,7 @@
 import requests
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+import os
 from app.core.config import get_settings
 from app.core.cache import cache
 from app.services.scraping import scraping_service
@@ -15,14 +16,15 @@ class ExternalAPIService:
     
     def __init__(self):
         # Perú API - Fuente primaria
-        self.peruapi_token = settings.PERUAPI_TOKEN or settings.PERU_API_KEY
+        # Intentar ambas variables de entorno
+        self.peruapi_token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY") or settings.PERUAPI_TOKEN or settings.PERU_API_KEY
         self.peruapi_base_url = "https://peruapi.com"
         
         # Verificar si tenemos API configurada
         self.has_real_api = bool(self.peruapi_token)
         
         # DEBUG: Log para verificar
-        print(f"DEBUG: PERUAPI_TOKEN='{settings.PERUAPI_TOKEN[:10]}...' PERU_API_KEY='{settings.PERU_API_KEY[:10]}...'")
+        print(f"DEBUG: PERUAPI_TOKEN='{os.getenv('PERUAPI_TOKEN', 'NOT_SET')[:10]}...' PERU_API_KEY='{os.getenv('PERU_API_KEY', 'NOT_SET')[:10]}...'")
         print(f"DEBUG: peruapi_token='{self.peruapi_token[:10] if self.peruapi_token else 'EMPTY'}...' has_real_api={self.has_real_api}")
     
     def _call_peru_api(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
