@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user, verify_token_optional
@@ -16,7 +16,6 @@ router = APIRouter(tags=["Consulta Completa"])
 )
 async def consulta_completa(
     ruc: str,
-    current_user: User = Depends(verify_token_optional),
     db: Session = Depends(get_db)
 ):
     """
@@ -35,7 +34,7 @@ async def consulta_completa(
         # Realizar verificación (sin autenticación obligatoria para compatibilidad)
         result = verification_service.verify_ruc(
             ruc=ruc,
-            user=current_user,
+            user=None,
             db=db
         )
         
