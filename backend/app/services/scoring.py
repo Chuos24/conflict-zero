@@ -9,20 +9,20 @@ settings = get_settings()
 class ScoringEngine:
     """
     Motor de scoring predictivo para verificación de RUCs.
-    Calcula una puntuación de 0-100 basada en datos SUNAT y análisis predictivo.
-    
-    Fórmula actual (sin acceso a sanciones OSCE por WAF):
-    - 40% Estado SUNAT (Activo/Baja/Suspensión)
-    - 30% Condición domicilio (Habido/No habido)
+    Calcula una puntuación de 0-100 basada en:
+    - 30% Estado SUNAT (Activo/Baja/Suspensión)
+    - 25% Condición domicilio (Habido/No habido)
     - 20% Antigüedad del RUC
+    - 15% Sanciones OSCE/Penalidades
     - 10% Análisis predictivo (sector, nombre)
     """
     
     def __init__(self):
-        # Pesos ajustados sin acceso a OSCE
-        self.sunat_estado_weight = 0.40
-        self.sunat_condicion_weight = 0.30
+        # Pesos actualizados con datos OSCE reales
+        self.sunat_estado_weight = 0.30
+        self.sunat_condicion_weight = 0.25
         self.antiguedad_weight = 0.20
+        self.osce_weight = 0.15
         self.ml_weight = 0.10
     
     def _extract_ruc_year(self, ruc: str) -> int:
@@ -113,7 +113,78 @@ class ScoringEngine:
         else:
             return 70.0  # Condición desconocida
     
+    def calculate_sanciones_score(self, sanciones: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Calcula el score basado en sanciones OSCE reales.
+        
+        Returns:
+            Dict con score y detalle de sanciones
+        """
+        if not sanciones:
+            return {
+                "score": 100.0,
+                "cantidad": 0,
+                "tiene_inhabilitaciones": False,
+                "tiene_penalidades": False,
+                "severidad": "ninguna"
+            }
+        
+        total = len(sanciones)
+        inhabilitaciones = sum(1 for s in sanciones if s.get('tipo') == 'inhabilitacion')
+        penalidades = sum(1 for s in sanciones if s.get('tipo') == 'penalidad')
+        judiciales = sum(1 for s in sanciones if s.get('tipo') == 'inhabilitacion_judicial')
+        
+        # Calcular severidad
+        if judiciales > 0:
+            severidad = "grave"
+            score = max(0, 30 - (judiciales * 10))
+        elif inhabilitaciones > 0:
+            severidad = "alta"
+            score = max(20, 50 - (inhabilitaciones * 15))
+        elif penalidades > 0:
+            severidad = "media"
+            score = max(40, 70 - (penalidades * 10))
+        else:
+            severidad = "baja"
+            score = 80.0
+        
+        return {
+            "score": score,
+            "cantidad": total,
+            "tiene_inhabilitaciones": inhabilitaciones > 0,
+            "tiene_penalidades": penalidades > 0,
+            "tiene_judiciales": judiciales > 0,
+            "inhabilitaciones": inhabilitaciones,
+            "penalidades": penalidades,
+            "judiciales": judiciales,
+            "severidad": severidad
+        }
+    
     def calculate_sunat_score(self, estado: str, condicion: str, deuda: float = 0) -> Dict[str, float]:
+        """
+        Calcula score compuesto de SUNAT basado en estado + condición + deuda.
+        
+        Returns:
+            Dict con scores individuales y ponderados
+        """
+        estado_score = self.calculate_estado_score(estado)
+        condicion_score = self.calculate_condicion_score(condicion)
+        
+        # Score de deuda (si está disponible)
+        if deuda > 0:
+            log_debt = math.log10(deuda + 1)
+            max_log = math.log10(100_000_000)
+            debt_score = max(0, 100 - (log_debt / max_log) * 100)
+        else:
+            debt_score = 100.0
+        
+        return {
+            "estado_score": estado_score,
+            "condicion_score": condicion_score,
+            "debt_score": debt_score,
+            "estado_contrib": self.sunat_estado_weight,
+            "condicion_contrib": self.sunat_condicion_weight
+        }
         """
         Calcula score compuesto de SUNAT basado en estado + condición + deuda.
         
@@ -251,27 +322,27 @@ class ScoringEngine:
         antiguedad_score, antiguedad_years = self.calculate_antiguedad_score(ruc)
         ml_score, ml_factors, ml_confidence = self.calculate_ml_score(ruc, razon_social, estado, condicion)
         
-        # Ponderar contribuciones SUNAT
-        sunat_contribution = (
-            sunat_data["estado_score"] * 0.6 +
-            sunat_data["condicion_score"] * 0.4
-        ) * (self.sunat_estado_weight + self.sunat_condicion_weight)
+        # Calcular score de sanciones OSCE (datos reales)
+        osce_data = self.calculate_sanciones_score(osce_sanctions or [])
+        osce_score = osce_data["score"]
         
-        # Calcular score ponderado final
+        # Calcular score ponderado final con todos los componentes
         weighted_score = (
-            sunat_contribution +
+            (sunat_data["estado_score"] * self.sunat_estado_weight) +
+            (sunat_data["condicion_score"] * self.sunat_condicion_weight) +
             (antiguedad_score * self.antiguedad_weight) +
+            (osce_score * self.osce_weight) +
             (ml_score * self.ml_weight)
         )
         
-        # Ajustar por sanciones si están disponibles (rara vez)
-        if osce_sanctions and len(osce_sanctions) > 0:
-            weighted_score *= 0.5  # Penalización severa
-            ml_factors.append(f"{len(osce_sanctions)} sanción(es) OSCE detectada(s)")
-        
-        if tce_sanctions and len(tce_sanctions) > 0:
-            weighted_score *= 0.7  # Penalización moderada
-            ml_factors.append(f"{len(tce_sanctions)} sanción(es) TCE detectada(s)")
+        # Agregar factores de riesgo de sanciones al análisis ML
+        if osce_data["cantidad"] > 0:
+            if osce_data["tiene_judiciales"]:
+                ml_factors.append(f"{osce_data['judiciales']} inhabilitación(es) judicial(es)")
+            if osce_data["tiene_inhabilitaciones"]:
+                ml_factors.append(f"{osce_data['inhabilitaciones']} sanción(es) OSCE con inhabilitación")
+            if osce_data["tiene_penalidades"]:
+                ml_factors.append(f"{osce_data['penalidades']} penalidad(es) en contratos")
         
         # Redondear a entero
         final_score = int(round(weighted_score))
@@ -296,8 +367,10 @@ class ScoringEngine:
             "risk_level": risk_level,
             "risk_emoji": risk_emoji,
             "breakdown": {
-                "sunat_contribution": round(sunat_contribution, 2),
+                "sunat_estado_contribution": round(sunat_data["estado_score"] * self.sunat_estado_weight, 2),
+                "sunat_condicion_contribution": round(sunat_data["condicion_score"] * self.sunat_condicion_weight, 2),
                 "antiguedad_contribution": round(antiguedad_score * self.antiguedad_weight, 2),
+                "osce_contribution": round(osce_score * self.osce_weight, 2),
                 "ml_contribution": round(ml_score * self.ml_weight, 2),
             },
             "individual_scores": {
@@ -306,8 +379,10 @@ class ScoringEngine:
                 "sunat_deuda": round(sunat_data["debt_score"], 2),
                 "antiguedad": round(antiguedad_score, 2),
                 "antiguedad_years": antiguedad_years,
+                "osce": round(osce_score, 2),
                 "ml": round(ml_score, 2),
             },
+            "osce_analysis": osce_data,
             "ml_analysis": {
                 "anomaly_score": round(100 - ml_score, 2),
                 "risk_factors": ml_factors,

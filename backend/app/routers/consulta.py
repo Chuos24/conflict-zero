@@ -7,6 +7,7 @@ from typing import Dict, Any
 from app.core.database import get_db
 from app.core.config import get_settings
 from app.services.scoring import scoring_engine
+from app.services.scraping import scraping_service
 
 settings = get_settings()
 router = APIRouter(tags=["Consulta Completa"])
@@ -80,18 +81,21 @@ async def consulta_completa(
     if sunat_data.get("error"):
         return sunat_data
     
-    # Calcular score usando el scoring engine
+    # Consultar sanciones OSCE (datos reales de CONOSCE)
+    osce_sanciones = scraping_service.get_osce_sanctions(ruc)
+    
+    # Calcular score usando el scoring engine con datos reales
     score_result = scoring_engine.calculate_total_score(
         ruc=ruc,
         razon_social=sunat_data.get("razon_social", ""),
         estado=sunat_data.get("estado", "ACTIVO"),
         condicion=sunat_data.get("condicion", "HABIDO"),
         deuda=0,  # No disponible en BuscarUC
-        osce_sanctions=[],
+        osce_sanctions=osce_sanciones,
         tce_sanctions=[]
     )
     
-    # Construir respuesta completa
+    # Construir respuesta completa con sanciones reales
     return {
         "ruc": ruc,
         "razon_social": sunat_data.get("razon_social", "No disponible"),
@@ -115,15 +119,16 @@ async def consulta_completa(
             "condicion": sunat_data.get("condicion", "HABIDO"),
             "direccion": sunat_data.get("direccion", "")
         },
-        "sanciones": [],
-        "total_registros": 0,
+        "sanciones": osce_sanciones,
+        "total_registros": len(osce_sanciones),
         "fuentes": {
             "sunat": True,
-            "osce": 0,
+            "osce": len(osce_sanciones),
             "tce": 0
         },
         "score_breakdown": score_result["breakdown"],
         "score_details": score_result["individual_scores"],
+        "osce_analysis": score_result.get("osce_analysis", {}),
         "ml_analysis": score_result["ml_analysis"]
     }
 

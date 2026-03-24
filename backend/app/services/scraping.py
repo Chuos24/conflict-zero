@@ -24,7 +24,7 @@ class ScrapingService:
     def get_osce_sanctions(self, ruc: str) -> List[Dict[str, Any]]:
         """
         Obtiene sanciones OSCE para un RUC.
-        Primero intenta datos abiertos, luego scraping web.
+        Usa datos abiertos del portal CONOSCE (CSV reales).
         """
         cache_key = f"osce_sanciones:{ruc}"
         cached = cache.get(cache_key)
@@ -33,16 +33,52 @@ class ScrapingService:
         
         sanciones = []
         
-        # Intentar datos abiertos primero
+        # Usar datos abiertos reales
         try:
             from app.services.osce_datos_abiertos import osce_datos_abiertos
-            sanciones = osce_datos_abiertos.get_sanciones_por_ruc(ruc)
+            data = osce_datos_abiertos.get_sanciones_por_ruc(ruc)
+            
+            # Convertir a formato uniforme
+            for s in data.get('sancionados', []):
+                sanciones.append({
+                    'sanction_id': s.get('resolucion', 'N/A'),
+                    'description': s.get('motivo', 'Sanción OSCE'),
+                    'date': s.get('fecha_inicio'),
+                    'status': 'ACTIVA' if not s.get('fecha_fin') else 'VENCIDA',
+                    'severity': 'ALTA',
+                    'entity': 'OSCE',
+                    'ruc': ruc,
+                    'tipo': 'inhabilitacion'
+                })
+            
+            for p in data.get('penalidades', []):
+                sanciones.append({
+                    'sanction_id': p.get('tipo_penalidad', 'N/A'),
+                    'description': f"{p.get('tipo_penalidad')}: {p.get('descripcion', '')[:100]}",
+                    'date': p.get('fecha'),
+                    'status': 'ACTIVA',
+                    'severity': 'MEDIA',
+                    'entity': 'OSCE',
+                    'ruc': ruc,
+                    'tipo': 'penalidad',
+                    'monto': p.get('monto'),
+                    'entidad': p.get('entidad')
+                })
+            
+            for i in data.get('inhabilitaciones', []):
+                sanciones.append({
+                    'sanction_id': i.get('resolucion', 'N/A'),
+                    'description': f"Inhabilitación judicial: {i.get('organo', '')}",
+                    'date': i.get('fecha_inicio'),
+                    'status': 'ACTIVA' if not i.get('fecha_fin') else 'VENCIDA',
+                    'severity': 'GRAVE',
+                    'entity': 'PODER JUDICIAL',
+                    'ruc': ruc,
+                    'tipo': 'inhabilitacion_judicial'
+                })
+                
         except Exception as e:
-            print(f"Datos abiertos OSCE no disponibles: {e}")
-        
-        # Si no hay datos, usar scraping como fallback
-        if not sanciones:
-            sanciones = self._scrape_osce_sanciones(ruc)
+            print(f"Error consultando datos abiertos OSCE: {e}")
         
         # Cache por 2 horas
         cache.set(cache_key, sanciones, expire=7200)
