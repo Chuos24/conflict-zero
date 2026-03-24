@@ -43,6 +43,27 @@ async def health_check():
     return health_status
 
 @router.get(
+    "/debug/env",
+    summary="Debug Environment Variables",
+    description="Muestra variables de entorno relacionadas con APIs (solo nombres, no valores completos)."
+)
+async def debug_env():
+    """Endpoint de debug para verificar variables de entorno."""
+    import os
+    peru_api_key = os.getenv("PERU_API_KEY", "NOT_SET")
+    peruapi_token = os.getenv("PERUAPI_TOKEN", "NOT_SET")
+    
+    return {
+        "PERU_API_KEY_set": peru_api_key != "NOT_SET",
+        "PERU_API_KEY_length": len(peru_api_key) if peru_api_key != "NOT_SET" else 0,
+        "PERU_API_KEY_prefix": peru_api_key[:20] if peru_api_key != "NOT_SET" else "N/A",
+        "PERUAPI_TOKEN_set": peruapi_token != "NOT_SET",
+        "PERUAPI_TOKEN_length": len(peruapi_token) if peruapi_token != "NOT_SET" else 0,
+        "settings_PERU_API_KEY": settings.PERU_API_KEY[:20] if settings.PERU_API_KEY else "N/A",
+        "settings_PERUAPI_TOKEN": settings.PERUAPI_TOKEN[:20] if settings.PERUAPI_TOKEN else "N/A",
+    }
+
+@router.get(
     "/",
     summary="API Info",
     description="Información básica de la API."
