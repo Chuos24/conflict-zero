@@ -3,7 +3,7 @@ import random
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from app.core.config import get_settings
-from app.core.database import get_db_session
+from app.core.database import get_db
 
 settings = get_settings()
 
@@ -34,29 +34,33 @@ class ScoringEngine:
             Dict con datos de la tabla osce_risk_data o None si no existe
         """
         try:
-            db = next(get_db_session())
             from sqlalchemy import text
+            from app.core.database import SessionLocal
             
-            result = db.execute(
-                text("SELECT * FROM osce_risk_data WHERE ruc = :ruc"),
-                {"ruc": ruc}
-            ).fetchone()
-            
-            if result:
-                return {
-                    'ruc': result.ruc,
-                    'score_osce_anual': result.score_osce_anual,
-                    'flag_sancion_tce': result.flag_sancion_tce,
-                    'flag_sancion_osce': result.flag_sancion_osce,
-                    'cantidad_sanciones': result.cantidad_sanciones,
-                    'cantidad_penalidades': result.cantidad_penalidades,
-                    'sanciones_vigentes': result.sanciones_vigentes,
-                    'inhabilitaciones_vigentes': result.inhabilitaciones_vigentes,
-                    'dias_inhabilitacion_restantes': result.dias_inhabilitacion_restantes,
-                    'monto_total_penalidades': float(result.monto_total_penalidades) if result.monto_total_penalidades else 0,
-                    'fecha_sync': result.fecha_sync.isoformat() if result.fecha_sync else None,
-                }
-            return None
+            db = SessionLocal()
+            try:
+                result = db.execute(
+                    text("SELECT * FROM osce_risk_data WHERE ruc = :ruc"),
+                    {"ruc": ruc}
+                ).fetchone()
+                
+                if result:
+                    return {
+                        'ruc': result.ruc,
+                        'score_osce_anual': result.score_osce_anual,
+                        'flag_sancion_tce': result.flag_sancion_tce,
+                        'flag_sancion_osce': result.flag_sancion_osce,
+                        'cantidad_sanciones': result.cantidad_sanciones,
+                        'cantidad_penalidades': result.cantidad_penalidades,
+                        'sanciones_vigentes': result.sanciones_vigentes,
+                        'inhabilitaciones_vigentes': result.inhabilitaciones_vigentes,
+                        'dias_inhabilitacion_restantes': result.dias_inhabilitacion_restantes,
+                        'monto_total_penalidades': float(result.monto_total_penalidades) if result.monto_total_penalidades else 0,
+                        'fecha_sync': result.fecha_sync.isoformat() if result.fecha_sync else None,
+                    }
+                return None
+            finally:
+                db.close()
         except Exception as e:
             print(f"Error consultando OSCE DB: {e}")
             return None
