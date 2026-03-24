@@ -150,7 +150,9 @@ class OSCEDataIngester:
                         continue
                     
                     # Parsear monto
-                    monto_str = row.get('MONTO', '0').replace(',', '.')
+                    monto_str = row.get('MONTO', '0')
+                    if monto_str:
+                        monto_str = monto_str.replace(',', '.')
                     try:
                         monto = float(monto_str)
                     except:
@@ -283,7 +285,7 @@ class OSCEDataIngester:
             if s.get('vigente'):
                 ruc_data[ruc]['sanciones_vigentes'] += 1
             
-            if s.get('fecha_inicio') > ruc_data[ruc]['fecha_ultima_sancion']:
+            if s.get('fecha_inicio') and (not ruc_data[ruc]['fecha_ultima_sancion'] or s.get('fecha_inicio') > ruc_data[ruc]['fecha_ultima_sancion']):
                 ruc_data[ruc]['fecha_ultima_sancion'] = s.get('fecha_inicio')
             
             if s.get('motivo'):
@@ -446,7 +448,7 @@ class OSCEDataIngester:
                     ruc, nombre, score_osce_anual, flag_sancion_tce, flag_sancion_osce,
                     cantidad_sanciones, cantidad_penalidades, cantidad_inhabilitaciones,
                     sanciones_vigentes, inhabilitaciones_vigentes, monto_total_penalidades,
-                    dias_inhabilitacion_restantes, fecha_ultima_sancion, motivos, fecha_sync
+                    dias_inhabilitacion_restantes, fecha_ultima_sancion, motivos
                 ) VALUES %s
                 ON CONFLICT (ruc) DO UPDATE SET
                     nombre = EXCLUDED.nombre,
@@ -527,5 +529,5 @@ class OSCEDataIngester:
 # Función para ejecutar desde línea de comandos
 if __name__ == '__main__':
     ingester = OSCEDataIngester()
-    result = ingester.run_full_sync(force=True)
+    result = ingester.run_full_sync(force_download=True)
     print(result)
