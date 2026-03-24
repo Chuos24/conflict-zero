@@ -153,13 +153,37 @@ class ScoringEngine:
         else:
             return 70.0  # Condición desconocida
     
-    def calculate_sanciones_score(self, sanciones: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def calculate_sanciones_score(self, sanciones: List[Dict[str, Any]], ruc: str = None) -> Dict[str, Any]:
         """
         Calcula el score basado en sanciones OSCE reales.
+        Si se proporciona RUC, consulta directamente la base de datos para obtener el score precalculado.
         
         Returns:
             Dict con score y detalle de sanciones
         """
+        # Si tenemos RUC, consultar directamente la base de datos para score precalculado
+        if ruc:
+            try:
+                from app.services.osce_datos_abiertos import osce_datos_abiertos
+                db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
+                if db_data:
+                    total = db_data['cantidad_sanciones'] + db_data['cantidad_penalidades'] + db_data['cantidad_inhabilitaciones']
+                    return {
+                        "score": float(db_data['score_osce_anual']),
+                        "cantidad": total,
+                        "tiene_inhabilitaciones": db_data['cantidad_sanciones'] > 0,
+                        "tiene_penalidades": db_data['cantidad_penalidades'] > 0,
+                        "tiene_judiciales": db_data['cantidad_inhabilitaciones'] > 0,
+                        "inhabilitaciones": db_data['cantidad_sanciones'],
+                        "penalidades": db_data['cantidad_penalidades'],
+                        "judiciales": db_data['cantidad_inhabilitaciones'],
+                        "severidad": "grave" if db_data['cantidad_inhabilitaciones'] > 0 else "alta" if db_data['cantidad_sanciones'] > 0 else "media" if db_data['cantidad_penalidades'] > 0 else "ninguna",
+                        "fuente": "postgresql"
+                    }
+            except Exception as e:
+                print(f"[Scoring] Error consultando OSCE DB: {e}")
+        
+        # Fallback: calcular basado en lista de sanciones
         if not sanciones:
             return {
                 "score": 100.0,
@@ -362,8 +386,8 @@ class ScoringEngine:
         antiguedad_score, antiguedad_years = self.calculate_antiguedad_score(ruc)
         ml_score, ml_factors, ml_confidence = self.calculate_ml_score(ruc, razon_social, estado, condicion)
         
-        # Calcular score de sanciones OSCE (datos reales)
-        osce_data = self.calculate_sanciones_score(osce_sanctions or [])
+        # Calcular score de sanciones OSCE (datos reales desde PostgreSQL)
+        osce_data = self.calculate_sanciones_score(osce_sanctions or [], ruc=ruc)
         osce_score = osce_data["score"]
         
         # Calcular score ponderado final con todos los componentes
