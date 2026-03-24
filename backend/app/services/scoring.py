@@ -390,8 +390,17 @@ class ScoringEngine:
         osce_data = self.calculate_sanciones_score(osce_sanctions or [], ruc=ruc)
         osce_score = osce_data["score"]
         
-        # Calcular score ponderado final con todos los componentes
-        weighted_score = (
+        # ============================================================
+        # SCORING CRUDO PARA COMPLIANCE - SANCIONES PESAN MÁS
+        # ============================================================
+        # Si tiene sanciones graves, SUNAT limpio no "rescat" el score
+        
+        has_judiciales = osce_data.get("tiene_judiciales", False)
+        has_inhabilitaciones = osce_data.get("tiene_inhabilitaciones", False)
+        has_penalidades = osce_data.get("tiene_penalidades", False)
+        
+        # Score base ponderado (el cálculo original)
+        base_weighted_score = (
             (sunat_data["estado_score"] * self.sunat_estado_weight) +
             (sunat_data["condicion_score"] * self.sunat_condicion_weight) +
             (antiguedad_score * self.antiguedad_weight) +
@@ -399,18 +408,51 @@ class ScoringEngine:
             (ml_score * self.ml_weight)
         )
         
+        # Aplicar CAP según gravedad de sanciones (SCORING CRUDO)
+        if has_judiciales:
+            # Inhabilitación judicial = MÁXIMO 30 (riesgo crítico)
+            max_score = 30
+            compliance_note = "Inhabilitación judicial vigente - Riesgo crítico para contratación"
+        elif has_inhabilitaciones:
+            # Sanción OSCE con inhabilitación = MÁXIMO 50 (riesgo alto)
+            max_score = 50
+            compliance_note = "Sanción OSCE con inhabilitación - Riesgo significativo"
+        elif has_penalidades:
+            # Solo penalidades = MÁXIMO 70 (riesgo moderado)
+            max_score = 70
+            compliance_note = "Penalidades en contratos - Revisión requerida"
+        else:
+            # Limpio de sanciones = sin límite
+            max_score = 100
+            compliance_note = None
+        
+        # Aplicar el CAP (el score ponderado no puede superar el máximo permitido)
+        final_score = min(base_weighted_score, max_score)
+        
+        # Penalización adicional por múltiples sanciones
+        cantidad_total = osce_data.get("cantidad", 0)
+        if cantidad_total > 1:
+            # Cada sanción adicional reduce 5 puntos más
+            final_score -= (cantidad_total - 1) * 5
+        
+        # Asegurar límites
+        final_score = max(0, min(100, final_score))
+        final_score = int(round(final_score))
+        
+        # ============================================================
+        
         # Agregar factores de riesgo de sanciones al análisis ML
         if osce_data["cantidad"] > 0:
-            if osce_data["tiene_judiciales"]:
-                ml_factors.append(f"{osce_data['judiciales']} inhabilitación(es) judicial(es)")
-            if osce_data["tiene_inhabilitaciones"]:
-                ml_factors.append(f"{osce_data['inhabilitaciones']} sanción(es) OSCE con inhabilitación")
-            if osce_data["tiene_penalidades"]:
-                ml_factors.append(f"{osce_data['penalidades']} penalidad(es) en contratos")
+            if has_judiciales:
+                ml_factors.append(f"⚠️ {osce_data['judiciales']} inhabilitación(es) judicial(es) - GRAVÍSIMO")
+            if has_inhabilitaciones:
+                ml_factors.append(f"⚠️ {osce_data['inhabilitaciones']} sanción(es) OSCE con inhabilitación")
+            if has_penalidades:
+                ml_factors.append(f"⚠️ {osce_data['penalidades']} penalidad(es) en contratos")
         
-        # Redondear a entero
-        final_score = int(round(weighted_score))
-        final_score = max(0, min(100, final_score))
+        # Agregar nota de compliance si existe
+        if compliance_note:
+            ml_factors.insert(0, compliance_note)
         
         # Determinar nivel de riesgo
         if final_score >= 80:
@@ -430,6 +472,10 @@ class ScoringEngine:
             "total_score": final_score,
             "risk_level": risk_level,
             "risk_emoji": risk_emoji,
+            "scoring_mode": "compliance_strict",  # Modo crudo para compliance
+            "compliance_cap": max_score if max_score < 100 else None,
+            "compliance_note": compliance_note,
+            "base_score": round(base_weighted_score, 2),
             "breakdown": {
                 "sunat_estado_contribution": round(sunat_data["estado_score"] * self.sunat_estado_weight, 2),
                 "sunat_condicion_contribution": round(sunat_data["condicion_score"] * self.sunat_condicion_weight, 2),
@@ -455,12 +501,12 @@ class ScoringEngine:
         }
     
     def get_risk_description(self, risk_level: str) -> str:
-        """Retorna descripción del nivel de riesgo."""
+        """Retorna descripción del nivel de riesgo para compliance."""
         descriptions = {
-            "low": "Riesgo bajo. Empresa con buen perfil de cumplimiento.",
-            "medium": "Riesgo moderado. Se recomienda revisión adicional.",
-            "high": "Riesgo alto. Detectadas irregularidades significativas.",
-            "critical": "Riesgo crítico. No recomendado para contratación."
+            "low": "✅ Riesgo bajo. Empresa con buen perfil de cumplimiento. Apta para contratación.",
+            "medium": "⚠️ Riesgo moderado. Se recomienda revisión adicional antes de contratar.",
+            "high": "🚫 Riesgo alto. Detectadas irregularidades significativas. Contratación desaconsejada.",
+            "critical": "⛔ RIESGO CRÍTICO. Historial de sanciones graves. NO RECOMENDADO para contratación pública."
         }
         return descriptions.get(risk_level, "Nivel de riesgo desconocido")
 
