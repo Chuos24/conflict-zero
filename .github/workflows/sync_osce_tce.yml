@@ -8,15 +8,6 @@ on:
   
   # Permitir ejecución manual desde GitHub
   workflow_dispatch:
-    inputs:
-      force_download:
-        description: 'Forzar descarga de datasets aunque existan'
-        required: false
-        default: 'false'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
 
 jobs:
   sync-osce-data:
@@ -62,14 +53,6 @@ jobs:
             /tmp/*.log
           retention-days: 7
       
-      - name: Notify on success
-        if: success()
+      - name: Notify result
         run: |
-          echo "✅ OSCE data sync completed successfully at $(date)"
-          echo "Database: ${{ secrets.DATABASE_URL }}"
-      
-      - name: Notify on failure
-        if: failure()
-        run: |
-          echo "❌ OSCE data sync failed at $(date)"
-          # Aquí podrías agregar notificación a Slack, email, etc.
+          echo "✅ OSCE data sync completed at $(date)"
