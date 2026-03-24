@@ -3,6 +3,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime
 from app.core.config import get_settings
 from app.core.cache import cache
+from app.services.scraping import scraping_service
 
 settings = get_settings()
 
@@ -105,35 +106,17 @@ class ExternalAPIService:
     
     def get_osce_sanctions(self, ruc: str) -> List[Dict[str, Any]]:
         """
-        Obtiene sanciones OSCE para un RUC.
-        Placeholder - implementar cuando Perú API soporte OSCE o tengamos scraper.
+        Obtiene sanciones OSCE para un RUC via scraping.
         """
-        cache_key = f"osce:{ruc}"
-        
-        cached = cache.get(cache_key)
-        if cached:
-            return cached
-        
-        # TODO: Implementar consulta OSCE cuando esté disponible
-        data = []
-        cache.set(cache_key, data, expire=7200)
-        return data
+        # Usar scraping service
+        return scraping_service.get_osce_sanctions(ruc)
     
     def get_tce_sanctions(self, ruc: str) -> List[Dict[str, Any]]:
         """
-        Obtiene sanciones TCE para un RUC.
-        Placeholder - implementar cuando Perú API soporte TCE o tengamos scraper.
+        Obtiene sanciones TCE para un RUC via scraping.
         """
-        cache_key = f"tce:{ruc}"
-        
-        cached = cache.get(cache_key)
-        if cached:
-            return cached
-        
-        # TODO: Implementar consulta TCE cuando esté disponible
-        data = []
-        cache.set(cache_key, data, expire=7200)
-        return data
+        # Usar scraping service
+        return scraping_service.get_tce_sanctions(ruc)
     
     def get_full_ruc_data(self, ruc: str) -> Dict[str, Any]:
         """Obtiene todos los datos disponibles para un RUC."""
@@ -150,6 +133,13 @@ class ExternalAPIService:
         osce_sanctions = self.get_osce_sanctions(ruc)
         tce_sanctions = self.get_tce_sanctions(ruc)
         
+        # Determinar fuentes de datos usadas
+        data_sources = ["SUNAT"]
+        if osce_sanctions:
+            data_sources.append("OSCE")
+        if tce_sanctions:
+            data_sources.append("TCE")
+        
         return {
             "ruc": ruc,
             "company_name": sunat_data.get("razon_social", ""),
@@ -157,7 +147,7 @@ class ExternalAPIService:
             "osce_sanctions": osce_sanctions,
             "tce_sanctions": tce_sanctions,
             "consulted_at": datetime.now().isoformat(),
-            "data_sources": ["SUNAT"],
+            "data_sources": data_sources,
             "real_data": True
         }
 
