@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from datetime import datetime
+from sqlalchemy import text
 from app.core.cache import cache
 from app.core.database import engine
 from app.core.config import get_settings
@@ -24,7 +25,8 @@ async def health_check():
     # Check Database
     try:
         with engine.connect() as conn:
-            conn.execute("SELECT 1")
+            conn.execute(text("SELECT 1"))
+            conn.commit()
         health_status["services"]["database"] = "up"
     except Exception as e:
         health_status["services"]["database"] = f"down: {str(e)}"
