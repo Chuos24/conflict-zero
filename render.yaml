@@ -1,28 +1,24 @@
+name: Conflict Zero API
+
 services:
-  # Web Service - FastAPI Backend (Docker)
   - type: web
     name: conflict-zero-api
-    runtime: docker
+    runtime: python
     plan: starter
-    region: oregon
-    dockerfilePath: ./Dockerfile
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: conflict-zero-db
-          property: connectionString
+        value: "postgresql://conflict_zero_prod_user:QHsS3TsSfn1LdTlcFBDDTeiijsVColDk@dpg-d71bkh7gi27c73fbq4qg-a/conflict_zero_prod"
       - key: SECRET_KEY
         generateValue: true
       - key: PERU_API_KEY
-        value: d02bb5a71984e759885a4e47a575715c
+        sync: false
       - key: ENVIRONMENT
         value: production
-      - key: DEBUG
-        value: "false"
-      - key: PORT
-        value: "8000"
-
-databases:
-  - name: conflict-zero-db
-    plan: starter
-    region: oregon
+      - key: ALLOWED_HOSTS
+        value: "*"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "2"

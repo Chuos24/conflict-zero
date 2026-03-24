@@ -1,0 +1,23 @@
+[
+  {
+    "id": "f7ae8d57-f642-43d9-8ef4-b62b257a4b0f",
+    "user_id": "1ea12a41-2a8f-47f8-9bb7-37f901f743df",
+    "ruc": "20100017491",
+    "company_name": "INTEGRATEL PER\u00da S.A.A.",
+    "score": 100,
+    "risk_level": "low",
+    "sunat_debt": 0.0,
+    "sunat_score_contribution": 30.0,
+    "osce_sanctions_count": 0,
+    "osce_score_contribution": 40.0,
+    "osce_sanctions_details": "[]",
+    "tce_sanctions_count": 0,
+    "tce_score_contribution": 12.0,
+    "tce_sanctions_details": "[]",
+    "ml_anomaly_score": 0.0,
+    "ml_score_contribution": 30.0,
+    "raw_data": "{\"ruc\": \"20100017491\", \"company_name\": \"INTEGRATEL PER\\u00da S.A.A.\", \"score\": 100, \"risk_level\": \"low\", \"sunat_data\": {\"debt_amount\": 0, \"tax_status\": \"\", \"contributor_status\": \"ACTIVO\", \"address\": \"JR. DOMINGO MARTINEZ LUJAN NRO. 1130\", \"department\": \"LIMA\", \"province\": \"LIMA\", \"district\": \"SURQUILLO\", \"ubigeo\": \"150141\", \"last_updated\": \"2026-03-21T10:14:00.901677\", \"data_source\": \"peruapi_sunat\"}, \"osce_sanctions\": [], \"tce_sanctions\": [], \"ml_analysis\": {\"anomaly_score\": 0, \"risk_factors\": [], \"confidence\": 0.5}, \"score_breakdown\": {\"sunat_contribution\": 30.0, \"osce_contribution\": 40.0, \"tce_contribution\": 12.0, \"ml_contribution\": 30.0, \"total_score\": 100}, \"verification_date\": \"2026-03-21T10:14:00.905884\", \"cached\": false, \"pdf_url\": null, \"real_data\": true, \"data_sources\": [\"SUNAT\"]}",
+    "pdf_url": null,
+    "created_at": "2026-03-21 02:14:00.908941"
+  }
+]

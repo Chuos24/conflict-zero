@@ -16,11 +16,23 @@ import uuid
 
 settings = get_settings()
 
-# Crear tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+# Crear tablas en la base de datos (con manejo de errores para no bloquear startup)
+def init_database():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("✅ Tablas de base de datos creadas/verificadas")
+        return True
+    except Exception as e:
+        print(f"⚠️ Error conectando a base de datos: {e}")
+        return False
+
+db_connected = init_database()
 
 # Crear usuario founder si no existe - PASSWORD FIX APPLIED
 def create_founder_user():
+    if not db_connected:
+        print("⚠️ Saltando creación de founder (sin conexión a DB)")
+        return
     db = SessionLocal()
     try:
         existing = db.query(User).filter(User.email == "founder@conflictzero.com").first()
