@@ -5,7 +5,7 @@ from fastapi import HTTPException, status
 
 from app.models import VerificationRequest as VerificationModel, User
 from app.services.scoring import scoring_engine
-from app.services.external_api import external_api
+from app.services.external_api import get_external_api
 from app.core.cache import cache
 
 class VerificationService:
@@ -50,7 +50,7 @@ class VerificationService:
                 return cached_result
         
         # Obtener datos externos
-        external_data = external_api.get_full_ruc_data(ruc)
+        external_data = get_external_api().get_full_ruc_data(ruc)
         
         # Verificar si hay error en datos externos
         if external_data.get("error"):

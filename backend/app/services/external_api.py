@@ -167,5 +167,11 @@ class ExternalAPIService:
             "real_data": True
         }
 
-# Instancia global
+# Instancia global - CREADA PERO NO USADA DIRECTAMENTE
+# Usar get_external_api() para obtener una instancia fresca
 external_api = ExternalAPIService()
+
+# Función para obtener una instancia fresca (evita problemas de caché en importación)
+def get_external_api() -> ExternalAPIService:
+    """Retorna una nueva instancia de ExternalAPIService para evitar problemas de caché."""
+    return ExternalAPIService()
