@@ -20,6 +20,10 @@ class ExternalAPIService:
         
         # Verificar si tenemos API configurada
         self.has_real_api = bool(self.peruapi_token)
+        
+        # DEBUG: Log para verificar
+        print(f"DEBUG: PERUAPI_TOKEN='{settings.PERUAPI_TOKEN[:10]}...' PERU_API_KEY='{settings.PERU_API_KEY[:10]}...'")
+        print(f"DEBUG: peruapi_token='{self.peruapi_token[:10] if self.peruapi_token else 'EMPTY'}...' has_real_api={self.has_real_api}")
     
     def _call_peru_api(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
         """Llama a Perú API para obtener datos reales de SUNAT"""
