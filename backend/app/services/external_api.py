@@ -29,13 +29,16 @@ class ExternalAPIService:
     
     def _call_peru_api(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
         """Llama a Perú API para obtener datos reales de SUNAT"""
-        if not self.peruapi_token:
+        # Leer token cada vez (para detectar cambios en env vars)
+        token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY")
+        if not token:
+            print(f"DEBUG _call_peru_api: No token found!")
             return None
         
         try:
             url = f"{self.peruapi_base_url}/{endpoint}"
             headers = {
-                "X-API-KEY": self.peruapi_token,
+                "X-API-KEY": token,
                 "Content-Type": "application/json",
                 "Accept": "application/json"
             }
@@ -44,9 +47,11 @@ class ExternalAPIService:
             if params is None:
                 params = {}
             if "api_token" not in params:
-                params["api_token"] = self.peruapi_token
+                params["api_token"] = token
             
+            print(f"DEBUG: Calling Peru API with token {token[:15]}...")
             response = requests.get(url, headers=headers, params=params, timeout=15)
+            print(f"DEBUG: Response status: {response.status_code}")
             response.raise_for_status()
             return response.json()
             
@@ -69,8 +74,12 @@ class ExternalAPIService:
             cached["cached"] = True
             return cached
         
+        # Leer token directamente de env vars cada vez
+        token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY")
+        print(f"DEBUG get_sunat_data: token={'SET' if token else 'NOT_SET'}")
+        
         # Perú API como fuente primaria
-        if self.peruapi_token:
+        if token:
             result = self._call_peru_api(f"api/ruc/{ruc}")
             
             if result and result.get("code") == "200":
