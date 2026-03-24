@@ -78,40 +78,51 @@ async def consulta_completa(
     # Llamada a BuscarUC API
     sunat_data = call_buscaruc_api(ruc)
     
-    # Si BuscarUC falla, usar datos de OSCE DB como fallback
-    if sunat_data.get("error"):
+    # Si BuscarUC falla O devuelve datos incompletos (sin razón social), usar fallback
+    buscaruc_failed = sunat_data.get("error") or not sunat_data.get("razon_social")
+    
+    if buscaruc_failed:
         from app.services.osce_datos_abiertos import osce_datos_abiertos
         osce_db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
+        
+        razon_social_fallback = None
+        if osce_db_data and osce_db_data.get("nombre"):
+            razon_social_fallback = osce_db_data.get("nombre")
+        elif sunat_data.get("razon_social"):
+            # Usar lo que vino de BuscarUC aunque sea incompleto
+            razon_social_fallback = sunat_data.get("razon_social")
+        else:
+            razon_social_fallback = f"RUC {ruc}"
         
         if osce_db_data:
             # Usar datos de OSCE como fallback
             sunat_data = {
                 "ruc": ruc,
-                "razon_social": osce_db_data.get("nombre", f"RUC {ruc}"),
+                "razon_social": razon_social_fallback,
                 "nombre": osce_db_data.get("nombre", ""),
-                "estado": "ACTIVO",  # Asumir activo si no sabemos
-                "condicion": "HABIDO",
-                "direccion": "",
-                "departamento": "",
-                "provincia": "",
-                "distrito": "",
-                "ubigeo": "",
+                "estado": sunat_data.get("estado", "ACTIVO"),
+                "condicion": sunat_data.get("condicion", "HABIDO"),
+                "direccion": sunat_data.get("direccion", ""),
+                "departamento": sunat_data.get("departamento", ""),
+                "provincia": sunat_data.get("provincia", ""),
+                "distrito": sunat_data.get("distrito", ""),
+                "ubigeo": sunat_data.get("ubigeo", ""),
                 "success": True,
                 "fuente": "osce_db_fallback"
             }
         else:
-            # Último fallback: solo el RUC
+            # Último fallback: usar lo que tengamos de BuscarUC o solo el RUC
             sunat_data = {
                 "ruc": ruc,
-                "razon_social": f"RUC {ruc}",
-                "nombre": "",
-                "estado": "ACTIVO",
-                "condicion": "HABIDO",
-                "direccion": "",
-                "departamento": "",
-                "provincia": "",
-                "distrito": "",
-                "ubigeo": "",
+                "razon_social": razon_social_fallback,
+                "nombre": sunat_data.get("nombre", ""),
+                "estado": sunat_data.get("estado", "ACTIVO"),
+                "condicion": sunat_data.get("condicion", "HABIDO"),
+                "direccion": sunat_data.get("direccion", ""),
+                "departamento": sunat_data.get("departamento", ""),
+                "provincia": sunat_data.get("provincia", ""),
+                "distrito": sunat_data.get("distrito", ""),
+                "ubigeo": sunat_data.get("ubigeo", ""),
                 "success": True,
                 "fuente": "ruc_only"
             }
