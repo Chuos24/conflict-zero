@@ -22,15 +22,22 @@ class OSCEDatosAbiertosService:
             'penalidades': 'penalidades_real.csv',
             'inhabilitaciones': 'inhabilitaciones_real.csv',
         }
-        self.db_url = os.getenv('DATABASE_URL')
+    
+    def _get_db_url(self) -> Optional[str]:
+        """Obtiene DATABASE_URL dinámicamente."""
+        return os.getenv('DATABASE_URL')
     
     def _get_db_connection(self):
         """Obtiene conexión a PostgreSQL."""
+        db_url = self._get_db_url()
+        if not db_url:
+            print("[OSCE] DATABASE_URL no configurado")
+            return None
         try:
             import psycopg2
-            return psycopg2.connect(self.db_url)
+            return psycopg2.connect(db_url)
         except Exception as e:
-            print(f"Error conectando a DB: {e}")
+            print(f"[OSCE] Error conectando a DB: {e}")
             return None
     
     def get_sanciones_from_db(self, ruc: str) -> Optional[Dict[str, Any]]:
@@ -40,9 +47,6 @@ class OSCEDatosAbiertosService:
         Returns:
             Dict con datos agregados o None si no existe
         """
-        if not self.db_url:
-            return None
-        
         conn = None
         try:
             conn = self._get_db_connection()
@@ -271,31 +275,30 @@ class OSCEDatosAbiertosService:
     def get_estadisticas(self) -> Dict[str, Any]:
         """Obtiene estadísticas de los datasets."""
         # Intentar desde DB primero
-        if self.db_url:
-            conn = self._get_db_connection()
-            if conn:
-                try:
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        SELECT 
-                            COUNT(*),
-                            SUM(CASE WHEN flag_sancion_osce THEN 1 ELSE 0 END),
-                            SUM(CASE WHEN flag_sancion_tce THEN 1 ELSE 0 END),
-                            AVG(score_osce_anual)
-                        FROM osce_risk_data
-                    """)
-                    row = cursor.fetchone()
-                    conn.close()
-                    return {
-                        'total_rucs': row[0],
-                        'con_sancion_osce': row[1],
-                        'con_sancion_tce': row[2],
-                        'score_promedio': round(row[3], 2) if row[3] else 0,
-                        'fuente': 'postgresql',
-                    }
-                except Exception as e:
-                    print(f"Error stats DB: {e}")
-                    conn.close()
+        conn = self._get_db_connection()
+        if conn:
+            try:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    SELECT 
+                        COUNT(*),
+                        SUM(CASE WHEN flag_sancion_osce THEN 1 ELSE 0 END),
+                        SUM(CASE WHEN flag_sancion_tce THEN 1 ELSE 0 END),
+                        AVG(score_osce_anual)
+                    FROM osce_risk_data
+                """)
+                row = cursor.fetchone()
+                conn.close()
+                return {
+                    'total_rucs': row[0],
+                    'con_sancion_osce': row[1],
+                    'con_sancion_tce': row[2],
+                    'score_promedio': round(row[3], 2) if row[3] else 0,
+                    'fuente': 'postgresql',
+                }
+            except Exception as e:
+                print(f"[OSCE] Error stats DB: {e}")
+                conn.close()
         
         # Fallback a CSVs
         stats = {}
