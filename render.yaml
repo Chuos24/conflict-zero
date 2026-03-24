@@ -2,7 +2,7 @@ name: Conflict Zero API
 
 services:
   - type: web
-    name: conflict-zero-api
+    name: conflictzero backend1
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
