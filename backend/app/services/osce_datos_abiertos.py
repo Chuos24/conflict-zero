@@ -1,12 +1,14 @@
 """
 Servicio para obtener datos de sanciones OSCE desde PostgreSQL.
-Usa la tabla osce_risk_data poblada por el script de ingesta.
+Usa SQLAlchemy para compatibilidad con el resto de la aplicación.
 """
 import os
 import csv
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from sqlalchemy import text
 from app.core.cache import cache
+from app.core.database import SessionLocal
 
 class OSCEDatosAbiertosService:
     """
@@ -23,73 +25,54 @@ class OSCEDatosAbiertosService:
             'inhabilitaciones': 'inhabilitaciones_real.csv',
         }
     
-    def _get_db_url(self) -> Optional[str]:
-        """Obtiene DATABASE_URL dinámicamente."""
-        return os.getenv('DATABASE_URL')
-    
-    def _get_db_connection(self):
-        """Obtiene conexión a PostgreSQL."""
-        db_url = self._get_db_url()
-        if not db_url:
-            print("[OSCE] DATABASE_URL no configurado")
-            return None
-        try:
-            import psycopg2
-            return psycopg2.connect(db_url)
-        except Exception as e:
-            print(f"[OSCE] Error conectando a DB: {e}")
-            return None
-    
     def get_sanciones_from_db(self, ruc: str) -> Optional[Dict[str, Any]]:
         """
-        Consulta sanciones desde PostgreSQL (tabla osce_risk_data).
+        Consulta sanciones desde PostgreSQL usando SQLAlchemy.
         
         Returns:
             Dict con datos agregados o None si no existe
         """
-        conn = None
+        db = None
         try:
-            conn = self._get_db_connection()
-            if not conn:
-                return None
+            db = SessionLocal()
+            result = db.execute(
+                text("""
+                    SELECT ruc, nombre, score_osce_anual, flag_sancion_tce, flag_sancion_osce,
+                           cantidad_sanciones, cantidad_penalidades, cantidad_inhabilitaciones,
+                           sanciones_vigentes, inhabilitaciones_vigentes, monto_total_penalidades,
+                           dias_inhabilitacion_restantes, fecha_ultima_sancion, motivos, fecha_sync
+                    FROM osce_risk_data
+                    WHERE ruc = :ruc
+                """),
+                {"ruc": ruc}
+            ).fetchone()
             
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT ruc, nombre, score_osce_anual, flag_sancion_tce, flag_sancion_osce,
-                       cantidad_sanciones, cantidad_penalidades, cantidad_inhabilitaciones,
-                       sanciones_vigentes, inhabilitaciones_vigentes, monto_total_penalidades,
-                       dias_inhabilitacion_restantes, fecha_ultima_sancion, motivos, fecha_sync
-                FROM osce_risk_data
-                WHERE ruc = %s
-            """, (ruc,))
-            
-            row = cursor.fetchone()
-            if not row:
+            if not result:
                 return None
             
             return {
-                'ruc': row[0],
-                'nombre': row[1],
-                'score_osce_anual': row[2],
-                'flag_sancion_tce': row[3],
-                'flag_sancion_osce': row[4],
-                'cantidad_sanciones': row[5] or 0,
-                'cantidad_penalidades': row[6] or 0,
-                'cantidad_inhabilitaciones': row[7] or 0,
-                'sanciones_vigentes': row[8] or 0,
-                'inhabilitaciones_vigentes': row[9] or 0,
-                'monto_total_penalidades': float(row[10]) if row[10] else 0,
-                'dias_inhabilitacion_restantes': row[11] or 0,
-                'fecha_ultima_sancion': row[12].isoformat() if row[12] else None,
-                'motivos': row[13],
-                'fecha_sync': row[14].isoformat() if row[14] else None,
+                'ruc': result[0],
+                'nombre': result[1],
+                'score_osce_anual': result[2],
+                'flag_sancion_tce': result[3],
+                'flag_sancion_osce': result[4],
+                'cantidad_sanciones': result[5] or 0,
+                'cantidad_penalidades': result[6] or 0,
+                'cantidad_inhabilitaciones': result[7] or 0,
+                'sanciones_vigentes': result[8] or 0,
+                'inhabilitaciones_vigentes': result[9] or 0,
+                'monto_total_penalidades': float(result[10]) if result[10] else 0,
+                'dias_inhabilitacion_restantes': result[11] or 0,
+                'fecha_ultima_sancion': result[12].isoformat() if result[12] else None,
+                'motivos': result[13],
+                'fecha_sync': result[14].isoformat() if result[14] else None,
             }
         except Exception as e:
-            print(f"Error consultando DB: {e}")
+            print(f"[OSCE] Error consultando DB: {e}")
             return None
         finally:
-            if conn:
-                conn.close()
+            if db:
+                db.close()
     
     def _read_csv(self, filename: str) -> List[Dict[str, str]]:
         """Lee un archivo CSV y retorna lista de diccionarios."""
@@ -106,11 +89,11 @@ class OSCEDatosAbiertosService:
                 reader = csv.DictReader(f, delimiter=delimiter)
                 return list(reader)
         except Exception as e:
-            print(f"Error leyendo {filename}: {e}")
+            print(f"[OSCE] Error leyendo {filename}: {e}")
             return []
     
     def search_sancionados_by_ruc(self, ruc: str) -> List[Dict[str, Any]]:
-        """Busca sanciones por RUC."""
+        """Busca sanciones por RUC en CSV (fallback)."""
         cache_key = f"osce_sancionados:{ruc}"
         cached = cache.get(cache_key)
         if cached:
@@ -136,7 +119,7 @@ class OSCEDatosAbiertosService:
         return results
     
     def search_penalidades_by_ruc(self, ruc: str) -> List[Dict[str, Any]]:
-        """Busca penalidades por RUC."""
+        """Busca penalidades por RUC en CSV (fallback)."""
         cache_key = f"osce_penalidades:{ruc}"
         cached = cache.get(cache_key)
         if cached:
@@ -162,7 +145,7 @@ class OSCEDatosAbiertosService:
         return results
     
     def search_inhabilitaciones_by_ruc(self, ruc: str) -> List[Dict[str, Any]]:
-        """Busca inhabilitaciones judiciales por RUC."""
+        """Busca inhabilitaciones judiciales por RUC en CSV (fallback)."""
         cache_key = f"osce_inhabilitaciones:{ruc}"
         cached = cache.get(cache_key)
         if cached:
@@ -201,12 +184,11 @@ class OSCEDatosAbiertosService:
         db_data = self.get_sanciones_from_db(ruc)
         
         if db_data:
-            # Construir respuesta desde DB (más rápido)
+            # Construir respuesta desde DB
             sancionados = []
             penalidades = []
             inhabilitaciones = []
             
-            # Crear entradas sintéticas basadas en los conteos de DB
             if db_data['cantidad_sanciones'] > 0:
                 sancionados.append({
                     'tipo': 'sancion_inhabilitacion',
@@ -274,39 +256,38 @@ class OSCEDatosAbiertosService:
     
     def get_estadisticas(self) -> Dict[str, Any]:
         """Obtiene estadísticas de los datasets."""
-        # Intentar desde DB primero
-        conn = self._get_db_connection()
-        if conn:
-            try:
-                cursor = conn.cursor()
-                cursor.execute("""
-                    SELECT 
-                        COUNT(*),
-                        SUM(CASE WHEN flag_sancion_osce THEN 1 ELSE 0 END),
-                        SUM(CASE WHEN flag_sancion_tce THEN 1 ELSE 0 END),
-                        AVG(score_osce_anual)
-                    FROM osce_risk_data
-                """)
-                row = cursor.fetchone()
-                conn.close()
-                return {
-                    'total_rucs': row[0],
-                    'con_sancion_osce': row[1],
-                    'con_sancion_tce': row[2],
-                    'score_promedio': round(row[3], 2) if row[3] else 0,
-                    'fuente': 'postgresql',
-                }
-            except Exception as e:
-                print(f"[OSCE] Error stats DB: {e}")
-                conn.close()
-        
-        # Fallback a CSVs
-        stats = {}
-        for tipo, filename in self.files.items():
-            data = self._read_csv(filename)
-            stats[tipo] = len(data)
-        stats['fuente'] = 'csv'
-        return stats
+        # Intentar desde DB primero usando SQLAlchemy
+        db = None
+        try:
+            db = SessionLocal()
+            result = db.execute(text("""
+                SELECT 
+                    COUNT(*),
+                    SUM(CASE WHEN flag_sancion_osce THEN 1 ELSE 0 END),
+                    SUM(CASE WHEN flag_sancion_tce THEN 1 ELSE 0 END),
+                    AVG(score_osce_anual)
+                FROM osce_risk_data
+            """)).fetchone()
+            
+            return {
+                'total_rucs': result[0] or 0,
+                'con_sancion_osce': result[1] or 0,
+                'con_sancion_tce': result[2] or 0,
+                'score_promedio': round(result[3], 2) if result[3] else 0,
+                'fuente': 'postgresql',
+            }
+        except Exception as e:
+            print(f"[OSCE] Error stats DB: {e}")
+            # Fallback a CSVs
+            stats = {}
+            for tipo, filename in self.files.items():
+                data = self._read_csv(filename)
+                stats[tipo] = len(data)
+            stats['fuente'] = 'csv'
+            return stats
+        finally:
+            if db:
+                db.close()
 
 # Instancia global
 osce_datos_abiertos = OSCEDatosAbiertosService()
