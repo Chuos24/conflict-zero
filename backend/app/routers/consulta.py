@@ -42,6 +42,8 @@ def call_peru_api_direct(ruc: str) -> Dict[str, Any]:
                 "direccion": data.get("direccion", "").strip(),
                 "success": True
             }
+        elif data.get("code") == "401":
+            return {"error": True, "message": "API Key inválida o expirada. Verifica tu token en peruapi.com", "ruc": ruc}
         elif data.get("code") == "404":
             return {"error": True, "message": "RUC no encontrado", "ruc": ruc}
         else:
