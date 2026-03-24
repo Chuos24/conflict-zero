@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="google-site-verification" content="2HaXFt0VgpBQP0bA1aMMgIK9XlW3_poFftyRP7xazCc">
+  <title>CONOSCE - DATOS ABIERTOS</title>
+  <link rel="stylesheet" href="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/css/components.css">
+  <link rel="stylesheet" href="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/css/icons.css">
+  <link rel="stylesheet" href="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/css/responsee.css">
+  <link rel="stylesheet" href="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/owl-carousel/owl.carousel.css">
+  <link rel="stylesheet" href="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/owl-carousel/owl.theme.css">
+  <link rel="stylesheet" href="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/css/template-style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap" rel="stylesheet">
+  <!-- <script src="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/js/jquery-1.8.3.min.js"></script>
+  <script src="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/js/jquery-ui.min.js"></script> -->
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- jQuery UI -->
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+  <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+  <!-- Google tag (gtag.js) -->
+  <script>
+    // Función para obtener el parámetro "pagina" de la URL
+    // Obtener parámetros de la URL
+    const getUrlParameters = (name) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get(name);
+      };
+    
+    var pagina = getUrlParameters('pagina').toLowerCase(); // Para facilitar la comparación
+  
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    let id;
+    switch (pagina) {
+      case 'adjudicaciones':
+        id = 'G-2LMWYN52M1';
+        break;
+      case 'pac':
+        id = 'G-QKW23WPK69';
+        break;
+      case 'sican':
+        id = 'G-QYMYT543Y6';
+        break;
+      case 'entidades':
+        id = 'G-0KYX4WKGV9';
+        break;
+      case 'convocatorias':
+        id='G-KDRDT2FG6C';
+        break;      
+      case 'proveedores':
+        id='G-68R3PK7XPQ';
+        break;
+      case 'contratos':
+        id='G-39S4BQJ44H';
+        break;
+      case 'ordenes':
+        id='G-Z9FE8QFHET';
+        break;
+      case 'pronunciamientos':
+        id='G-88YTH3NE3Q';
+        break;
+      case 'nulos':
+        id='G-KQB1MZQLCE';
+        break;
+      case 'desiertos':
+        id='G-DTR8PXG8SS';
+        break;
+      case 'directa':
+        id='G-563704P0BX';
+        break;
+      case 'arbitraje':
+        id='G-G66S2PXT4F';
+        break;
+      case 'postores':
+        id='G-92GNKGQGNF';
+        break;
+      case 'comite':
+        id='G-2KWXVW21VV';
+        break;
+      case 'interpretacion':
+        id='G-VKM4F9FG77';
+        break;
+      case 'conformacion':
+        id='G-1FXD883S80';
+        break;
+      case 'penalidades':
+        id='G-MWNPBD0YP3';
+        break;
+      default://home
+        id = 'G-4ZH15D12EF';
+        break;
+    }
+    gtag('config', id);
+     // Creamos de forma dinámica la etiqueta de gtag con el id correspondiente
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = "https://www.googletagmanager.com/gtag/js?id=" + id;
+    document.head.appendChild(script);
+
+    // Configuración de Google Analytics
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){ dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', id);
+  </script>
+</head>
+<body class="size-1140">
+  <!-- HEADER -->
+  <header role="banner" class="position-absolute">
+    
+  </header>
+  
+  <!-- MAIN -->
+  <main role="main">
+    <!-- Main Header -->
+    <header class="section background-dark"></header>
+    <div id="dinamyc-container"></div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    
+  </footer>
+
+  
+
+  <!-- <script src="js/renderhtmlV2.js"></script> -->
+
+  <script src="https://bi.seace.gob.pe/pentaho/plugin/pentaho-cdf-dd/api/resources/public/portal/js/renderhtmlv2.js"></script>
+  <!-- <script src="js/renderhtmlv2.js"></script> -->
+</body>
+</html>
