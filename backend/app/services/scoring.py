@@ -3,6 +3,7 @@ import random
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from app.core.config import get_settings
+from app.core.database import get_db_session
 
 settings = get_settings()
 
@@ -13,7 +14,7 @@ class ScoringEngine:
     - 30% Estado SUNAT (Activo/Baja/Suspensión)
     - 25% Condición domicilio (Habido/No habido)
     - 20% Antigüedad del RUC
-    - 15% Sanciones OSCE/Penalidades
+    - 15% Sanciones OSCE/Penalidades (desde PostgreSQL)
     - 10% Análisis predictivo (sector, nombre)
     """
     
@@ -24,6 +25,41 @@ class ScoringEngine:
         self.antiguedad_weight = 0.20
         self.osce_weight = 0.15
         self.ml_weight = 0.10
+    
+    def get_osce_data_from_db(self, ruc: str) -> Optional[Dict[str, Any]]:
+        """
+        Obtiene datos de riesgo OSCE desde PostgreSQL.
+        
+        Returns:
+            Dict con datos de la tabla osce_risk_data o None si no existe
+        """
+        try:
+            db = next(get_db_session())
+            from sqlalchemy import text
+            
+            result = db.execute(
+                text("SELECT * FROM osce_risk_data WHERE ruc = :ruc"),
+                {"ruc": ruc}
+            ).fetchone()
+            
+            if result:
+                return {
+                    'ruc': result.ruc,
+                    'score_osce_anual': result.score_osce_anual,
+                    'flag_sancion_tce': result.flag_sancion_tce,
+                    'flag_sancion_osce': result.flag_sancion_osce,
+                    'cantidad_sanciones': result.cantidad_sanciones,
+                    'cantidad_penalidades': result.cantidad_penalidades,
+                    'sanciones_vigentes': result.sanciones_vigentes,
+                    'inhabilitaciones_vigentes': result.inhabilitaciones_vigentes,
+                    'dias_inhabilitacion_restantes': result.dias_inhabilitacion_restantes,
+                    'monto_total_penalidades': float(result.monto_total_penalidades) if result.monto_total_penalidades else 0,
+                    'fecha_sync': result.fecha_sync.isoformat() if result.fecha_sync else None,
+                }
+            return None
+        except Exception as e:
+            print(f"Error consultando OSCE DB: {e}")
+            return None
     
     def _extract_ruc_year(self, ruc: str) -> int:
         """Extrae el año de constitución del RUC (primeros 2 dígitos)."""
