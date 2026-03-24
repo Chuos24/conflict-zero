@@ -4,9 +4,11 @@ from typing import List, Dict, Any, Optional
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user, verify_token_optional
+from app.core.config import get_settings
 from app.models import User
 from app.services.verification import verification_service
 
+settings = get_settings()
 router = APIRouter(tags=["Consulta Completa"])
 
 @router.get(
@@ -83,12 +85,14 @@ async def consulta_completa(
     
     except Exception as e:
         import traceback
-        print(f"Error en consulta_completa: {e}")
+        error_msg = str(e) if str(e) else repr(e)
+        print(f"Error en consulta_completa: {error_msg}")
         print(traceback.format_exc())
         return {
             "error": True,
-            "message": str(e),
-            "ruc": ruc
+            "message": error_msg or "Error interno del servidor",
+            "ruc": ruc,
+            "traceback": traceback.format_exc() if settings.DEBUG else None
         }
 
 @router.get(
