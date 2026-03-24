@@ -83,6 +83,13 @@ async def consulta_completa(
             }
         }
     
+    except HTTPException as he:
+        # Manejar específicamente HTTPException
+        return {
+            "error": True,
+            "message": he.detail or "Error en el servicio",
+            "ruc": ruc
+        }
     except Exception as e:
         import traceback
         error_msg = str(e) if str(e) else repr(e)
@@ -91,8 +98,7 @@ async def consulta_completa(
         return {
             "error": True,
             "message": error_msg or "Error interno del servidor",
-            "ruc": ruc,
-            "traceback": traceback.format_exc() if settings.DEBUG else None
+            "ruc": ruc
         }
 
 @router.get(
