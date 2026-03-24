@@ -76,10 +76,11 @@ class ExternalAPIService:
         
         # Leer token directamente de env vars cada vez
         token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY")
-        print(f"DEBUG get_sunat_data: token={'SET' if token else 'NOT_SET'}")
+        print(f"DEBUG get_sunat_data: token={'SET' if token else 'NOT_SET'} len={len(token) if token else 0}")
         
         # Perú API como fuente primaria
         if token:
+            print(f"DEBUG: Llamando a _call_peru_api con token válido...")
             result = self._call_peru_api(f"api/ruc/{ruc}")
             
             if result and result.get("code") == "200":
