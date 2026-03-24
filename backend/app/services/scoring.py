@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from app.core.config import get_settings
 
@@ -106,7 +106,7 @@ class ScoringEngine:
         return 100.0
     
     def calculate_ml_score(self, ruc: str, sunat_data: Dict, osce_data: List, 
-                           tce_data: List) -> Tuple[float, List[str], float]:
+                           tce_data: List) -> tuple[float, List[str], float]:
         """
         Simula análisis ML para detección de anomalías.
         En producción, esto usaría un modelo entrenado.

@@ -10,51 +10,47 @@ from app.core.config import get_settings
 settings = get_settings()
 router = APIRouter(tags=["Consulta Completa"])
 
-# Función directa - llama a BuscarUC API
-def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
-    """Llama a BuscarUC API - API oficial para datos SUNAT."""
+# Función directa - llama a Perú API sin intermediarios
+def call_peru_api_direct(ruc: str) -> Dict[str, Any]:
+    """Llama directamente a Perú API - sin servicios intermedios."""
     # Leer token DIRECTAMENTE de environment
     token = os.environ.get("PERU_API_KEY") or os.environ.get("PERUAPI_TOKEN")
     
     if not token:
-        print(f"[BUSCARUC] ERROR: No token found in environment!")
+        print(f"[DIRECT] ERROR: No token found in environment!")
+        print(f"[DIRECT] PERU_API_KEY present: {'PERU_API_KEY' in os.environ}")
+        print(f"[DIRECT] PERUAPI_TOKEN present: {'PERUAPI_TOKEN' in os.environ}")
         return {"error": True, "message": "API no configurada", "ruc": ruc}
     
     try:
-        # BuscarUC API - POST request con JSON body
-        url = "https://buscaruc.com/api/v1/ruc"
-        headers = {"Content-Type": "application/json"}
-        payload = {
-            "token": token,
-            "ruc": ruc
-        }
+        url = f"https://peruapi.com/api/ruc/{ruc}"
+        headers = {"X-API-KEY": token}
+        params = {"api_token": token}
         
-        print(f"[BUSCARUC] Calling API for RUC: {ruc}")
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        print(f"[DIRECT] Calling Peru API for RUC: {ruc}")
+        response = requests.get(url, headers=headers, params=params, timeout=15)
         data = response.json()
         
-        print(f"[BUSCARUC] Response: {data}")
+        print(f"[DIRECT] Response code: {data.get('code')}")
         
-        # BuscarUC retorna datos directamente sin código
-        if data.get("error"):
-            return {"error": True, "message": data.get("message", "Error en API"), "ruc": ruc}
-        
-        # Extraer datos del RUC
-        return {
-            "ruc": ruc,
-            "razon_social": data.get("razonSocial", "").strip() or data.get("nombre", "").strip(),
-            "estado": data.get("estado", "ACTIVO"),
-            "condicion": data.get("condicion", "HABIDO"),
-            "direccion": data.get("direccion", "").strip(),
-            "departamento": data.get("departamento", ""),
-            "provincia": data.get("provincia", ""),
-            "distrito": data.get("distrito", ""),
-            "ubigeo": data.get("ubigeo", ""),
-            "success": True
-        }
+        if data.get("code") == "200":
+            return {
+                "ruc": ruc,
+                "razon_social": data.get("razon_social", "").strip(),
+                "estado": data.get("estado", "ACTIVO"),
+                "condicion": data.get("condicion", "HABIDO"),
+                "direccion": data.get("direccion", "").strip(),
+                "success": True
+            }
+        elif data.get("code") == "401":
+            return {"error": True, "message": "API Key inválida o expirada. Verifica tu token en peruapi.com", "ruc": ruc}
+        elif data.get("code") == "404":
+            return {"error": True, "message": "RUC no encontrado", "ruc": ruc}
+        else:
+            return {"error": True, "message": f"API Error: {data.get('code')}", "ruc": ruc}
             
     except Exception as e:
-        print(f"[BUSCARUC] Exception: {e}")
+        print(f"[DIRECT] Exception: {e}")
         return {"error": True, "message": str(e), "ruc": ruc}
 
 
@@ -79,8 +75,8 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Llamada a BuscarUC API
-    sunat_data = call_buscaruc_api(ruc)
+    # Llamada DIRECTA a Perú API
+    sunat_data = call_peru_api_direct(ruc)
     
     if sunat_data.get("error"):
         return sunat_data
@@ -98,10 +94,6 @@ async def consulta_completa(
         "condicion": sunat_data.get("condicion", "HABIDO"),
         "estado_sunat": sunat_data.get("estado", "ACTIVO"),
         "direccion": sunat_data.get("direccion", ""),
-        "departamento": sunat_data.get("departamento", ""),
-        "provincia": sunat_data.get("provincia", ""),
-        "distrito": sunat_data.get("distrito", ""),
-        "ubigeo": sunat_data.get("ubigeo", ""),
         "score": score,
         "sunat": {
             "ruc": ruc,
@@ -130,4 +122,4 @@ async def consulta_sunat(ruc: str):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    return call_buscaruc_api(ruc)
+    return call_peru_api_direct(ruc)

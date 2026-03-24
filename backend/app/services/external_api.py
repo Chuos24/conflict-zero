@@ -11,46 +11,57 @@ settings = get_settings()
 class ExternalAPIService:
     """
     Servicio para consultar APIs externas de datos peruanos.
-    Fuente primaria: BuscarUC (buscaruc.com)
+    Fuente primaria: Perú API (peruapi.com)
     """
     
     def __init__(self):
-        # BuscarUC API - Fuente primaria
-        self.buscaruc_token = os.getenv("PERU_API_KEY") or os.getenv("PERUAPI_TOKEN")
-        self.buscaruc_base_url = "https://buscaruc.com/api/v1"
+        # Perú API - Fuente primaria
+        # Intentar ambas variables de entorno
+        self.peruapi_token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY") or settings.PERUAPI_TOKEN or settings.PERU_API_KEY
+        self.peruapi_base_url = "https://peruapi.com"
         
         # Verificar si tenemos API configurada
-        self.has_real_api = bool(self.buscaruc_token)
+        self.has_real_api = bool(self.peruapi_token)
+        
+        # DEBUG: Log para verificar
+        print(f"DEBUG: PERUAPI_TOKEN='{os.getenv('PERUAPI_TOKEN', 'NOT_SET')[:10]}...' PERU_API_KEY='{os.getenv('PERU_API_KEY', 'NOT_SET')[:10]}...'")
+        print(f"DEBUG: peruapi_token='{self.peruapi_token[:10] if self.peruapi_token else 'EMPTY'}...' has_real_api={self.has_real_api}")
     
-    def _call_buscaruc_api(self, ruc: str) -> Optional[Dict]:
-        """Llama a BuscarUC API para obtener datos reales de SUNAT"""
-        token = os.getenv("PERU_API_KEY") or os.getenv("PERUAPI_TOKEN")
+    def _call_peru_api(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
+        """Llama a Perú API para obtener datos reales de SUNAT"""
+        # Leer token cada vez (para detectar cambios en env vars)
+        token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY")
         if not token:
-            print(f"[ExternalAPI] No token found!")
+            print(f"DEBUG _call_peru_api: No token found!")
             return None
         
         try:
-            url = f"{self.buscaruc_base_url}/ruc"
-            headers = {"Content-Type": "application/json"}
-            payload = {"token": token, "ruc": ruc}
+            url = f"{self.peruapi_base_url}/{endpoint}"
+            headers = {
+                "X-API-KEY": token,
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
             
-            print(f"[ExternalAPI] Calling BuscarUC for RUC: {ruc}")
-            response = requests.post(url, headers=headers, json=payload, timeout=15)
-            data = response.json()
+            # Añadir api_token a params si no está
+            if params is None:
+                params = {}
+            if "api_token" not in params:
+                params["api_token"] = token
             
-            if data.get("error"):
-                print(f"[ExternalAPI] BuscarUC error: {data.get('message')}")
-                return None
-            
-            return data
+            print(f"DEBUG: Calling Peru API with token {token[:15]}...")
+            response = requests.get(url, headers=headers, params=params, timeout=15)
+            print(f"DEBUG: Response status: {response.status_code}")
+            response.raise_for_status()
+            return response.json()
             
         except requests.exceptions.RequestException as e:
-            print(f"[ExternalAPI] Error calling BuscarUC: {e}")
+            print(f"Error llamando Perú API: {e}")
             return None
 
     def get_sunat_data(self, ruc: str) -> Dict[str, Any]:
         """
-        Obtiene datos reales de SUNAT para un RUC via BuscarUC API.
+        Obtiene datos reales de SUNAT para un RUC via Perú API.
         
         Returns:
             Dict con datos reales de SUNAT o error si no hay API configurada
@@ -63,31 +74,49 @@ class ExternalAPIService:
             cached["cached"] = True
             return cached
         
-        # BuscarUC API como fuente primaria
-        result = self._call_buscaruc_api(ruc)
+        # Leer token directamente de env vars cada vez
+        token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY")
+        print(f"DEBUG get_sunat_data: token={'SET' if token else 'NOT_SET'} len={len(token) if token else 0}")
         
-        if result:
-            response_data = {
-                "ruc": ruc,
-                "razon_social": result.get("razonSocial", "").strip() or result.get("nombre", "").strip(),
-                "nombre_comercial": result.get("nombreComercial", "").strip(),
-                "estado_contribuyente": result.get("estado", "ACTIVO"),
-                "condicion_domicilio": result.get("condicion", "HABIDO"),
-                "direccion": result.get("direccion", "").strip(),
-                "departamento": result.get("departamento", ""),
-                "provincia": result.get("provincia", ""),
-                "distrito": result.get("distrito", ""),
-                "ubigeo": result.get("ubigeo", ""),
-                "fuente": "buscaruc_sunat",
-                "fecha_consulta": datetime.now().isoformat()
-            }
-            cache.set(cache_key, response_data, expire=3600)
-            return response_data
+        # Perú API como fuente primaria
+        if token:
+            print(f"DEBUG: Llamando a _call_peru_api con token válido...")
+            result = self._call_peru_api(f"api/ruc/{ruc}")
+            
+            if result and result.get("code") == "200":
+                response_data = {
+                    "ruc": ruc,
+                    "razon_social": result.get("razon_social", "").strip(),
+                    "nombre_comercial": result.get("razon_social", "").strip(),
+                    "estado_contribuyente": result.get("estado", "ACTIVO"),
+                    "condicion_domicilio": result.get("condicion", "HABIDO"),
+                    "direccion": result.get("direccion", "").strip(),
+                    "departamento": result.get("departamento", ""),
+                    "provincia": result.get("provincia", ""),
+                    "distrito": result.get("distrito", ""),
+                    "ubigeo": result.get("ubigeo", ""),
+                    "fuente": "peruapi_sunat",
+                    "fecha_consulta": datetime.now().isoformat()
+                }
+                cache.set(cache_key, response_data, expire=3600)
+                return response_data
+            elif result and result.get("code") == "404":
+                return {
+                    "error": True,
+                    "message": "RUC no encontrado en SUNAT",
+                    "ruc": ruc
+                }
+            elif result and result.get("code") == "401":
+                return {
+                    "error": True,
+                    "message": "API Key inválida o IP no autorizada",
+                    "ruc": ruc
+                }
         
         # No se pudo obtener datos reales
         return {
             "error": True,
-            "message": "No se pudieron obtener datos del RUC. Verifica el token de BuscarUC.",
+            "message": "API no configurada. Configure PERUAPI_TOKEN en las variables de entorno.",
             "ruc": ruc
         }
     
@@ -138,7 +167,11 @@ class ExternalAPIService:
             "real_data": True
         }
 
-# Función para obtener una instancia fresca
+# Instancia global - CREADA PERO NO USADA DIRECTAMENTE
+# Usar get_external_api() para obtener una instancia fresca
+external_api = ExternalAPIService()
+
+# Función para obtener una instancia fresca (evita problemas de caché en importación)
 def get_external_api() -> ExternalAPIService:
-    """Retorna una nueva instancia de ExternalAPIService."""
+    """Retorna una nueva instancia de ExternalAPIService para evitar problemas de caché."""
     return ExternalAPIService()
