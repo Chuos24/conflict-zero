@@ -78,8 +78,43 @@ async def consulta_completa(
     # Llamada a BuscarUC API
     sunat_data = call_buscaruc_api(ruc)
     
+    # Si BuscarUC falla, usar datos de OSCE DB como fallback
     if sunat_data.get("error"):
-        return sunat_data
+        from app.services.osce_datos_abiertos import osce_datos_abiertos
+        osce_db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
+        
+        if osce_db_data:
+            # Usar datos de OSCE como fallback
+            sunat_data = {
+                "ruc": ruc,
+                "razon_social": osce_db_data.get("nombre", f"RUC {ruc}"),
+                "nombre": osce_db_data.get("nombre", ""),
+                "estado": "ACTIVO",  # Asumir activo si no sabemos
+                "condicion": "HABIDO",
+                "direccion": "",
+                "departamento": "",
+                "provincia": "",
+                "distrito": "",
+                "ubigeo": "",
+                "success": True,
+                "fuente": "osce_db_fallback"
+            }
+        else:
+            # Último fallback: solo el RUC
+            sunat_data = {
+                "ruc": ruc,
+                "razon_social": f"RUC {ruc}",
+                "nombre": "",
+                "estado": "ACTIVO",
+                "condicion": "HABIDO",
+                "direccion": "",
+                "departamento": "",
+                "provincia": "",
+                "distrito": "",
+                "ubigeo": "",
+                "success": True,
+                "fuente": "ruc_only"
+            }
     
     # Consultar sanciones OSCE (datos reales de CONOSCE)
     osce_sanciones = scraping_service.get_osce_sanctions(ruc)
@@ -128,7 +163,8 @@ async def consulta_completa(
         },
         "score_breakdown": score_result["breakdown"],
         "score_details": score_result["individual_scores"],
-        "osce_analysis": score_result.get("osce_analysis", {}),
+        "fuente_datos": sunat_data.get("fuente", "buscaruc"),
+        "score_detalle": score_result,
         "ml_analysis": score_result["ml_analysis"]
     }
 
