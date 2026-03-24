@@ -15,7 +15,7 @@ class ExternalAPIService:
     
     def __init__(self):
         # Perú API - Fuente primaria
-        self.peruapi_token = settings.PERUAPI_TOKEN
+        self.peruapi_token = settings.PERUAPI_TOKEN or settings.PERU_API_KEY
         self.peruapi_base_url = "https://peruapi.com"
         
         # Verificar si tenemos API configurada
