@@ -11,7 +11,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router
 import uuid
 
 settings = get_settings()
@@ -79,6 +79,7 @@ async def add_process_time_header(request, call_next):
 
 # Routers
 app.include_router(health_router)
+app.include_router(consulta_router)  # Endpoint compatible frontend
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")

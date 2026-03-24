@@ -66,3 +66,28 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Usuario inactivo")
     return current_user
+
+async def verify_token_optional(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Verifica el token si existe, pero no es obligatorio.
+    Retorna el usuario si el token es válido, None si no hay token o es inválido.
+    """
+    try:
+        if not credentials or not credentials.credentials:
+            return None
+        
+        payload = verify_token(credentials.credentials)
+        if payload is None:
+            return None
+        
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            return None
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        return user
+    except Exception:
+        return None

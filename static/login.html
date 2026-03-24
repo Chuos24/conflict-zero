@@ -391,14 +391,37 @@
     </div>
     
     <script>
-        function handleLogin(e) {
+        const API_BASE = 'https://conflictzero-api.onrender.com/api/v1';
+        
+        async function handleLogin(e) {
             e.preventDefault();
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const btn = document.querySelector('.btn-login');
             
-            // Simple validation
-            if (email && password) {
-                // Store session
+            if (!email || !password) {
+                showError('Por favor ingrese email y contraseña');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = 'Verificando...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Credenciales incorrectas');
+                }
+                
+                // Store token and user data
+                localStorage.setItem('cz_token', data.access_token);
                 localStorage.setItem('cz_user', JSON.stringify({
                     email: email,
                     name: email.split('@')[0],
@@ -407,23 +430,45 @@
                 
                 // Redirect to dashboard
                 window.location.href = 'dashboard.html';
+                
+            } catch (error) {
+                showError(error.message || 'Error al iniciar sesión. Intente nuevamente.');
+                btn.disabled = false;
+                btn.textContent = 'Iniciar Sesión';
             }
         }
         
-        function socialLogin(provider) {
-            // Mock social login
-            localStorage.setItem('cz_user', JSON.stringify({
-                email: `usuario@${provider}.com`,
-                name: 'Usuario ' + provider,
-                provider: provider,
-                loginTime: new Date().toISOString()
-            }));
-            window.location.href = 'dashboard.html';
+        function showError(message) {
+            const existing = document.querySelector('.error-message');
+            if (existing) existing.remove();
+            
+            const error = document.createElement('div');
+            error.className = 'error-message';
+            error.style.cssText = 'background: rgba(220, 53, 69, 0.1); border: 1px solid #dc3545; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: #ff6b6b; font-size: 14px;';
+            error.textContent = message;
+            
+            const form = document.getElementById('loginForm');
+            form.insertBefore(error, form.firstChild);
+            
+            setTimeout(() => error.remove(), 5000);
         }
         
-        // Check if already logged in
-        if (localStorage.getItem('cz_user')) {
-            window.location.href = 'dashboard.html';
+        function socialLogin(provider) {
+            showError(`Login con ${provider} no disponible. Use email y contraseña.`);
+        }
+        
+        // Check if already logged in with valid token
+        const token = localStorage.getItem('cz_token');
+        if (token) {
+            // Verify token is still valid
+            fetch(`${API_BASE}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(r => {
+                if (r.ok) window.location.href = 'dashboard.html';
+                else localStorage.removeItem('cz_token');
+            }).catch(() => {
+                localStorage.removeItem('cz_token');
+            });
         }
     </script>
 </body>

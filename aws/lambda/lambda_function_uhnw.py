@@ -12,6 +12,7 @@ import re
 S3_BUCKET = os.environ.get('S3_BUCKET', 'conflictzero-certificados-prod')
 DECOLECTA_API_KEY = os.environ.get('DECOLECTA_API_KEY', '')
 DECOLECTA_BASE_URL = os.environ.get('DECOLECTA_BASE_URL', 'https://api.decolecta.com')
+PERU_API_KEY = os.environ.get('PERU_API_KEY', '')  # API alternativa gratuita
 s3_client = boto3.client('s3')
 
 # Headers CORS - permitir múltiples orígenes
@@ -171,14 +172,12 @@ def call_decolecta_api(endpoint):
         return None
 
 def get_sunat_data_real(ruc):
-    """Obtiene datos reales de SUNAT via Decolecta"""
+    """Obtiene datos reales de SUNAT via Decolecta o Perú API"""
+    # Intento 1: Decolecta API
     try:
         result = call_decolecta_api(f'v1/sunat/ruc/{ruc}')
         
-        if not result:
-            return None
-        
-        if isinstance(result, dict):
+        if result and isinstance(result, dict):
             if result.get('success') == True or result.get('success') == 'true':
                 data = result.get('data', {})
                 
@@ -193,8 +192,7 @@ def get_sunat_data_real(ruc):
                         'nombre_comercial': (data.get('nombre_comercial') or razon_social).strip(),
                         'estado': data.get('estado', 'ACTIVO'),
                         'condicion': data.get('condicion', 'HABIDO'),
-                        'direccion': (data.get('direccion') or 
-                                    data.get('dirección_completa', '')).strip(),
+                        'direccion': (data.get('direccion') or data.get('dirección_completa', '')).strip(),
                         'departamento': data.get('departamento', 'Lima'),
                         'provincia': data.get('provincia', 'Lima'),
                         'distrito': data.get('distrito', ''),
@@ -202,11 +200,57 @@ def get_sunat_data_real(ruc):
                         'tipo': data.get('tipo_contribuyente', 'EMPRESA'),
                         'fuente': 'decolecta_sunat'
                     }
-            elif result.get('message') == 'No encontrado':
-                print(f"RUC {ruc} no encontrado en SUNAT via Decolecta")
-                return None
     except Exception as e:
-        print(f"Error SUNAT data: {e}")
+        print(f"Decolecta fallo: {e}")
+    
+    # Intento 2: Perú API (gratuita)
+    try:
+        peru_api_data = call_peru_api(ruc)
+        if peru_api_data:
+            return peru_api_data
+    except Exception as e:
+        print(f"Peru API fallo: {e}")
+    
+    return None
+
+def call_peru_api(ruc):
+    """Consulta Perú API - API gratuita de SUNAT"""
+    try:
+        url = f'https://api.apisperu.com/sunat/ruc/{ruc}'
+        headers = {
+            'Accept': 'application/json',
+            'User-Agent': 'ConflictZero/1.0'
+        }
+        
+        req = urllib.request.Request(url, headers=headers)
+        
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        
+        with urllib.request.urlopen(req, timeout=10, context=ctx) as response:
+            data = json.loads(response.read().decode('utf-8'))
+            
+            if data.get('success') or data.get('razonSocial'):
+                razon_social = (data.get('razonSocial') or data.get('razon_social', ''))
+                
+                if razon_social:
+                    return {
+                        'razon_social': razon_social.strip(),
+                        'nombre_comercial': (data.get('nombreComercial') or razon_social).strip(),
+                        'estado': data.get('estado', 'ACTIVO'),
+                        'condicion': data.get('condicion', 'HABIDO'),
+                        'direccion': (data.get('direccion') or data.get('direccion_completa', '')).strip(),
+                        'departamento': data.get('departamento', 'Lima'),
+                        'provincia': data.get('provincia', 'Lima'),
+                        'distrito': data.get('distrito', ''),
+                        'ubigeo': data.get('ubigeo', ''),
+                        'tipo': data.get('tipoDocumento', 'EMPRESA'),
+                        'fuente': 'peru_api'
+                    }
+    except Exception as e:
+        print(f"Error Peru API: {e}")
+    
     return None
 
 def get_osce_data_real(ruc, razon_social):
@@ -719,6 +763,14 @@ def lambda_handler(event, context):
         path_params = event.get('pathParameters', {}) or {}
         ruc = path_params.get('ruc', '')
         
+        # Si no viene en pathParameters, intentar extraer del path
+        if not ruc:
+            path_parts = path.split('/')
+            for i, part in enumerate(path_parts):
+                if part in ['consulta-osce', 'generar-certificado'] and i + 1 < len(path_parts):
+                    ruc = path_parts[i + 1]
+                    break
+        
         is_valid, error_msg = validate_ruc(ruc)
         if not is_valid:
             return {
@@ -730,7 +782,10 @@ def lambda_handler(event, context):
         data = get_ruc_data(ruc)
         score = calculate_score(data)
         
-        if 'consulta-osce' in path:
+        # Verificar endpoint considerando que path puede incluir /prod/
+        path_clean = path.replace('/prod/', '/').replace('/dev/', '/')
+        
+        if '/consulta-osce/' in path_clean or path_clean.endswith('/consulta-osce'):
             response = {
                 'success': True,
                 'data': data,
@@ -741,7 +796,7 @@ def lambda_handler(event, context):
             if 'warning' in data:
                 response['warning'] = data['warning']
         
-        elif 'generar-certificado' in path:
+        elif '/generar-certificado/' in path_clean or path_clean.endswith('/generar-certificado'):
             cert_html = generate_certificate_html(data, score)
             pdf_url = upload_certificate_to_s3(ruc, cert_html)
             
