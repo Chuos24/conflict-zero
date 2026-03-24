@@ -28,7 +28,7 @@ class ExternalAPIService:
         print(f"DEBUG: peruapi_token='{self.peruapi_token[:10] if self.peruapi_token else 'EMPTY'}...' has_real_api={self.has_real_api}")
     
     def _call_peru_api(self, endpoint: str, params: Dict = None) -> Optional[Dict]:
-        """Llama a Perú API para obtener datos reales de SUNAT"""
+        """Llama a BuscarUC API para obtener datos reales de SUNAT"""
         # Leer token cada vez (para detectar cambios en env vars)
         token = os.getenv("PERUAPI_TOKEN") or os.getenv("PERU_API_KEY")
         if not token:
@@ -36,27 +36,36 @@ class ExternalAPIService:
             return None
         
         try:
-            url = f"{self.peruapi_base_url}/{endpoint}"
-            headers = {
-                "X-API-KEY": token,
-                "Content-Type": "application/json",
-                "Accept": "application/json"
+            # BuscarUC API - POST request
+            url = "https://buscaruc.com/api/v1/ruc"
+            headers = {"Content-Type": "application/json"}
+            payload = {"token": token, "ruc": endpoint.replace("api/ruc/", "")}
+            
+            print(f"DEBUG: Calling BuscarUC API for RUC: {payload['ruc']}")
+            response = requests.post(url, headers=headers, json=payload, timeout=15)
+            print(f"DEBUG: Response status: {response.status_code}")
+            
+            data = response.json()
+            
+            # Convertir respuesta de BuscarUC al formato esperado
+            if data.get("error"):
+                return {"code": "404", "message": data.get("message", "RUC no encontrado")}
+            
+            return {
+                "code": "200",
+                "razon_social": data.get("razonSocial", "") or data.get("nombre", ""),
+                "nombre": data.get("nombre", ""),
+                "estado": data.get("estado", "ACTIVO"),
+                "condicion": data.get("condicion", "HABIDO"),
+                "direccion": data.get("direccion", ""),
+                "departamento": data.get("departamento", ""),
+                "provincia": data.get("provincia", ""),
+                "distrito": data.get("distrito", ""),
+                "ubigeo": data.get("ubigeo", "")
             }
             
-            # Añadir api_token a params si no está
-            if params is None:
-                params = {}
-            if "api_token" not in params:
-                params["api_token"] = token
-            
-            print(f"DEBUG: Calling Peru API with token {token[:15]}...")
-            response = requests.get(url, headers=headers, params=params, timeout=15)
-            print(f"DEBUG: Response status: {response.status_code}")
-            response.raise_for_status()
-            return response.json()
-            
         except requests.exceptions.RequestException as e:
-            print(f"Error llamando Perú API: {e}")
+            print(f"Error llamando BuscarUC API: {e}")
             return None
 
     def get_sunat_data(self, ruc: str) -> Dict[str, Any]:
