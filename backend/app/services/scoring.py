@@ -153,21 +153,107 @@ class ScoringEngine:
         else:
             return 70.0  # Condición desconocida
 
+    def _calcular_score_recuperacion(self, fecha_fin_str: str) -> float:
+        """
+        Calcula score de recuperación basado en el tiempo desde que venció la sanción.
+        
+        Fórmula "cruda pero justa":
+        - Vencida hace +3 años → 95 (casi limpio)
+        - Vencida hace 1-3 años → 82.5 (promedio 80-85)
+        - Vencida hace <1 año → 75 (aún fresco)
+        
+        Args:
+            fecha_fin_str: Fecha de fin de sanción en formato 'YYYY-MM-DD' o ISO
+            
+        Returns:
+            Score de recuperación entre 75-95
+        """
+        if not fecha_fin_str:
+            return 75  # Sin fecha = asumir reciente
+        
+        try:
+            # Parsear fecha
+            if 'T' in fecha_fin_str:
+                fecha_fin = datetime.fromisoformat(fecha_fin_str.replace('Z', '+00:00'))
+            else:
+                fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d')
+            
+            # Calcular años transcurridos
+            hoy = datetime.now()
+            dias_transcurridos = (hoy - fecha_fin).days
+            años_transcurridos = dias_transcurridos / 365.25
+            
+            if años_transcurridos >= 3:
+                return 95.0  # +3 años: casi limpio
+            elif años_transcurridos >= 1:
+                # Interpolación lineal entre 75 y 95
+                # 1 año = 75, 3 años = 95
+                progreso = (años_transcurridos - 1) / 2  # 0 a 1
+                return 75 + (progreso * 20)
+            else:
+                return 75.0  # <1 año: aún fresco
+                
+        except Exception as e:
+            print(f"[Scoring] Error calculando recuperación: {e}")
+            return 75.0
+
     def calculate_sanciones_score(self, sanciones: List[Dict[str, Any]], ruc: str = None) -> Dict[str, Any]:
         """
         Calcula el score basado en sanciones OSCE reales.
-        Si se proporciona RUC, consulta directamente la base de datos para obtener el score precalculado.
-
+        Implementa fórmula 'cruda pero justa' con recuperación temporal.
+        
         Returns:
             Dict con score y detalle de sanciones
         """
-        # Si tenemos RUC, consultar directamente la base de datos para score precalculado
+        # Si tenemos RUC, consultar directamente la base de datos
         if ruc:
             try:
                 from app.services.osce_datos_abiertos import osce_datos_abiertos
+                
+                # Primero consultar datos agregados
                 db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
+                
                 if db_data:
                     total = db_data['cantidad_sanciones'] + db_data['cantidad_penalidades'] + db_data['cantidad_inhabilitaciones']
+                    
+                    # Si NO tiene sanciones vigentes pero SÍ tiene históricas
+                    # aplicar fórmula de recuperación basada en tiempo
+                    if db_data['sanciones_vigentes'] == 0 and total > 0:
+                        # Obtener detalles para calcular recuperación
+                        detalles = osce_datos_abiertos.get_sanciones_detalle_from_db(ruc)
+                        
+                        if detalles:
+                            # Encontrar la fecha de fin más reciente
+                            fechas_fin = [
+                                s.get('fecha_fin') for s in detalles 
+                                if s.get('fecha_fin') and s.get('estado') == 'VENCIDA'
+                            ]
+                            
+                            if fechas_fin:
+                                # Tomar la fecha más reciente
+                                fecha_mas_reciente = max(fechas_fin)
+                                score_recuperacion = self._calcular_score_recuperacion(fecha_mas_reciente)
+                                
+                                return {
+                                    "score": score_recuperacion,
+                                    "cantidad": total,
+                                    "tiene_inhabilitaciones": db_data['cantidad_sanciones'] > 0,
+                                    "tiene_penalidades": db_data['cantidad_penalidades'] > 0,
+                                    "tiene_judiciales": db_data['cantidad_inhabilitaciones'] > 0,
+                                    "inhabilitaciones": db_data['cantidad_sanciones'],
+                                    "penalidades": db_data['cantidad_penalidades'],
+                                    "judiciales": db_data['cantidad_inhabilitaciones'],
+                                    "severidad": "historica_recuperada",
+                                    "recuperacion": {
+                                        "score_base": 75,
+                                        "score_actual": score_recuperacion,
+                                        "fecha_ultima_vencida": fecha_mas_reciente,
+                                        "anios_transcurridos": round((datetime.now() - datetime.fromisoformat(fecha_mas_reciente.replace('Z', '+00:00') if 'T' in fecha_mas_reciente else datetime.strptime(fecha_mas_reciente, '%Y-%m-%d'))).days / 365.25, 1) if 'T' in fecha_mas_reciente else round((datetime.now() - datetime.strptime(fecha_mas_reciente, '%Y-%m-%d')).days / 365.25, 1)
+                                    },
+                                    "fuente": "postgresql_con_recuperacion"
+                                }
+                    
+                    # Si tiene vigentes o no hay detalles, usar score tradicional
                     return {
                         "score": float(db_data['score_osce_anual']),
                         "cantidad": total,
@@ -226,13 +312,13 @@ class ScoringEngine:
 
     def calculate_rnp_score(self, ruc: str) -> Dict[str, Any]:
         """
-        Calcula score basado en datos RNP/TCE.
-        Consulta la base de datos de sanciones del Registro Nacional de Proveedores.
+        Calcula score basado en datos RNP/TCE con fórmula 'cruda pero justa'.
+        Implementa recuperación temporal para sanciones históricas.
         
         Scoring:
         - Definitiva + Vigente = Score 20 (crítico)
         - Temporal + Vigente = Score 40 (alto)
-        - No vigente = Score 70 (histórico)
+        - No vigente = Score según tiempo transcurrido (75-95)
         - Sin sanciones = Score 100
         
         Returns:
@@ -256,47 +342,88 @@ class ScoringEngine:
                 }
             
             score = 100
+            recuperacion_info = None
             
             # Penalización por sanciones definitivas vigentes
             if datos.get('sanciones_definitivas', 0) > 0 and datos.get('sanciones_vigentes', 0) > 0:
                 score = min(score, 20)
+                nivel = 'critical'
             # Penalización por sanciones temporales vigentes
             elif datos.get('sanciones_temporales', 0) > 0 and datos.get('sanciones_vigentes', 0) > 0:
                 score = min(score, 40)
-            # Sanciones históricas (no vigentes)
-            elif datos.get('cantidad_sanciones', 0) > 0:
-                score = min(score, 70)
-            
-            # Penalización adicional por monto de multas
-            monto = datos.get('monto_total_multas', 0)
-            if monto > 100000:
-                score -= 10
-            elif monto > 50000:
-                score -= 5
-            
-            score = max(0, score)
-            
-            # Determinar nivel de riesgo
-            if score <= 30:
-                nivel = 'critical'
-            elif score <= 50:
                 nivel = 'high'
-            elif score <= 70:
-                nivel = 'medium'
+            # Sanciones históricas (no vigentes) - APLICAR RECUPERACIÓN TEMPORAL
+            elif datos.get('cantidad_sanciones', 0) > 0:
+                # Obtener detalles para calcular recuperación
+                detalles = rnp_service.get_sanciones_detalle(ruc)
+                
+                if detalles:
+                    # Encontrar la fecha_hasta más reciente de sanciones NO VIGENTES
+                    fechas_fin = [
+                        s.get('fecha_hasta') for s in detalles 
+                        if s.get('fecha_hasta') and s.get('estado') != 'VIGENTE'
+                    ]
+                    
+                    if fechas_fin:
+                        from datetime import datetime
+                        # Convertir fechas a datetime para comparar
+                        fechas_parsed = []
+                        for f in fechas_fin:
+                            try:
+                                if isinstance(f, str):
+                                    if 'T' in f:
+                                        fechas_parsed.append(datetime.fromisoformat(f.replace('Z', '+00:00')))
+                                    else:
+                                        fechas_parsed.append(datetime.strptime(f, '%Y-%m-%d'))
+                            except:
+                                continue
+                        
+                        if fechas_parsed:
+                            fecha_mas_reciente = max(fechas_parsed)
+                            fecha_mas_reciente_str = fecha_mas_reciente.strftime('%Y-%m-%d')
+                            score = self._calcular_score_recuperacion(fecha_mas_reciente_str)
+                            
+                            años_transcurridos = round((datetime.now() - fecha_mas_reciente).days / 365.25, 1)
+                            recuperacion_info = {
+                                "score_base": 75,
+                                "score_actual": score,
+                                "fecha_ultima_vencida": fecha_mas_reciente_str,
+                                "anios_transcurridos": años_transcurridos
+                            }
+                
+                # Si no se pudo calcular recuperación, usar valor por defecto
+                if score == 100:
+                    score = 75
+                
+                nivel = 'medium' if score < 85 else 'low'
             else:
                 nivel = 'low'
             
-            return {
+            # Penalización adicional por monto de multas (solo si no hay sanciones vigentes graves)
+            if datos.get('sanciones_vigentes', 0) == 0:
+                monto = datos.get('monto_total_multas', 0)
+                if monto > 100000:
+                    score -= 5  # Reducida porque ya es histórico
+                elif monto > 50000:
+                    score -= 3
+            
+            score = max(0, score)
+            
+            resultado = {
                 'score': score,
                 'tiene_sanciones': True,
                 'cantidad': datos.get('cantidad_sanciones', 0),
                 'sanciones_vigentes': datos.get('sanciones_vigentes', 0),
                 'sanciones_definitivas': datos.get('sanciones_definitivas', 0),
                 'sanciones_temporales': datos.get('sanciones_temporales', 0),
-                'monto_total_multas': monto,
-                'nivel_riesgo': nivel,
-                'fecha_maxima_vigencia': datos.get('fecha_maxima_vigencia')
+                'monto_total_multas': datos.get('monto_total_multas', 0),
+                'nivel_riesgo': nivel
             }
+            
+            if recuperacion_info:
+                resultado['recuperacion'] = recuperacion_info
+            
+            return resultado
             
         except Exception as e:
             print(f"[Scoring] Error calculando score RNP: {e}")
