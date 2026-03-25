@@ -3,23 +3,29 @@
 ## ⚠️ URGENTE - Requiere atención inmediata
 
 ### 1. Actualizar RUC 20529400790 en Producción
-**Status**: Script creado, pendiente ejecución
+**Status**: 🔄 En progreso - Fix de scoring deployado, esperando Render
 **Creado**: 2026-03-26
+**Commits**:
+- `4dc1296` - Script update_sancion_20529400790.py
+- `8c5de7a` - Workflow fix sanción (DB detalle)
+- `b385ad3` - Workflow fix osce_risk_data (DB agregada)
+- `61013b4` - Fix scoring.py recuperación temporal en fallback
+
 **Descripción**: 
 - Sanción reducida de 37 a 26 meses por Resolución 6981-2025-TCP-S4
 - Nueva fecha fin: 31 diciembre 2025 (ya vencida)
 - Score debería ser ~95, no 50
 
-**Acción**:
-```bash
-cd /root/.openclaw/workspace/conflict-zero/backend
-export DATABASE_URL='postgresql://...'
-python3 scripts/update_sancion_20529400790.py
-```
+**Actualización**:
+1. ✅ DB osce_sanciones_detalle actualizada (VENCIDA, fecha_fin=2025-12-31)
+2. ✅ DB osce_risk_data actualizada (sanciones_vigentes=0, score=95)
+3. ✅ Código scoring.py fixeado (aplica recuperación en fallback)
+4. ⏳ Deploy a Render en progreso
 
-**Alternativa si DB no conecta**:
-- Ejecutar workflow GitHub Actions sync_osce_tce.yml
-- O esperar al cron automático (3 AM diario)
+**Verificación**: Esperar 2-5 minutos y probar:
+```bash
+curl https://conflict-zero-api.onrender.com/api/v1/consulta-completa/20529400790
+```
 
 ---
 
