@@ -508,10 +508,12 @@ class OSCEDataIngester:
             
             # Preparar datos de sancionados
             values_sancionados = []
+            skipped_sancionados = 0
             for s in sancionados:
                 ruc = s.get('RUC')
-                if not ruc:
-                    continue  # Saltar registros sin RUC
+                if not ruc or str(ruc).strip() == '':
+                    skipped_sancionados += 1
+                    continue
                     
                 fecha_inicio = self._parse_date(s.get('FECHA_INICIO'))
                 fecha_fin = self._parse_date(s.get('FECHA_FIN'))
@@ -520,7 +522,7 @@ class OSCEDataIngester:
                 estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
                 
                 values_sancionados.append((
-                    ruc,
+                    str(ruc).strip(),
                     'sancion_inhabilitacion',
                     s.get('NUMERO_RESOLUCION'),
                     None,  # entidad
@@ -533,13 +535,16 @@ class OSCEDataIngester:
                     None,  # objeto
                     'OSCE'
                 ))
+            logger.info(f"📊 Sancionados: {len(values_sancionados)} válidos, {skipped_sancionados} sin RUC")
             
             # Preparar datos de penalidades
             values_penalidades = []
+            skipped_penalidades = 0
             for p in penalidades:
                 ruc = p.get('RUC CONTRATISTA')
-                if not ruc:
-                    continue  # Saltar registros sin RUC
+                if not ruc or str(ruc).strip() == '':
+                    skipped_penalidades += 1
+                    continue
                     
                 fecha = self._parse_date(p.get('FECHA PENALIDAD'))
                 monto_str = p.get('MONTO', '0').replace(',', '')
@@ -549,7 +554,7 @@ class OSCEDataIngester:
                     monto = None
                 
                 values_penalidades.append((
-                    ruc,
+                    str(ruc).strip(),
                     'penalidad',
                     None,  # resolución
                     p.get('ENTIDAD CONTRATANTE'),
@@ -562,13 +567,16 @@ class OSCEDataIngester:
                     p.get('OBJETO CONTRATO'),
                     'OSCE'
                 ))
+            logger.info(f"📊 Penalidades: {len(values_penalidades)} válidas, {skipped_penalidades} sin RUC")
             
             # Preparar datos de inhabilitaciones judiciales
             values_inhabilitaciones = []
+            skipped_inhabilitaciones = 0
             for i in inhabilitaciones:
                 ruc = i.get('RUC_DNI')
-                if not ruc:
-                    continue  # Saltar registros sin RUC
+                if not ruc or str(ruc).strip() == '':
+                    skipped_inhabilitaciones += 1
+                    continue
                     
                 fecha_inicio = self._parse_date(i.get('FECHA_INICIO'))
                 fecha_fin = self._parse_date(i.get('FECHA_FIN'))
@@ -577,7 +585,7 @@ class OSCEDataIngester:
                 estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
                 
                 values_inhabilitaciones.append((
-                    ruc,
+                    str(ruc).strip(),
                     'inhabilitacion_judicial',
                     i.get('NUMERO_RESOLUCION'),
                     i.get('ORGANO_JURISDICCIONAL'),
@@ -590,6 +598,7 @@ class OSCEDataIngester:
                     None,  # objeto
                     'PODER_JUDICIAL'
                 ))
+            logger.info(f"📊 Inhabilitaciones: {len(values_inhabilitaciones)} válidas, {skipped_inhabilitaciones} sin RUC")
             
             # Insertar todo
             all_values = values_sancionados + values_penalidades + values_inhabilitaciones
