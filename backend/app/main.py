@@ -1,5 +1,6 @@
 # Conflict Zero API - Main Application
-# Last updated: 2026-03-21 21:00 UTC
+# Last updated: 2026-03-26 03:40 UTC
+# FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
 
 from fastapi import FastAPI, HTTPException
