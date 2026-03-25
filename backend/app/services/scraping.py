@@ -24,7 +24,7 @@ class ScrapingService:
     def get_osce_sanctions(self, ruc: str) -> List[Dict[str, Any]]:
         """
         Obtiene sanciones OSCE para un RUC.
-        Usa datos abiertos del portal CONOSCE (CSV reales).
+        Usa datos detallados desde PostgreSQL primero, luego fallback a CSV.
         """
         cache_key = f"osce_sanciones:{ruc}"
         cached = cache.get(cache_key)
@@ -33,7 +33,46 @@ class ScrapingService:
         
         sanciones = []
         
-        # Usar datos abiertos reales
+        # PRIMERA OPCIÓN: Intentar obtener detalles desde PostgreSQL
+        try:
+            from app.services.osce_datos_abiertos import osce_datos_abiertos
+            detalles = osce_datos_abiertos.get_sanciones_detalle_from_db(ruc)
+            
+            if detalles:
+                for d in detalles:
+                    tipo_map = {
+                        'sancion_inhabilitacion': 'inhabilitacion',
+                        'penalidad': 'penalidad',
+                        'inhabilitacion_judicial': 'inhabilitacion_judicial'
+                    }
+                    
+                    severidad_map = {
+                        'penalidad': 'MEDIA',
+                        'sancion_inhabilitacion': 'ALTA',
+                        'inhabilitacion_judicial': 'GRAVE'
+                    }
+                    
+                    sanciones.append({
+                        'sanction_id': d.get('numero_resolucion') or d.get('id'),
+                        'description': d.get('motivo') or f"{d.get('tipo_sancion')} - {d.get('fuente')}",
+                        'date': d.get('fecha_inicio'),
+                        'status': d.get('estado', 'ACTIVA'),
+                        'severity': severidad_map.get(d.get('tipo_sancion'), 'ALTA'),
+                        'entity': d.get('entidad') or d.get('fuente', 'OSCE'),
+                        'ruc': ruc,
+                        'tipo': tipo_map.get(d.get('tipo_sancion'), 'sancion'),
+                        'monto': d.get('monto_penalidad'),
+                        'fecha_fin': d.get('fecha_fin'),
+                    })
+                
+                print(f"[OSCE] {len(sanciones)} sanciones detalladas desde DB para {ruc}")
+                cache.set(cache_key, sanciones, expire=7200)
+                return sanciones
+                
+        except Exception as e:
+            print(f"[OSCE] Error consultando detalles DB: {e}")
+        
+        # SEGUNDA OPCIÓN: Fallback a datos agregados de CSV
         try:
             from app.services.osce_datos_abiertos import osce_datos_abiertos
             data = osce_datos_abiertos.get_sanciones_por_ruc(ruc)

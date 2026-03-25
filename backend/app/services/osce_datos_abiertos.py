@@ -74,6 +74,54 @@ class OSCEDatosAbiertosService:
             if db:
                 db.close()
     
+    def get_sanciones_detalle_from_db(self, ruc: str) -> List[Dict[str, Any]]:
+        """
+        Consulta detalles individuales de sanciones desde PostgreSQL.
+        
+        Returns:
+            Lista de diccionarios con detalles de cada sanción
+        """
+        db = None
+        try:
+            db = SessionLocal()
+            results = db.execute(
+                text("""
+                    SELECT id, ruc, tipo_sancion, numero_resolucion, entidad,
+                           fecha_inicio, fecha_fin, fecha_corte, motivo,
+                           estado, monto_penalidad, objeto_contrato, fuente
+                    FROM osce_sanciones_detalle
+                    WHERE ruc = :ruc
+                    ORDER BY fecha_inicio DESC
+                """),
+                {"ruc": ruc}
+            ).fetchall()
+            
+            sanciones = []
+            for row in results:
+                sanciones.append({
+                    'id': row[0],
+                    'ruc': row[1],
+                    'tipo_sancion': row[2],
+                    'numero_resolucion': row[3],
+                    'entidad': row[4],
+                    'fecha_inicio': row[5].isoformat() if row[5] else None,
+                    'fecha_fin': row[6].isoformat() if row[6] else None,
+                    'fecha_corte': row[7].isoformat() if row[7] else None,
+                    'motivo': row[8],
+                    'estado': row[9],
+                    'monto_penalidad': float(row[10]) if row[10] else None,
+                    'objeto_contrato': row[11],
+                    'fuente': row[12],
+                })
+            
+            return sanciones
+        except Exception as e:
+            print(f"[OSCE] Error consultando detalles: {e}")
+            return []
+        finally:
+            if db:
+                db.close()
+    
     def _read_csv(self, filename: str) -> List[Dict[str, str]]:
         """Lee un archivo CSV y retorna lista de diccionarios."""
         filepath = os.path.join(self.data_dir, filename)

@@ -480,6 +480,146 @@ class OSCEDataIngester:
             if conn:
                 conn.close()
     
+    def sync_detalle_to_database(self, sancionados: List[Dict], penalidades: List[Dict], 
+                                   inhabilitaciones: List[Dict]) -> int:
+        """
+        Sincroniza detalles individuales de sanciones a PostgreSQL.
+        
+        Args:
+            sancionados: Lista de sanciones por inhabilitación
+            penalidades: Lista de penalidades
+            inhabilitaciones: Lista de inhabilitaciones judiciales
+            
+        Returns:
+            Cantidad de registros insertados
+        """
+        if not self.db_url:
+            logger.warning("⚠️ No DATABASE_URL, saltando sync de detalles")
+            return 0
+        
+        conn = None
+        try:
+            conn = psycopg2.connect(self.db_url)
+            cursor = conn.cursor()
+            
+            # Limpiar tabla antes de insertar (full refresh)
+            cursor.execute("TRUNCATE TABLE osce_sanciones_detalle;")
+            logger.info("🗑️ Tabla de detalles limpiada")
+            
+            # Preparar datos de sancionados
+            values_sancionados = []
+            for s in sancionados:
+                fecha_inicio = self._parse_date(s.get('FECHA_INICIO'))
+                fecha_fin = self._parse_date(s.get('FECHA_FIN'))
+                fecha_corte = self._parse_date(s.get('FECHA_CORTE'))
+                
+                estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
+                
+                values_sancionados.append((
+                    s.get('RUC'),
+                    'sancion_inhabilitacion',
+                    s.get('NUMERO_RESOLUCION'),
+                    None,  # entidad
+                    fecha_inicio,
+                    fecha_fin,
+                    fecha_corte,
+                    s.get('DE_MOTIVO_INFRACCION'),
+                    estado,
+                    None,  # monto
+                    None,  # objeto
+                    'OSCE'
+                ))
+            
+            # Preparar datos de penalidades
+            values_penalidades = []
+            for p in penalidades:
+                fecha = self._parse_date(p.get('FECHA PENALIDAD'))
+                monto_str = p.get('MONTO', '0').replace(',', '')
+                try:
+                    monto = float(monto_str) if monto_str else None
+                except:
+                    monto = None
+                
+                values_penalidades.append((
+                    p.get('RUC CONTRATISTA'),
+                    'penalidad',
+                    None,  # resolución
+                    p.get('ENTIDAD CONTRATANTE'),
+                    fecha,
+                    None,  # fecha_fin
+                    None,  # fecha_corte
+                    p.get('DESCRIPCION/MOTIVO'),
+                    'ACTIVA',
+                    monto,
+                    p.get('OBJETO CONTRATO'),
+                    'OSCE'
+                ))
+            
+            # Preparar datos de inhabilitaciones judiciales
+            values_inhabilitaciones = []
+            for i in inhabilitaciones:
+                fecha_inicio = self._parse_date(i.get('FECHA_INICIO'))
+                fecha_fin = self._parse_date(i.get('FECHA_FIN'))
+                fecha_corte = self._parse_date(i.get('FECHA_CORTE'))
+                
+                estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
+                
+                values_inhabilitaciones.append((
+                    i.get('RUC_DNI'),
+                    'inhabilitacion_judicial',
+                    i.get('NUMERO_RESOLUCION'),
+                    i.get('ORGANO_JURISDICCIONAL'),
+                    fecha_inicio,
+                    fecha_fin,
+                    fecha_corte,
+                    None,  # motivo (no en el CSV)
+                    estado,
+                    None,  # monto
+                    None,  # objeto
+                    'PODER_JUDICIAL'
+                ))
+            
+            # Insertar todo
+            all_values = values_sancionados + values_penalidades + values_inhabilitaciones
+            
+            if all_values:
+                execute_values(cursor, """
+                    INSERT INTO osce_sanciones_detalle (
+                        ruc, tipo_sancion, numero_resolucion, entidad,
+                        fecha_inicio, fecha_fin, fecha_corte, motivo,
+                        estado, monto_penalidad, objeto_contrato, fuente
+                    ) VALUES %s
+                """, all_values)
+                
+                conn.commit()
+                logger.info(f"✅ Sincronizados {len(all_values)} detalles de sanciones")
+                return len(all_values)
+            else:
+                logger.info("⚠️ No hay detalles para sincronizar")
+                return 0
+                
+        except Exception as e:
+            logger.error(f"❌ Error sincronizando detalles: {e}")
+            if conn:
+                conn.rollback()
+            return 0
+        finally:
+            if conn:
+                conn.close()
+    
+    def _parse_date(self, date_str: Optional[str]) -> Optional[datetime.date]:
+        """Parsea fecha en formato DD/MM/YYYY o similar."""
+        if not date_str:
+            return None
+        
+        formats = ['%d/%m/%Y', '%Y-%m-%d', '%d-%m-%Y', '%m/%d/%Y']
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str.strip(), fmt).date()
+            except:
+                continue
+        return None
+    
     def run_full_sync(self, force_download: bool = False) -> Dict[str, Any]:
         """
         Ejecuta el pipeline completo: descarga, parseo, agregación y sync.
@@ -506,11 +646,14 @@ class OSCEDataIngester:
         if downloads.get('inhabilitaciones'):
             inhabilitaciones = self.parse_inhabilitaciones(downloads['inhabilitaciones'])
         
-        # 3. Agregar por RUC
+        # 3. Agregar por RUC (para osce_risk_data)
         ruc_data = self.aggregate_by_ruc(sancionados, penalidades, inhabilitaciones)
         
-        # 4. Sincronizar a DB
+        # 4. Sincronizar resumen a DB
         synced_count = self.sync_to_database(ruc_data)
+        
+        # 5. Sincronizar detalles individuales
+        detalle_count = self.sync_detalle_to_database(sancionados, penalidades, inhabilitaciones)
         
         result = {
             'success': synced_count > 0,
@@ -519,6 +662,7 @@ class OSCEDataIngester:
             'inhabilitaciones_parseadas': len(inhabilitaciones),
             'rucs_unicos': len(ruc_data),
             'registros_sync': synced_count,
+            'detalles_sync': detalle_count,
             'timestamp': datetime.now().isoformat(),
         }
         
