@@ -48,7 +48,7 @@ class LoginRequest(BaseModel):
 # ============== Verification Schemas ==============
 
 class VerificationRequest(BaseModel):
-    ruc: str = Field(..., min_length=11, max_length=11, regex=r"^\d{11}$")
+    ruc: str = Field(..., min_length=11, max_length=11, pattern=r"^\d{11}$")
     
 class SunatData(BaseModel):
     debt_amount: float
