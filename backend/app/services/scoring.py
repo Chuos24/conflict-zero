@@ -524,11 +524,36 @@ class ScoringEngine:
         # Aplicar el CAP (el score ponderado no puede superar el máximo permitido)
         final_score = min(base_weighted_score, max_score)
 
-        # Penalización adicional por múltiples sanciones
-        cantidad_total = osce_data.get("cantidad", 0)
-        if cantidad_total > 1:
-            # Cada sanción adicional reduce 5 puntos más
-            final_score -= (cantidad_total - 1) * 5
+        # ============================================================
+        # REINCIDENCIA ESCALADA - Patrón de comportamiento
+        # ============================================================
+        # Suma OSCE + RNP para medir reincidencia total
+        cantidad_osce = osce_data.get("cantidad", 0)
+        cantidad_rnp = rnp_data.get("cantidad_sanciones", 0)
+        cantidad_total = cantidad_osce + cantidad_rnp
+        
+        reincidencia_penalty = 0
+        reincidencia_nivel = None
+        
+        if cantidad_total >= 8:
+            # Reincidente crónico: 8+ sanciones
+            reincidencia_penalty = 30
+            reincidencia_nivel = "crónico"
+        elif cantidad_total >= 5:
+            # Reincidente severo: 5-7 sanciones
+            reincidencia_penalty = 20
+            reincidencia_nivel = "severo"
+        elif cantidad_total >= 3:
+            # Reincidente: 3-4 sanciones
+            reincidencia_penalty = 10
+            reincidencia_nivel = "reincidente"
+        elif cantidad_total > 1:
+            # Múltiple: 2 sanciones
+            reincidencia_penalty = 5
+            reincidencia_nivel = "múltiple"
+        
+        if reincidencia_penalty > 0:
+            final_score -= reincidencia_penalty
 
         # Asegurar límites
         final_score = max(0, min(100, final_score))
@@ -557,6 +582,10 @@ class ScoringEngine:
         # Agregar nota de compliance si existe
         if compliance_note:
             ml_factors.insert(0, compliance_note)
+        
+        # Agregar factor de reincidencia si aplica
+        if reincidencia_nivel:
+            ml_factors.append(f"📊 Reincidencia {reincidencia_nivel}: {cantidad_total} sanciones totales (-{reincidencia_penalty} pts)")
 
         # Determinar nivel de riesgo
         if final_score >= 80:
@@ -601,6 +630,11 @@ class ScoringEngine:
             },
             "osce_analysis": osce_data,
             "rnp_tce_analysis": rnp_data,
+            "reincidencia": {
+                "nivel": reincidencia_nivel,
+                "cantidad_total": cantidad_total,
+                "penalty": reincidencia_penalty
+            } if reincidencia_nivel else None,
             "ml_analysis": {
                 "anomaly_score": round(100 - ml_score, 2),
                 "risk_factors": ml_factors,
