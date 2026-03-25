@@ -28,4 +28,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           cd backend/scripts
-          python diagnostico_20529400790.py
+          python diagnostico_simple_20529400790.py
