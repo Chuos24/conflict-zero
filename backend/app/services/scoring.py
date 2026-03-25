@@ -280,6 +280,37 @@ class ScoringEngine:
             }
 
         total = len(sanciones)
+        
+        # Verificar si TODAS las sanciones están vencidas (recuperación temporal)
+        todas_vencidas = all(s.get('estado') == 'VENCIDA' for s in sanciones)
+        
+        if todas_vencidas:
+            # Aplicar fórmula de recuperación temporal
+            fechas_fin = [s.get('fecha_fin') for s in sanciones if s.get('fecha_fin')]
+            if fechas_fin:
+                fecha_mas_reciente = max(fechas_fin)
+                score_recuperacion = self._calcular_score_recuperacion(fecha_mas_reciente)
+                
+                return {
+                    "score": score_recuperacion,
+                    "cantidad": total,
+                    "tiene_inhabilitaciones": True,
+                    "tiene_penalidades": False,
+                    "tiene_judiciales": False,
+                    "inhabilitaciones": total,
+                    "penalidades": 0,
+                    "judiciales": 0,
+                    "severidad": "historica_recuperada",
+                    "recuperacion": {
+                        "score_base": 75,
+                        "score_actual": score_recuperacion,
+                        "fecha_ultima_vencida": fecha_mas_reciente,
+                        "anios_transcurridos": round((datetime.now() - datetime.strptime(fecha_mas_reciente, '%Y-%m-%d')).days / 365.25, 1)
+                    },
+                    "fuente": "api_con_recuperacion"
+                }
+        
+        # Si hay sanciones vigentes, calcular score tradicional
         inhabilitaciones = sum(1 for s in sanciones if s.get('tipo') == 'inhabilitacion')
         penalidades = sum(1 for s in sanciones if s.get('tipo') == 'penalidad')
         judiciales = sum(1 for s in sanciones if s.get('tipo') == 'inhabilitacion_judicial')
