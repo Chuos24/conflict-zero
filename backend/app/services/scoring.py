@@ -282,7 +282,8 @@ class ScoringEngine:
         total = len(sanciones)
         
         # Verificar si TODAS las sanciones están vencidas (recuperación temporal)
-        todas_vencidas = all(s.get('estado') == 'VENCIDA' for s in sanciones)
+        # Nota: El campo en el JSON es 'status', no 'estado'
+        todas_vencidas = all(s.get('status') == 'VENCIDA' for s in sanciones)
         
         if todas_vencidas:
             # Aplicar fórmula de recuperación temporal
