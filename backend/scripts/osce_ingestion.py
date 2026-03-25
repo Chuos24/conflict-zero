@@ -510,26 +510,26 @@ class OSCEDataIngester:
             values_sancionados = []
             skipped_sancionados = 0
             for s in sancionados:
-                ruc = s.get('RUC')
+                ruc = s.get('ruc')
                 if not ruc or str(ruc).strip() == '':
                     skipped_sancionados += 1
                     continue
                     
-                fecha_inicio = self._parse_date(s.get('FECHA_INICIO'))
-                fecha_fin = self._parse_date(s.get('FECHA_FIN'))
-                fecha_corte = self._parse_date(s.get('FECHA_CORTE'))
+                fecha_inicio = s.get('fecha_inicio')
+                fecha_fin = s.get('fecha_fin')
+                fecha_corte = s.get('fecha_corte')
                 
                 estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
                 
                 values_sancionados.append((
                     str(ruc).strip(),
                     'sancion_inhabilitacion',
-                    s.get('NUMERO_RESOLUCION'),
+                    s.get('resolucion'),
                     None,  # entidad
                     fecha_inicio,
                     fecha_fin,
                     fecha_corte,
-                    s.get('DE_MOTIVO_INFRACCION'),
+                    s.get('motivo'),
                     estado,
                     None,  # monto
                     None,  # objeto
@@ -541,30 +541,26 @@ class OSCEDataIngester:
             values_penalidades = []
             skipped_penalidades = 0
             for p in penalidades:
-                ruc = p.get('RUC CONTRATISTA')
+                ruc = p.get('ruc')
                 if not ruc or str(ruc).strip() == '':
                     skipped_penalidades += 1
                     continue
                     
-                fecha = self._parse_date(p.get('FECHA PENALIDAD'))
-                monto_str = p.get('MONTO', '0').replace(',', '')
-                try:
-                    monto = float(monto_str) if monto_str else None
-                except:
-                    monto = None
+                fecha = p.get('fecha')
+                monto = p.get('monto')
                 
                 values_penalidades.append((
                     str(ruc).strip(),
                     'penalidad',
                     None,  # resolución
-                    p.get('ENTIDAD CONTRATANTE'),
+                    p.get('entidad'),
                     fecha,
                     None,  # fecha_fin
                     None,  # fecha_corte
-                    p.get('DESCRIPCION/MOTIVO'),
+                    p.get('descripcion'),
                     'ACTIVA',
                     monto,
-                    p.get('OBJETO CONTRATO'),
+                    p.get('objeto'),
                     'OSCE'
                 ))
             logger.info(f"📊 Penalidades: {len(values_penalidades)} válidas, {skipped_penalidades} sin RUC")
@@ -573,25 +569,24 @@ class OSCEDataIngester:
             values_inhabilitaciones = []
             skipped_inhabilitaciones = 0
             for i in inhabilitaciones:
-                ruc = i.get('RUC_DNI')
+                ruc = i.get('ruc')
                 if not ruc or str(ruc).strip() == '':
                     skipped_inhabilitaciones += 1
                     continue
                     
-                fecha_inicio = self._parse_date(i.get('FECHA_INICIO'))
-                fecha_fin = self._parse_date(i.get('FECHA_FIN'))
-                fecha_corte = self._parse_date(i.get('FECHA_CORTE'))
+                fecha_inicio = i.get('fecha_inicio')
+                fecha_fin = i.get('fecha_fin')
                 
                 estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
                 
                 values_inhabilitaciones.append((
                     str(ruc).strip(),
                     'inhabilitacion_judicial',
-                    i.get('NUMERO_RESOLUCION'),
-                    i.get('ORGANO_JURISDICCIONAL'),
+                    i.get('resolucion'),
+                    i.get('organo'),
                     fecha_inicio,
                     fecha_fin,
-                    fecha_corte,
+                    None,  # fecha_corte
                     None,  # motivo (no en el CSV)
                     estado,
                     None,  # monto
