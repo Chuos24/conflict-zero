@@ -90,9 +90,9 @@ async def add_process_time_header(request, call_next):
     return response
 
 # Routers
-app.include_router(health_router)
-app.include_router(debug_router)  # Debug endpoint
-app.include_router(consulta_router)  # Endpoint compatible frontend
+app.include_router(health_router, prefix="/api/v1")
+app.include_router(debug_router, prefix="/api/v1")  # Debug endpoint
+app.include_router(consulta_router, prefix="/api/v1")  # Endpoint compatible frontend
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
