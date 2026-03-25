@@ -3,29 +3,38 @@
 ## ⚠️ URGENTE - Requiere atención inmediata
 
 ### 1. Actualizar RUC 20529400790 en Producción
-**Status**: 🔄 En progreso - Fix de scoring deployado, esperando Render
+**Status**: 🔴 BLOQUEADO - Render no aplica cambios
 **Creado**: 2026-03-26
 **Commits**:
 - `4dc1296` - Script update_sancion_20529400790.py
 - `8c5de7a` - Workflow fix sanción (DB detalle)
 - `b385ad3` - Workflow fix osce_risk_data (DB agregada)
 - `61013b4` - Fix scoring.py recuperación temporal en fallback
+- `29d801b` - Fix campo 'status' vs 'estado'
+- `38cd3cb` - Script diagnóstico
+- `30552ee` - Diagnóstico simplificado
+- `3c8bc84` - Force redeploy scoring
 
-**Descripción**: 
-- Sanción reducida de 37 a 26 meses por Resolución 6981-2025-TCP-S4
-- Nueva fecha fin: 31 diciembre 2025 (ya vencida)
-- Score debería ser ~95, no 50
+**Diagnóstico DB**: ✅ TODOS LOS DATOS CORRECTOS
+- osce_risk_data: sanciones_vigentes=0, score_osce_anual=95
+- osce_sanciones_detalle: estado='VENCIDA', fecha_fin='2025-12-31'
+- Análisis: "Debería aplicar recuperación temporal"
 
-**Actualización**:
-1. ✅ DB osce_sanciones_detalle actualizada (VENCIDA, fecha_fin=2025-12-31)
-2. ✅ DB osce_risk_data actualizada (sanciones_vigentes=0, score=95)
-3. ✅ Código scoring.py fixeado (aplica recuperación en fallback)
-4. ⏳ Deploy a Render en progreso
+**Problema**: Render no aplica el código actualizado
+- Score API: 50 (debería ser ~95)
+- Risk Level: high (debería ser low/medium)
 
-**Verificación**: Esperar 2-5 minutos y probar:
-```bash
-curl https://conflict-zero-api.onrender.com/api/v1/consulta-completa/20529400790
-```
+**Causas posibles**:
+1. Cache de Docker en Render
+2. Build fallando silenciosamente
+3. Código diferente entre local y producción
+
+**Soluciones a intentar**:
+- [ ] Verificar dashboard de Render por errores de build
+- [ ] Forzar redeploy manual desde Render Dashboard
+- [ ] Hacer cambio en otro archivo (main.py) para invalidar cache
+- [ ] Verificar si hay error en runtime (logs de Render)
+- [ ] Considerar migrar a otro servicio (Railway, Fly.io)
 
 ---
 
