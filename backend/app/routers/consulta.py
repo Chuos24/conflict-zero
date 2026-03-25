@@ -8,6 +8,7 @@ from app.core.database import get_db
 from app.core.config import get_settings
 from app.services.scoring import scoring_engine
 from app.services.scraping import scraping_service
+from app.services.rnp_datos import rnp_service
 
 settings = get_settings()
 router = APIRouter(tags=["Consulta Completa"])
@@ -130,6 +131,9 @@ async def consulta_completa(
     # Consultar sanciones OSCE (datos reales de CONOSCE)
     osce_sanciones = scraping_service.get_osce_sanctions(ruc)
     
+    # Consultar sanciones RNP/TCE (nueva fuente)
+    rnp_sanciones = rnp_service.get_sanciones_detalle(ruc)
+    
     # Calcular score usando el scoring engine con datos reales
     score_result = scoring_engine.calculate_total_score(
         ruc=ruc,
@@ -138,8 +142,11 @@ async def consulta_completa(
         condicion=sunat_data.get("condicion", "HABIDO"),
         deuda=0,  # No disponible en BuscarUC
         osce_sanctions=osce_sanciones,
-        tce_sanctions=[]
+        tce_sanctions=rnp_sanciones
     )
+    
+    # Combinar sanciones para el conteo total
+    total_sanciones = osce_sanciones + rnp_sanciones
     
     # Construir respuesta completa con sanciones reales
     return {
@@ -165,12 +172,14 @@ async def consulta_completa(
             "condicion": sunat_data.get("condicion", "HABIDO"),
             "direccion": sunat_data.get("direccion", "")
         },
-        "sanciones": osce_sanciones,
-        "total_registros": len(osce_sanciones),
+        "sanciones": total_sanciones,
+        "sanciones_osce": osce_sanciones,
+        "sanciones_rnp_tce": rnp_sanciones,
+        "total_registros": len(total_sanciones),
         "fuentes": {
             "sunat": True,
             "osce": len(osce_sanciones),
-            "tce": 0
+            "rnp_tce": len(rnp_sanciones)
         },
         "score_breakdown": score_result["breakdown"],
         "score_details": score_result["individual_scores"],
