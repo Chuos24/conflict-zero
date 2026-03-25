@@ -7,6 +7,7 @@ from app.core.database import get_db
 
 settings = get_settings()
 
+# FIX: Recuperación temporal para sanciones vencidas - v2026-03-26
 class ScoringEngine:
     """
     Motor de scoring predictivo para verificación de RUCs.
