@@ -238,6 +238,7 @@ class ScoringEngine:
                                 return {
                                     "score": score_recuperacion,
                                     "cantidad": total,
+                                    "sanciones_vigentes": 0,  # Todas vencidas
                                     "tiene_inhabilitaciones": db_data['cantidad_sanciones'] > 0,
                                     "tiene_penalidades": db_data['cantidad_penalidades'] > 0,
                                     "tiene_judiciales": db_data['cantidad_inhabilitaciones'] > 0,
@@ -258,6 +259,7 @@ class ScoringEngine:
                     return {
                         "score": float(db_data['score_osce_anual']),
                         "cantidad": total,
+                        "sanciones_vigentes": db_data['sanciones_vigentes'],
                         "tiene_inhabilitaciones": db_data['cantidad_sanciones'] > 0,
                         "tiene_penalidades": db_data['cantidad_penalidades'] > 0,
                         "tiene_judiciales": db_data['cantidad_inhabilitaciones'] > 0,
@@ -296,6 +298,7 @@ class ScoringEngine:
                 return {
                     "score": score_recuperacion,
                     "cantidad": total,
+                    "sanciones_vigentes": 0,  # Todas vencidas
                     "tiene_inhabilitaciones": True,
                     "tiene_penalidades": False,
                     "tiene_judiciales": False,
@@ -334,6 +337,7 @@ class ScoringEngine:
         return {
             "score": score,
             "cantidad": total,
+            "sanciones_vigentes": total,  # En CSV no sabemos cuáles están vigentes, asumimos todas
             "tiene_inhabilitaciones": inhabilitaciones > 0,
             "tiene_penalidades": penalidades > 0,
             "tiene_judiciales": judiciales > 0,
@@ -635,10 +639,10 @@ class ScoringEngine:
         # Combinar OSCE y RNP - tomar el peor score (más conservador)
         combined_osce_rnp_score = min(osce_score, rnp_score)
 
-        # Flags combinados
-        has_judiciales = osce_data.get("tiene_judiciales", False) or rnp_data.get("sanciones_definitivas", 0) > 0
-        has_inhabilitaciones = osce_data.get("tiene_inhabilitaciones", False) or rnp_data.get("sanciones_vigentes", 0) > 0
-        has_penalidades = osce_data.get("tiene_penalidades", False) or rnp_data.get("monto_total_multas", 0) > 0
+        # Flags combinados - SOLO sanciones VIGENTES aplican CAP
+        has_judiciales = osce_data.get("tiene_judiciales", False) and osce_data.get("sanciones_vigentes", 0) > 0 or rnp_data.get("sanciones_definitivas", 0) > 0 and rnp_data.get("sanciones_vigentes", 0) > 0
+        has_inhabilitaciones = osce_data.get("tiene_inhabilitaciones", False) and osce_data.get("sanciones_vigentes", 0) > 0 or rnp_data.get("sanciones_vigentes", 0) > 0
+        has_penalidades = osce_data.get("tiene_penalidades", False) and osce_data.get("sanciones_vigentes", 0) > 0 or rnp_data.get("monto_total_multas", 0) > 0
 
         # ============================================================
         # SCORING CRUDO PARA COMPLIANCE - SANCIONES PESAN MÁS
