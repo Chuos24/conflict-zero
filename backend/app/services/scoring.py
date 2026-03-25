@@ -607,23 +607,6 @@ class ScoringEngine:
                 "confidence": round(ml_confidence, 2)
             }
         }
-            },
-            "individual_scores": {
-                "sunat_estado": round(sunat_data["estado_score"], 2),
-                "sunat_condicion": round(sunat_data["condicion_score"], 2),
-                "sunat_deuda": round(sunat_data["debt_score"], 2),
-                "antiguedad": round(antiguedad_score, 2),
-                "antiguedad_years": antiguedad_years,
-                "osce": round(osce_score, 2),
-                "ml": round(ml_score, 2),
-            },
-            "osce_analysis": osce_data,
-            "ml_analysis": {
-                "anomaly_score": round(100 - ml_score, 2),
-                "risk_factors": ml_factors,
-                "confidence": round(ml_confidence, 2)
-            }
-        }
 
     def get_risk_description(self, risk_level: str) -> str:
         """Retorna descripción del nivel de riesgo para compliance."""
