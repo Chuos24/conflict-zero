@@ -509,6 +509,10 @@ class OSCEDataIngester:
             # Preparar datos de sancionados
             values_sancionados = []
             for s in sancionados:
+                ruc = s.get('RUC')
+                if not ruc:
+                    continue  # Saltar registros sin RUC
+                    
                 fecha_inicio = self._parse_date(s.get('FECHA_INICIO'))
                 fecha_fin = self._parse_date(s.get('FECHA_FIN'))
                 fecha_corte = self._parse_date(s.get('FECHA_CORTE'))
@@ -516,7 +520,7 @@ class OSCEDataIngester:
                 estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
                 
                 values_sancionados.append((
-                    s.get('RUC'),
+                    ruc,
                     'sancion_inhabilitacion',
                     s.get('NUMERO_RESOLUCION'),
                     None,  # entidad
@@ -533,6 +537,10 @@ class OSCEDataIngester:
             # Preparar datos de penalidades
             values_penalidades = []
             for p in penalidades:
+                ruc = p.get('RUC CONTRATISTA')
+                if not ruc:
+                    continue  # Saltar registros sin RUC
+                    
                 fecha = self._parse_date(p.get('FECHA PENALIDAD'))
                 monto_str = p.get('MONTO', '0').replace(',', '')
                 try:
@@ -541,7 +549,7 @@ class OSCEDataIngester:
                     monto = None
                 
                 values_penalidades.append((
-                    p.get('RUC CONTRATISTA'),
+                    ruc,
                     'penalidad',
                     None,  # resolución
                     p.get('ENTIDAD CONTRATANTE'),
@@ -558,6 +566,10 @@ class OSCEDataIngester:
             # Preparar datos de inhabilitaciones judiciales
             values_inhabilitaciones = []
             for i in inhabilitaciones:
+                ruc = i.get('RUC_DNI')
+                if not ruc:
+                    continue  # Saltar registros sin RUC
+                    
                 fecha_inicio = self._parse_date(i.get('FECHA_INICIO'))
                 fecha_fin = self._parse_date(i.get('FECHA_FIN'))
                 fecha_corte = self._parse_date(i.get('FECHA_CORTE'))
@@ -565,7 +577,7 @@ class OSCEDataIngester:
                 estado = 'VENCIDA' if fecha_fin and fecha_fin < datetime.now().date() else 'VIGENTE'
                 
                 values_inhabilitaciones.append((
-                    i.get('RUC_DNI'),
+                    ruc,
                     'inhabilitacion_judicial',
                     i.get('NUMERO_RESOLUCION'),
                     i.get('ORGANO_JURISDICCIONAL'),
