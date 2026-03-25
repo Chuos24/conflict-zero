@@ -163,7 +163,7 @@ class OSCEDataIngester:
                         'tipo_penalidad': row.get('TIPO PENALIDAD', '').strip(),
                         'objeto': row.get('OBJETO CONTRATO', '').strip(),
                         'entidad': row.get('ENTIDAD CONTRATANTE', '').strip(),
-                        'fecha': row.get('FECHA PENALIDAD', ''),
+                        'fecha': self._parse_date_ddmmyy(row.get('FECHA PENALIDAD', '')),
                         'descripcion': row.get('DESCRIPCION/MOTIVO', '').strip(),
                         'monto': monto,
                     })
@@ -225,6 +225,29 @@ class OSCEDataIngester:
             year = int(date_str[:4])
             month = int(date_str[4:6])
             day = int(date_str[6:8])
+            return f"{year}-{month:02d}-{day:02d}"
+        except:
+            return None
+    
+    def _parse_date_ddmmyy(self, date_str: str) -> Optional[str]:
+        """Parsea fecha en formato DD/MM/YY o DD/MM/YYYY a ISO format."""
+        if not date_str:
+            return None
+        try:
+            # Limpiar espacios
+            date_str = date_str.strip()
+            parts = date_str.split('/')
+            if len(parts) != 3:
+                return None
+            
+            day = int(parts[0])
+            month = int(parts[1])
+            year = int(parts[2])
+            
+            # Si el año es de 2 dígitos, asumir 2000+
+            if year < 100:
+                year = 2000 + year
+            
             return f"{year}-{month:02d}-{day:02d}"
         except:
             return None
