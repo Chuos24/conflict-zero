@@ -479,6 +479,29 @@ async def reset_founder_password(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/debug/user-hash")
+async def debug_user_hash(email: str, db: Session = Depends(get_db)):
+    """
+    Debug: Verificar el formato del hash almacenado para un usuario.
+    Solo para diagnóstico - no expone la contraseña real.
+    """
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        return {"error": "Usuario no encontrado"}
+    
+    hash_preview = user.hashed_password[:20] + "..." if len(user.hashed_password) > 20 else user.hashed_password
+    is_temp = user.hashed_password.startswith("temp:")
+    
+    return {
+        "email": user.email,
+        "hash_preview": hash_preview,
+        "hash_length": len(user.hashed_password),
+        "is_temp_format": is_temp,
+        "is_active": user.is_active,
+        "plan_type": user.plan_type
+    }
+
+
 @router.post("/setup/reset-user-password")
 async def reset_user_password(email: str, db: Session = Depends(get_db)):
     """
