@@ -89,6 +89,51 @@ def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
         "success": True
     }
 
+# Función Perú API - alternativa confiable
+def call_peru_api(ruc: str, db) -> Dict[str, Any]:
+    """Llama a Perú API (peruapi.com) como fuente primaria."""
+    token = os.environ.get("PERUAPI_TOKEN") or os.environ.get("PERU_API_KEY")
+    
+    if not token:
+        print(f"[PERUAPI] No token configured, using fallback")
+        return get_sunat_fallback(ruc, db)
+    
+    try:
+        url = f"https://peruapi.com/api/ruc/{ruc}?api_token={token}"
+        headers = {
+            "User-Agent": "ConflictZero-API/1.0",
+            "Accept": "application/json"
+        }
+        
+        print(f"[PERUAPI] Calling for RUC: {ruc}")
+        response = requests.get(url, headers=headers, timeout=15)
+        data = response.json()
+        
+        print(f"[PERUAPI] Response code: {data.get('code')}")
+        
+        if data.get("code") == "200":
+            return {
+                "ruc": ruc,
+                "razon_social": data.get("razon_social", "").strip(),
+                "nombre": data.get("razon_social", "").strip(),
+                "estado": data.get("estado", "ACTIVO").upper(),
+                "condicion": data.get("condicion", "HABIDO").upper(),
+                "direccion": data.get("direccion", "").strip(),
+                "departamento": data.get("departamento", ""),
+                "provincia": data.get("provincia", ""),
+                "distrito": data.get("distrito", ""),
+                "ubigeo": data.get("ubigeo", ""),
+                "fuente": "peruapi_sunat",
+                "success": True
+            }
+        else:
+            print(f"[PERUAPI] Error: {data.get('mensaje')}")
+            return get_sunat_fallback(ruc, db)
+            
+    except Exception as e:
+        print(f"[PERUAPI] Exception: {e}")
+        return get_sunat_fallback(ruc, db)
+
 # Función directa - llama a BuscarUC API
 def call_buscaruc_api(ruc: str, db) -> Dict[str, Any]:
     """Llama directamente a BuscarUC API."""
@@ -167,8 +212,15 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Llamada a BuscarUC API
-    sunat_data = call_buscaruc_api(ruc, db)
+    # Llamada a Perú API (primera opción)
+    sunat_data = call_peru_api(ruc, db)
+    
+    # Si Perú API falla, intentar BuscarUC
+    if sunat_data.get("fuente") == "minimal_fallback":
+        print(f"[SUNAT] Perú API falló, intentando BuscarUC...")
+        buscaruc_data = call_buscaruc_api(ruc, db)
+        if buscaruc_data.get("fuente") != "minimal_fallback":
+            sunat_data = buscaruc_data
     
     # Si BuscarUC falla O devuelve datos incompletos (sin razón social), usar fallback
     buscaruc_failed = sunat_data.get("error") or not sunat_data.get("razon_social")
@@ -290,7 +342,12 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    return call_buscaruc_api(ruc, db)
+    # Intentar Perú API primero, luego BuscarUC, luego fallback
+    data = call_peru_api(ruc, db)
+    if data.get("fuente") == "minimal_fallback":
+        data = call_buscaruc_api(ruc, db)
+    
+    return data
 
 
 @router.get(
