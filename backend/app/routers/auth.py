@@ -479,6 +479,47 @@ async def reset_founder_password(db: Session = Depends(get_db)):
     }
 
 
+@router.post("/setup/reset-user-password")
+async def reset_user_password(email: str, db: Session = Depends(get_db)):
+    """
+    Endpoint de emergencia para resetear contraseña de cualquier usuario.
+    Genera nueva contraseña temporal y la envía por email.
+    """
+    import secrets
+    from app.services.email import get_email_service
+    
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    # Generar nueva contraseña temporal
+    new_password = secrets.token_urlsafe(12)
+    
+    # Guardar con formato temp: para que funcione incluso si bcrypt falla
+    user.hashed_password = f"temp:{new_password}"
+    db.commit()
+    
+    # Enviar email con nueva contraseña
+    email_service = get_email_service()
+    email_sent = email_service.send_welcome_email(
+        email=user.email,
+        temp_password=new_password,
+        full_name=user.full_name,
+        plan=user.plan_type
+    )
+    
+    return {
+        "message": "Contraseña reseteada exitosamente",
+        "email": user.email,
+        "email_sent": email_sent,
+        "note": "Revisa tu correo para la nueva contraseña"
+    }
+
+
 # ============================================================================
 # ADMIN TOKEN GENERATOR - Para acceso a endpoints administrativos
 # ============================================================================
