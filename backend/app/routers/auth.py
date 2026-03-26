@@ -134,8 +134,12 @@ async def register_web(
             "message": "Solicitud recibida. Revisa tu correo en las próximas horas."
         }
     
-    # Generar contraseña temporal segura
-    temp_password = secrets.token_urlsafe(12)
+    # Generar contraseña temporal segura - sin caracteres confusos
+    import random
+    import string
+    # Alfabeto sin caracteres confusos: sin 0, O, o, 1, l, I
+    alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+    temp_password = ''.join(random.choice(alphabet) for _ in range(12))
     
     # Crear hash de contraseña con manejo de errores de bcrypt
     PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
@@ -519,8 +523,12 @@ async def reset_user_password(email: str, db: Session = Depends(get_db)):
             detail="Usuario no encontrado"
         )
     
-    # Generar nueva contraseña temporal
-    new_password = secrets.token_urlsafe(12)
+    # Generar nueva contraseña temporal - sin caracteres confusos (0/O, 1/l, etc.)
+    import random
+    import string
+    # Alfabeto sin caracteres confusos: sin 0, O, o, 1, l, I
+    alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+    new_password = ''.join(random.choice(alphabet) for _ in range(12))
     
     # Guardar con formato temp: para que funcione incluso si bcrypt falla
     user.hashed_password = f"temp:{new_password}"
