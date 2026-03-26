@@ -30,7 +30,10 @@ def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
     
     try:
         url = "https://buscaruc.com/api/v1/ruc"
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "ConflictZero-API/1.0"
+        }
         payload = {"token": token, "ruc": ruc}
         
         print(f"[BUSCARUC] Calling for RUC: {ruc}")
