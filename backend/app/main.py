@@ -3,10 +3,12 @@
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
@@ -68,8 +70,8 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.VERSION,
     description="API de verificación predictiva de riesgo contractual para el mercado peruano",
-    docs_url="/docs" if settings.DEBUG else None,
-    redoc_url="/redoc" if settings.DEBUG else None
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS
@@ -89,6 +91,31 @@ async def add_process_time_header(request, call_next):
     process_time = time.time() - start_time
     response.headers["X-Process-Time"] = str(process_time)
     return response
+
+# Rate limiting simple (en memoria) - 100 requests por minuto por IP
+request_counts = defaultdict(list)
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    # Ignorar health checks y docs
+    if request.url.path in ["/api/v1/health", "/docs", "/redoc", "/openapi.json"]:
+        return await call_next(request)
+    
+    client_ip = request.client.host
+    now = datetime.now()
+    
+    # Limpiar requests antiguos (> 1 minuto)
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if now - t < timedelta(minutes=1)]
+    
+    # Verificar límite (100 req/min)
+    if len(request_counts[client_ip]) >= 100:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded", "retry_after": 60}
+        )
+    
+    request_counts[client_ip].append(now)
+    return await call_next(request)
 
 # Routers
 app.include_router(health_router, prefix="/api/v1")
