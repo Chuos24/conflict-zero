@@ -134,6 +134,55 @@ def call_peru_api(ruc: str, db) -> Dict[str, Any]:
         print(f"[PERUAPI] Exception: {e}")
         return get_sunat_fallback(ruc, db)
 
+# Función Factiliza.com - nueva fuente primaria
+def call_factiliza_api(ruc: str, db) -> Dict[str, Any]:
+    """Llama a Factiliza.com como fuente primaria."""
+    token = os.environ.get("FACTILIZA_TOKEN")
+    
+    if not token:
+        print(f"[FACTILIZA] No token configured, skipping")
+        return {"fuente": "not_configured", "ruc": ruc}
+    
+    try:
+        url = "https://api.factiliza.com/api/ruc"
+        headers = {
+            "User-Agent": "ConflictZero-API/1.0",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}"
+        }
+        payload = {"ruc": ruc}
+        
+        print(f"[FACTILIZA] Calling for RUC: {ruc}")
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        data = response.json()
+        
+        print(f"[FACTILIZA] Response success: {data.get('success')}")
+        
+        if data.get("success") and data.get("data"):
+            d = data["data"]
+            return {
+                "ruc": ruc,
+                "razon_social": d.get("nombre_o_razon_social", "").strip(),
+                "nombre": d.get("nombre_o_razon_social", "").strip(),
+                "estado": d.get("estado", "ACTIVO").upper(),
+                "condicion": d.get("condicion", "HABIDO").upper(),
+                "direccion": d.get("direccion", "").strip(),
+                "departamento": d.get("departamento", ""),
+                "provincia": d.get("provincia", ""),
+                "distrito": d.get("distrito", ""),
+                "ubigeo": d.get("ubigeo_sunat", ""),
+                "fuente": "factiliza_api",
+                "success": True
+            }
+        else:
+            print(f"[FACTILIZA] Error: {data.get('message', 'Unknown error')}")
+            return {"fuente": "factiliza_failed", "ruc": ruc}
+            
+    except Exception as e:
+        print(f"[FACTILIZA] Exception: {e}")
+        return {"fuente": "factiliza_error", "ruc": ruc}
+
 # Función APIPeru.dev - alternativa confiable (POST)
 def call_apiperu_dev(ruc: str, db) -> Dict[str, Any]:
     """Llama a APIPeru.dev como fuente primaria."""
@@ -261,8 +310,13 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Llamada a APIPeru.dev (primera opción)
-    sunat_data = call_apiperu_dev(ruc, db)
+    # Llamada a Factiliza.com (primera opción)
+    sunat_data = call_factiliza_api(ruc, db)
+    
+    # Si Factiliza falla o no está configurado, intentar APIPeru.dev
+    if not sunat_data.get("success"):
+        print(f"[CONSULTA] Factiliza falló, intentando APIPeru.dev...")
+        sunat_data = call_apiperu_dev(ruc, db)
     
     # Si APIPeru.dev falla o no está configurado, intentar Perú API
     if not sunat_data.get("success"):
@@ -396,8 +450,10 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    # Intentar APIPeru.dev primero, luego Perú API, luego BuscarUC, luego fallback
-    data = call_apiperu_dev(ruc, db)
+    # Intentar Factiliza primero, luego APIPeru.dev, luego Perú API, luego BuscarUC
+    data = call_factiliza_api(ruc, db)
+    if not data.get("success"):
+        data = call_apiperu_dev(ruc, db)
     if not data.get("success"):
         data = call_peru_api(ruc, db)
     if data.get("fuente") == "minimal_fallback":
