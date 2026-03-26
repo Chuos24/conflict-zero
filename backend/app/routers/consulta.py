@@ -32,7 +32,12 @@ def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
         url = "https://buscaruc.com/api/v1/ruc"
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "ConflictZero-API/1.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+            "Accept-Language": "es-PE,es;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Origin": "https://czperu.com",
+            "Referer": "https://czperu.com/"
         }
         payload = {"token": token, "ruc": ruc}
         
