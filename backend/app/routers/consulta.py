@@ -1,14 +1,18 @@
 import requests
 import os
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import Dict, Any
+from sqlalchemy import text
+from typing import Dict, Any, Optional
 
 from app.core.database import get_db
 from app.core.config import get_settings
+from app.core.security import get_current_active_user
 from app.services.scoring import scoring_engine
 from app.services.scraping import scraping_service
 from app.services.rnp_datos import rnp_service
+from app.models import User
 
 settings = get_settings()
 router = APIRouter(tags=["Consulta Completa"])
@@ -236,4 +240,181 @@ async def consulta_score(ruc: str):
         "risk_description": scoring_engine.get_risk_description(score_result["risk_level"]),
         "score_breakdown": score_result["breakdown"],
         "ml_analysis": score_result["ml_analysis"]
+    }
+
+
+# ============================================================================
+# ADMIN ENDPOINTS - Gestión de Sanciones
+# ============================================================================
+
+@router.post(
+    "/admin/sanciones/update",
+    summary="[ADMIN] Actualizar Sanción",
+    description="Actualiza el estado y fechas de una sanción OSCE. Requiere autenticación de administrador.",
+    response_model=Dict[str, Any]
+)
+async def admin_update_sancion(
+    ruc: str,
+    numero_resolucion: str,
+    nuevo_estado: str,
+    fecha_fin: Optional[str] = None,
+    nota: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Endpoint administrativo para corregir sanciones.
+    
+    - **ruc**: RUC de la empresa sancionada
+    - **numero_resolucion**: Número de resolución (ej: 4162-2023-TCE-S4)
+    - **nuevo_estado**: VIGENTE o VENCIDA
+    - **fecha_fin**: Fecha de fin en formato YYYY-MM-DD (opcional)
+    - **nota**: Nota adicional sobre el cambio (opcional)
+    
+    Ejemplo de uso:
+    ```json
+    {
+        "ruc": "20529400790",
+        "numero_resolucion": "4162-2023-TCE-S4",
+        "nuevo_estado": "VENCIDA",
+        "fecha_fin": "2025-12-31",
+        "nota": "Reducido a 26 meses por Resolución 6981-2025-TCP-S4"
+    }
+    ```
+    """
+    try:
+        # Verificar que el usuario es admin
+        if not getattr(current_user, 'is_admin', False):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Se requieren privilegios de administrador"
+            )
+        
+        # Buscar la sanción
+        result = db.execute(
+            text("""
+                SELECT id, ruc, numero_resolucion, fecha_inicio, fecha_fin, estado, motivo 
+                FROM osce_sanciones_detalle 
+                WHERE ruc = :ruc AND numero_resolucion LIKE :resolucion
+            """),
+            {
+                'ruc': ruc,
+                'resolucion': f'%{numero_resolucion}%'
+            }
+        ).fetchone()
+        
+        if not result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Sanción no encontrada: {numero_resolucion} para RUC {ruc}"
+            )
+        
+        # Construir la nota final
+        nota_final = result.motivo or ""
+        if nota:
+            nota_final += f" | [Admin Update] {nota}"
+        
+        # Actualizar la sanción
+        update_query = """
+            UPDATE osce_sanciones_detalle 
+            SET estado = :estado,
+                motivo = :motivo
+        """
+        params = {
+            'estado': nuevo_estado,
+            'motivo': nota_final,
+            'id': result.id
+        }
+        
+        if fecha_fin:
+            update_query += ", fecha_fin = :fecha_fin"
+            params['fecha_fin'] = fecha_fin
+        
+        update_query += " WHERE id = :id"
+        
+        db.execute(text(update_query), params)
+        db.commit()
+        
+        # Invalidar caché si existe
+        try:
+            from app.core.cache import cache
+            cache.delete(f"osce_sanciones:{ruc}")
+            cache.delete(f"consulta_completa:{ruc}")
+        except:
+            pass  # Cache no disponible
+        
+        return {
+            "success": True,
+            "message": "Sanción actualizada correctamente",
+            "data": {
+                "ruc": ruc,
+                "numero_resolucion": numero_resolucion,
+                "estado_anterior": result.estado,
+                "estado_nuevo": nuevo_estado,
+                "fecha_fin_anterior": str(result.fecha_fin) if result.fecha_fin else None,
+                "fecha_fin_nueva": fecha_fin,
+                "actualizado_por": current_user.email,
+                "nota": nota
+            },
+            "next_steps": [
+                "El score se recalculará automáticamente en la próxima consulta",
+                "Cache invalidada para este RUC"
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error actualizando sanción: {str(e)}"
+        )
+
+
+@router.get(
+    "/admin/sanciones/list/{ruc}",
+    summary="[ADMIN] Listar Sanciones",
+    description="Lista todas las sanciones de un RUC para revisión."
+)
+async def admin_list_sanciones(
+    ruc: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Lista sanciones de un RUC (admin only)."""
+    # Verificar que el usuario es admin
+    if not getattr(current_user, 'is_admin', False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren privilegios de administrador"
+        )
+    
+    result = db.execute(
+        text("""
+            SELECT id, ruc, nombre, numero_resolucion, 
+                   fecha_inicio, fecha_fin, estado, tipo_sancion, motivo
+            FROM osce_sanciones_detalle 
+            WHERE ruc = :ruc
+            ORDER BY fecha_inicio DESC
+        """),
+        {'ruc': ruc}
+    ).fetchall()
+    
+    return {
+        "ruc": ruc,
+        "total_sanciones": len(result),
+        "sanciones": [
+            {
+                "id": row.id,
+                "numero_resolucion": row.numero_resolucion,
+                "nombre": row.nombre,
+                "fecha_inicio": str(row.fecha_inicio) if row.fecha_inicio else None,
+                "fecha_fin": str(row.fecha_fin) if row.fecha_fin else None,
+                "estado": row.estado,
+                "tipo_sancion": row.tipo_sancion,
+                "motivo": row.motivo
+            }
+            for row in result
+        ]
     }
