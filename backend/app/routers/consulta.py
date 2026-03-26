@@ -45,6 +45,31 @@ def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
                 "fuente": "osce_db_fallback",
                 "success": True
             }
+        
+        # Si no está en OSCE, buscar en tabla osce_risk_data
+        query2 = text("""
+            SELECT ruc, nombre_razon_social
+            FROM osce_risk_data
+            WHERE ruc = :ruc
+            LIMIT 1
+        """)
+        result2 = db.execute(query2, {"ruc": ruc}).fetchone()
+        
+        if result2 and result2[1]:
+            return {
+                "ruc": ruc,
+                "razon_social": result2[1],
+                "nombre": result2[1],
+                "estado": "ACTIVO",
+                "condicion": "HABIDO",
+                "direccion": "",
+                "departamento": "",
+                "provincia": "",
+                "distrito": "",
+                "ubigeo": "",
+                "fuente": "osce_risk_fallback",
+                "success": True
+            }
     except Exception as e:
         print(f"[FALLBACK] Error: {e}")
     
