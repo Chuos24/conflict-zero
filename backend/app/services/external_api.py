@@ -52,22 +52,25 @@ class ExternalAPIService:
             print(f"DEBUG: Response status: {response.status_code}")
 
             data = response.json()
-
+            
             # Convertir respuesta de BuscarUC al formato esperado
-            if data.get("error"):
+            # La respuesta viene en: data.result con campos en inglés
+            if data.get("error") or not data.get("result"):
                 return {"code": "404", "message": data.get("message", "RUC no encontrado")}
-
+            
+            result = data.get("result", {})
+            
             return {
                 "code": "200",
-                "razon_social": data.get("razonSocial", "") or data.get("nombre", ""),
-                "nombre": data.get("nombre", ""),
-                "estado": data.get("estado", "ACTIVO"),
-                "condicion": data.get("condicion", "HABIDO"),
-                "direccion": data.get("direccion", ""),
-                "departamento": data.get("departamento", ""),
-                "provincia": data.get("provincia", ""),
-                "distrito": data.get("distrito", ""),
-                "ubigeo": data.get("ubigeo", "")
+                "razon_social": result.get("social_reason", ""),
+                "nombre": result.get("social_reason", ""),
+                "estado": result.get("taxpayer_state", "ACTIVO"),
+                "condicion": result.get("domicile_condition", "HABIDO"),
+                "direccion": result.get("address", ""),
+                "departamento": result.get("department", ""),
+                "provincia": result.get("province", ""),
+                "distrito": result.get("district", ""),
+                "ubigeo": result.get("ubigeo", "")
             }
 
         except requests.exceptions.RequestException as e:
@@ -134,7 +137,7 @@ class ExternalAPIService:
         try:
             from app.core.database import SessionLocal
             from app.models import User
-            
+
             db = SessionLocal()
             try:
                 # Buscar en usuarios registrados
@@ -154,7 +157,7 @@ class ExternalAPIService:
                 db.close()
         except Exception as e:
             print(f"Error en fallback a DB: {e}")
-        
+
         # Último fallback: datos mínimos
         return {
             "ruc": ruc,
