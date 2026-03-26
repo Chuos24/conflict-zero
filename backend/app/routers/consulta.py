@@ -134,6 +134,55 @@ def call_peru_api(ruc: str, db) -> Dict[str, Any]:
         print(f"[PERUAPI] Exception: {e}")
         return get_sunat_fallback(ruc, db)
 
+# Función APIPeru.dev - alternativa confiable (POST)
+def call_apiperu_dev(ruc: str, db) -> Dict[str, Any]:
+    """Llama a APIPeru.dev como fuente primaria."""
+    token = os.environ.get("APIPERU_TOKEN") or os.environ.get("APIPERU_DEV_TOKEN")
+    
+    if not token:
+        print(f"[APIPERU] No token configured, skipping")
+        return {"fuente": "not_configured", "ruc": ruc}
+    
+    try:
+        url = "https://apiperu.dev/api/ruc"
+        headers = {
+            "User-Agent": "ConflictZero-API/1.0",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}"
+        }
+        payload = {"ruc": ruc}
+        
+        print(f"[APIPERU] Calling for RUC: {ruc}")
+        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        data = response.json()
+        
+        print(f"[APIPERU] Response success: {data.get('success')}")
+        
+        if data.get("success") and data.get("data"):
+            d = data["data"]
+            return {
+                "ruc": ruc,
+                "razon_social": d.get("nombre_o_razon_social", "").strip(),
+                "nombre": d.get("nombre_o_razon_social", "").strip(),
+                "estado": d.get("estado", "ACTIVO").upper(),
+                "condicion": d.get("condicion", "HABIDO").upper(),
+                "direccion": d.get("direccion", "").strip(),
+                "departamento": d.get("departamento", ""),
+                "provincia": d.get("provincia", ""),
+                "distrito": d.get("distrito", ""),
+                "ubigeo": d.get("ubigeo_sunat", ""),
+                "fuente": "apiperu_dev",
+                "success": True
+            }
+        else:
+            print(f"[APIPERU] Error: {data}")
+            return {"fuente": "apiperu_failed", "ruc": ruc}
+            
+    except Exception as e:
+        print(f"[APIPERU] Exception: {e}")
+        return {"fuente": "apiperu_error", "ruc": ruc}
+
 # Función directa - llama a BuscarUC API
 def call_buscaruc_api(ruc: str, db) -> Dict[str, Any]:
     """Llama directamente a BuscarUC API."""
@@ -212,12 +261,17 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Llamada a Perú API (primera opción)
-    sunat_data = call_peru_api(ruc, db)
+    # Llamada a APIPeru.dev (primera opción)
+    sunat_data = call_apiperu_dev(ruc, db)
     
-    # Si Perú API falla, intentar BuscarUC
+    # Si APIPeru.dev falla o no está configurado, intentar Perú API
+    if not sunat_data.get("success"):
+        print(f"[CONSULTA] APIPeru.dev falló, intentando Perú API...")
+        sunat_data = call_peru_api(ruc, db)
+    
+    # Si Perú API también falla, intentar BuscarUC
     if sunat_data.get("fuente") == "minimal_fallback":
-        print(f"[SUNAT] Perú API falló, intentando BuscarUC...")
+        print(f"[CONSULTA] Perú API falló, intentando BuscarUC...")
         buscaruc_data = call_buscaruc_api(ruc, db)
         if buscaruc_data.get("fuente") != "minimal_fallback":
             sunat_data = buscaruc_data
@@ -342,8 +396,10 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    # Intentar Perú API primero, luego BuscarUC, luego fallback
-    data = call_peru_api(ruc, db)
+    # Intentar APIPeru.dev primero, luego Perú API, luego BuscarUC, luego fallback
+    data = call_apiperu_dev(ruc, db)
+    if not data.get("success"):
+        data = call_peru_api(ruc, db)
     if data.get("fuente") == "minimal_fallback":
         data = call_buscaruc_api(ruc, db)
     
