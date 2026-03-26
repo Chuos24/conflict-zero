@@ -417,6 +417,25 @@ async def create_founder_endpoint(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/debug/email-status")
+async def debug_email_status():
+    """Debug: Verificar estado del servicio de email"""
+    from app.services.email import get_email_service, SENDGRID_AVAILABLE
+    import os
+    
+    service = get_email_service()
+    sg_key = os.getenv("SENDGRID_API_KEY", "")
+    
+    return {
+        "provider": service.provider,
+        "sendgrid_available": SENDGRID_AVAILABLE,
+        "sendgrid_key_configured": len(sg_key) > 0,
+        "sendgrid_key_prefix": sg_key[:10] + "..." if len(sg_key) > 10 else "none",
+        "from_email": service.from_email,
+        "from_name": service.from_name
+    }
+
+
 @router.api_route("/setup/reset-founder-password", methods=["GET", "POST"])
 async def reset_founder_password(db: Session = Depends(get_db)):
     """
