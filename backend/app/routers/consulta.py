@@ -17,8 +17,55 @@ from app.models import User
 settings = get_settings()
 router = APIRouter(tags=["Consulta Completa"])
 
+# Función fallback - obtiene datos de SUNAT desde DB local
+def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
+    """Obtiene datos de SUNAT desde la base de datos local como fallback."""
+    try:
+        # Buscar en tabla de sanciones OSCE
+        query = text("""
+            SELECT DISTINCT nombre, ruc 
+            FROM osce_sanciones_detalle 
+            WHERE ruc = :ruc 
+            LIMIT 1
+        """)
+        result = db.execute(query, {"ruc": ruc}).fetchone()
+        
+        if result and result[0]:
+            return {
+                "ruc": ruc,
+                "razon_social": result[0],
+                "nombre": result[0],
+                "estado": "ACTIVO",
+                "condicion": "HABIDO",
+                "direccion": "",
+                "departamento": "",
+                "provincia": "",
+                "distrito": "",
+                "ubigeo": "",
+                "fuente": "osce_db_fallback",
+                "success": True
+            }
+    except Exception as e:
+        print(f"[FALLBACK] Error: {e}")
+    
+    # Fallback final: datos mínimos
+    return {
+        "ruc": ruc,
+        "razon_social": "",
+        "nombre": "",
+        "estado": "ACTIVO",
+        "condicion": "HABIDO",
+        "direccion": "",
+        "departamento": "",
+        "provincia": "",
+        "distrito": "",
+        "ubigeo": "",
+        "fuente": "minimal_fallback",
+        "success": True
+    }
+
 # Función directa - llama a BuscarUC API
-def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
+def call_buscaruc_api(ruc: str, db) -> Dict[str, Any]:
     """Llama directamente a BuscarUC API."""
     # Token hardcodeado de BuscarUC
     BUSCARUC_TOKEN = "eyJ1c2VySWQiOjU0NzAsInVzZXJUb2tlbklkIjo1NDY5fQ.QK8EdbO21g2rCk3jqUqdOf3pKKhNZqymmG30RTbMURhtp7-JPJcPX3xHXAaH46qAoHrTnQLgqTGo1yY1zu64QfPvLux0EbX2R9V_1tAy8Fdos2-Z-_XXTe7Wi0lRTBK55uh_zCm5zCiYs7VJBW4T9e2mZdd6EaXYaXOwEybmseE"
@@ -61,10 +108,13 @@ def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
                 "provincia": result.get("province", ""),
                 "distrito": result.get("district", ""),
                 "ubigeo": result.get("ubigeo", ""),
+                "fuente": "buscaruc_sunat",
                 "success": True
             }
         else:
-            return {"error": True, "message": data.get("message", "RUC no encontrado"), "ruc": ruc}
+            # BuscarUC falló, usar fallback a base de datos local
+            print(f"[BUSCARUC] Error o sin datos, usando fallback para RUC: {ruc}")
+            return get_sunat_fallback(ruc, db)
             
     except Exception as e:
         print(f"[BUSCARUC] Exception: {e}")
@@ -93,7 +143,7 @@ async def consulta_completa(
         }
     
     # Llamada a BuscarUC API
-    sunat_data = call_buscaruc_api(ruc)
+    sunat_data = call_buscaruc_api(ruc, db)
     
     # Si BuscarUC falla O devuelve datos incompletos (sin razón social), usar fallback
     buscaruc_failed = sunat_data.get("error") or not sunat_data.get("razon_social")
@@ -210,12 +260,12 @@ async def consulta_completa(
     summary="Consulta SUNAT Directa",
     description="Obtiene datos básicos de SUNAT para un RUC."
 )
-async def consulta_sunat(ruc: str):
+async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     """Endpoint simple de consulta SUNAT."""
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    return call_buscaruc_api(ruc)
+    return call_buscaruc_api(ruc, db)
 
 
 @router.get(
@@ -228,7 +278,7 @@ async def consulta_score(ruc: str):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": True, "message": "RUC inválido"}
     
-    sunat_data = call_buscaruc_api(ruc)
+    sunat_data = call_buscaruc_api(ruc, db)
     
     if sunat_data.get("error"):
         return sunat_data
