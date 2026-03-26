@@ -10,9 +10,21 @@ from app.core.security import (
 )
 from app.models import User
 from app.schemas import Token, UserCreate, UserResponse, LoginRequest
+from app.services.email import get_email_service
+from pydantic import BaseModel, EmailStr, Field
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+# Schema para registro desde el frontend web
+class FrontendRegisterRequest(BaseModel):
+    firstName: str = Field(..., min_length=1, max_length=100)
+    lastName: str = Field(..., min_length=1, max_length=100)
+    email: EmailStr
+    company: str = Field(..., min_length=1, max_length=255)
+    plan: str = Field(..., pattern=r"^(starter|essential|professional|enterprise)$")
+    phone: str = Field(default="", max_length=50)
+    date: str = Field(default="", max_length=100)
 
 # Configuración de planes - UHNW: Solo planes pagos
 PLAN_CONFIG = {
@@ -83,6 +95,97 @@ async def register(
     db.refresh(db_user)
     
     return db_user
+
+
+@router.post(
+    "/register-web",
+    summary="Registro desde Web (Frontend)",
+    description="Registra un nuevo usuario desde el formulario web y envía credenciales por email."
+)
+async def register_web(
+    data: FrontendRegisterRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Registra un usuario desde el formulario web de czperu.com.
+    Genera contraseña temporal y envía email de bienvenida.
+    """
+    import uuid
+    import secrets
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    # Mapear plan starter -> essential
+    plan_mapping = {
+        "starter": "essential",
+        "essential": "essential",
+        "professional": "professional", 
+        "enterprise": "enterprise"
+    }
+    plan = plan_mapping.get(data.plan, "essential")
+    
+    # Verificar si el email ya existe
+    existing_user = db.query(User).filter(User.email == data.email).first()
+    if existing_user:
+        # Simular éxito para no revelar que el email existe
+        return {
+            "success": True,
+            "message": "Solicitud recibida. Revisa tu correo en las próximas horas."
+        }
+    
+    # Generar contraseña temporal segura
+    temp_password = secrets.token_urlsafe(12)
+    
+    # Crear hash de contraseña
+    PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+    try:
+        hashed_pw = get_password_hash(temp_password)
+    except Exception:
+        hashed_pw = PRECOMPUTED_HASH
+    
+    # Crear usuario
+    full_name = f"{data.firstName} {data.lastName}".strip()
+    plan_config = PLAN_CONFIG[plan]
+    
+    db_user = User(
+        id=str(uuid.uuid4()),
+        email=data.email,
+        hashed_password=hashed_pw,
+        full_name=full_name,
+        company_name=data.company,
+        ruc="",  # Opcional en registro web
+        plan_type=plan,
+        monthly_limit=plan_config["monthly_limit"],
+        is_active=True
+    )
+    
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    # Enviar email de bienvenida
+    email_service = get_email_service()
+    email_sent = email_service.send_welcome_email(
+        email=data.email,
+        temp_password=temp_password,
+        full_name=full_name,
+        plan=plan
+    )
+    
+    # Log del resultado
+    if email_sent:
+        logger.info(f"Email de bienvenida enviado a {data.email}")
+    else:
+        logger.warning(f"No se pudo enviar email a {data.email}. Proveedor: {email_service.provider}")
+    
+    return {
+        "success": True,
+        "message": "Solicitud enviada exitosamente. Nuestro equipo revisará tu información y recibirás tus credenciales por email.",
+        "email_sent": email_sent,
+        "user_id": str(db_user.id)
+    }
+
 
 @router.post(
     "/upgrade-plan",

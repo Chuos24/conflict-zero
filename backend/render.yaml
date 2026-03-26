@@ -20,6 +20,27 @@ services:
         value: production
       - key: ALLOWED_HOSTS
         value: "*"
+      # Email Configuration (SendGrid recomendado)
+      - key: EMAIL_FROM
+        value: "noreply@czperu.com"
+      - key: EMAIL_FROM_NAME
+        value: "Conflict Zero"
+      - key: SENDGRID_API_KEY
+        sync: false  # Configurar en dashboard de Render
+      # AWS (opcional - para SES o S3)
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_REGION
+        value: "us-east-1"
+      - key: S3_BUCKET
+        value: "conflictzero-certificados-prod"
+      # Stripe (para pagos)
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
 
 databases:
   - name: conflict-zero-db
