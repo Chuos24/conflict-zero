@@ -20,7 +20,9 @@ router = APIRouter(tags=["Consulta Completa"])
 # Función directa - llama a BuscarUC API
 def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
     """Llama directamente a BuscarUC API."""
-    token = os.environ.get("PERU_API_KEY") or os.environ.get("PERUAPI_TOKEN")
+    # Token hardcodeado de BuscarUC
+    BUSCARUC_TOKEN = "eyJ1c2VySWQiOjU0NzAsInVzZXJUb2tlbklkIjo1NDY5fQ.QK8EdbO21g2rCk3jqUqdOf3pKKhNZqymmG30RTbMURhtp7-JPJcPX3xHXAaH46qAoHrTnQLgqTGo1yY1zu64QfPvLux0EbX2R9V_1tAy8Fdos2-Z-_XXTe7Wi0lRTBK55uh_zCm5zCiYs7VJBW4T9e2mZdd6EaXYaXOwEybmseE"
+    token = os.environ.get("BUSCARUC_TOKEN") or os.environ.get("PERU_API_KEY") or os.environ.get("PERUAPI_TOKEN") or BUSCARUC_TOKEN
     
     if not token:
         print(f"[BUSCARUC] ERROR: No token found!")
@@ -37,18 +39,20 @@ def call_buscaruc_api(ruc: str) -> Dict[str, Any]:
         
         print(f"[BUSCARUC] Response: {data.get('error', 'OK')}")
         
-        if not data.get("error"):
+        # BuscarUC retorna datos en: data.result con campos en inglés
+        if not data.get("error") and data.get("result"):
+            result = data.get("result", {})
             return {
                 "ruc": ruc,
-                "razon_social": data.get("razonSocial", "").strip() or data.get("nombre", "").strip(),
-                "nombre": data.get("nombre", "").strip(),
-                "estado": data.get("estado", "ACTIVO").upper(),
-                "condicion": data.get("condicion", "HABIDO").upper(),
-                "direccion": data.get("direccion", "").strip(),
-                "departamento": data.get("departamento", ""),
-                "provincia": data.get("provincia", ""),
-                "distrito": data.get("distrito", ""),
-                "ubigeo": data.get("ubigeo", ""),
+                "razon_social": result.get("social_reason", "").strip(),
+                "nombre": result.get("social_reason", "").strip(),
+                "estado": result.get("taxpayer_state", "ACTIVO").upper(),
+                "condicion": result.get("domicile_condition", "HABIDO").upper(),
+                "direccion": result.get("address", "").strip(),
+                "departamento": result.get("department", ""),
+                "provincia": result.get("province", ""),
+                "distrito": result.get("district", ""),
+                "ubigeo": result.get("ubigeo", ""),
                 "success": True
             }
         else:
