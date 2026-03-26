@@ -1,24 +1,85 @@
-name: Conflict Zero API
+# Render Configuration for Conflict Zero API
+# Este archivo configura health checks y monitoreo para garantizar SLA 99.9%
 
 services:
   - type: web
-    name: conflictzero backend1
+    name: conflict-zero-api
     runtime: python
-    plan: starter
+    plan: standard  # Plan Pro para garantizar uptime y auto-restart
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    
+    # Health Check Configuration
+    healthCheckPath: /api/v1/health
+    healthCheckPort: 10000
+    
+    # Auto-restart en caso de falla
+    autoDeploy: true
+    
+    # Environment Variables (se configuran en dashboard)
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
       - key: DATABASE_URL
-        value: "postgresql://conflict_zero_prod_user:QHsS3TsSfn1LdTlcFBDDTeiijsVColDk@dpg-d71bkh7gi27c73fbq4qg-a/conflict_zero_prod"
+        fromDatabase:
+          name: conflict-zero-prod
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: conflict-zero-cache
+          property: connectionString
+          optional: true
+      
+      # API Tokens (configurar en dashboard)
+      - key: FACTILIZA_TOKEN
+        sync: false
+      - key: APIPERU_TOKEN
+        sync: false
+      - key: PERUAPI_TOKEN
+        sync: false
+      - key: BUSCARUC_TOKEN
+        sync: false
+      
+      # Security
       - key: SECRET_KEY
         generateValue: true
-      - key: PERU_API_KEY
-        sync: false
-      - key: ENVIRONMENT
-        value: production
-      - key: ALLOWED_HOSTS
-        value: "*"
-      - key: PYTHONUNBUFFERED
-        value: "1"
-      - key: WEB_CONCURRENCY
-        value: "2"
+      - key: ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+
+  # Redis para cache (opcional pero recomendado)
+  - type: redis
+    name: conflict-zero-cache
+    plan: free
+    ipAllowList: []
+
+  # PostgreSQL Database
+  - type: pserv
+    name: conflict-zero-prod
+    plan: starter
+    ipAllowList: []
+
+# Cron Jobs para mantenimiento
+cron:
+  - name: conflict-zero-osce-sync
+    schedule: "0 3 * * *"  # 3 AM UTC = 10 PM Lima
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/sync_osce_risk_daily.py
+    
+  - name: conflict-zero-health-check
+    schedule: "*/30 * * * *"  # Cada 30 minutos
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/health_check_monitor.py
+
+# Static Site para status page (opcional)
+staticSites:
+  - name: conflict-zero-status
+    runtime: static
+    buildCommand: echo "Static status page"
+    staticPublishPath: ./status
+    routes:
+      - type: rewrite
+        source: /
+        destination: /index.html
