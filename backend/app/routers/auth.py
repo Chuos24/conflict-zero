@@ -340,3 +340,90 @@ async def reset_founder_password(db: Session = Depends(get_db)):
         "password": "CZ2025!",
         "action": "Intenta hacer login ahora"
     }
+
+
+# ============================================================================
+# ADMIN TOKEN GENERATOR - Para acceso a endpoints administrativos
+# ============================================================================
+
+@router.post(
+    "/admin/token",
+    summary="[ADMIN] Generar Token de Administrador",
+    description="Genera un token JWT extendido para operaciones administrativas."
+)
+async def generate_admin_token(
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Genera un token JWT con duración extendida (24 horas) para el founder.
+    Este token permite usar los endpoints /admin/* para gestionar sanciones.
+    
+    **IMPORTANTE**: Guarda este token de forma segura. Tiene acceso completo.
+    
+    Ejemplo de uso:
+    ```bash
+    curl -X POST https://conflict-zero-api.onrender.com/api/v1/auth/admin/token \
+      -H "Content-Type: application/json" \
+      -d '{"email":"founder@conflictzero.com","password":"CZ2025!"}'
+    ```
+    """
+    # Buscar usuario
+    user = db.query(User).filter(User.email == login_data.email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas"
+        )
+    
+    # Verificar que sea admin
+    if not getattr(user, 'is_admin', False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren privilegios de administrador"
+        )
+    
+    # Verificar contraseña
+    PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+    is_valid = False
+    
+    try:
+        if login_data.email == "founder@conflictzero.com" and login_data.password == "CZ2025!":
+            if user.hashed_password == PRECOMPUTED_HASH:
+                is_valid = True
+        else:
+            is_valid = verify_password(login_data.password, user.hashed_password)
+    except:
+        if login_data.email == "founder@conflictzero.com" and login_data.password == "CZ2025!" and user.hashed_password == PRECOMPUTED_HASH:
+            is_valid = True
+    
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Credenciales incorrectas"
+        )
+    
+    # Crear token extendido (24 horas)
+    access_token_expires = timedelta(hours=24)
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": 24 * 60 * 60,  # 24 horas en segundos
+        "expires_at": (datetime.utcnow() + access_token_expires).isoformat(),
+        "user": {
+            "email": user.email,
+            "is_admin": user.is_admin,
+            "plan_type": user.plan_type
+        },
+        "usage": {
+            "list_sanciones": f"GET /api/v1/admin/sanciones/list/{{ruc}}",
+            "update_sancion": f"POST /api/v1/admin/sanciones/update",
+            "example_curl": """curl -X POST https://conflict-zero-api.onrender.com/api/v1/admin/sanciones/update \\\n  -H "Authorization: Bearer {token}" \\\n  -H "Content-Type: application/x-www-form-urlencoded" \\\n  -d "ruc=20529400790" \\\n  -d "numero_resolucion=4162-2023-TCE-S4" \\\n  -d "nuevo_estado=VENCIDA" \\\n  -d "fecha_fin=2025-12-31"""
+        }
+    }
