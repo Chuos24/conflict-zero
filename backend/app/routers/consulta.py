@@ -1,10 +1,11 @@
 import requests
 import os
-from datetime import date
+import json
+from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from app.core.database import get_db
 from app.core.config import get_settings
@@ -677,13 +678,183 @@ async def admin_list_sanciones(
 
 
 # ============================================================================
-# LEGALBOT UNIVERSAL V2.0 - Algoritmo Legal para TODOS los RUCs
+# LEGALBOT UNIVERSAL V3.0 - Scoring Multidimensional
 # ============================================================================
 
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
-def calculate_legalbot_score(ruc: str, sanciones: List[Dict[str, Any]], db=None) -> Dict[str, Any]:
+# Diccionario de gravedad por keywords
+GRAVEDAD_KEYWORDS = {
+    # 100 - Grave (Corrupción, fraude)
+    100: ['colusión', 'cohecho', 'peculado', 'fraude', 'simulación', 'alteración', 'falsedad', 
+          'inhabilitación definitiva', 'definitiva', 'corrupción', 'conspiración'],
+    # 70 - Media-Alta (Impedimentos)
+    70: ['impedimento', 'inhabilitación temporal', 'temporal', 'responsabilidad patrimonial',
+         'incumplimiento grave', 'inexacta', 'falsos', 'adulterados'],
+    # 60 - Media (Sanciones)
+    60: ['sanción', 'multa grave', 'obstrucción', 'infracción', 'penalidad'],
+    # 20 - Leve (Multas menores)
+    20: ['multa tributaria', 'omisión', 'retraso', 'formalidad', 'documentación', 'tardanza'],
+    # 10 - Mínima (Advertencias)
+    10: ['observación', 'advertencia', 'llamada de atención', 'amonestación']
+}
+
+# Multiplicadores por entidad
+ENTIDAD_MULTIPLICADORES = {
+    'OSCE': 1.5,      # Crítico para constructoras
+    'TCE': 1.2,       # Grave pero recuperable
+    'SUNAT': 0.8,     # Menor impacto si pagada
+    'INDECOPI': 1.0,  # Estándar
+    'DEFAULT': 1.0
+}
+
+def detectar_gravedad(descripcion: str) -> int:
+    """Detecta nivel de gravedad basado en keywords."""
+    if not descripcion:
+        return 60  # Default media
+    
+    desc_lower = descripcion.lower()
+    
+    for gravedad, keywords in GRAVEDAD_KEYWORDS.items():
+        for keyword in keywords:
+            if keyword in desc_lower:
+                return gravedad
+    
+    return 60  # Default media si no encuentra
+
+def obtener_multiplicador_entidad(entidad: str) -> float:
+    """Obtiene multiplicador según entidad sancionadora."""
+    if not entidad:
+        return ENTIDAD_MULTIPLICADORES['DEFAULT']
+    
+    entidad_upper = entidad.upper()
+    
+    for key, valor in ENTIDAD_MULTIPLICADORES.items():
+        if key in entidad_upper:
+            return valor
+    
+    return ENTIDAD_MULTIPLICADORES['DEFAULT']
+
+def calcular_factor_tiempo(dias_transcurridos: int) -> float:
+    """Calcula factor de decaimiento temporal."""
+    if dias_transcurridos < 365:
+        return 1.0  # Impacto total
+    elif dias_transcurridos < 1095:  # 3 años
+        return 0.7  # Moderado - Zona crítica
+    elif dias_transcurridos < 1825:  # 5 años
+        return 0.4  # Bajo - Recuperación
+    else:
+        return 0.1  # Mínimo - Casi limpio
+
+def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
+    """Calcula el impacto de una sanción individual."""
+    # Obtener descripción
+    descripcion = sancion.get('description', '') or sancion.get('motivo', '') or ''
+    
+    # Detectar gravedad
+    gravedad = detectar_gravedad(descripcion)
+    
+    # Detectar entidad
+    entidad = sancion.get('entity', '') or sancion.get('entidad', '') or sancion.get('fuente', 'OSCE')
+    entidad_mult = obtener_multiplicador_entidad(entidad)
+    
+    # Calcular tiempo
+    fecha_inicio_str = sancion.get('fecha_inicio') or sancion.get('date') or sancion.get('fecha')
+    dias_transcurridos = 0
+    factor_tiempo = 1.0
+    
+    if fecha_inicio_str:
+        try:
+            if 'T' in str(fecha_inicio_str):
+                fecha_inicio = datetime.fromisoformat(str(fecha_inicio_str).replace('Z', '').replace('+00:00', ''))
+            else:
+                fecha_inicio = datetime.strptime(str(fecha_inicio_str), '%Y-%m-%d')
+            dias_transcurridos = (datetime.now() - fecha_inicio).days
+            factor_tiempo = calcular_factor_tiempo(dias_transcurridos)
+        except:
+            pass
+    
+    # Calcular impacto
+    impacto = gravedad * entidad_mult * factor_tiempo
+    
+    return {
+        'resolucion': sancion.get('sanction_id') or sancion.get('numero_resolucion') or 'N/A',
+        'descripcion': descripcion[:100] + '...' if len(descripcion) > 100 else descripcion,
+        'gravedad_base': gravedad,
+        'entidad': entidad,
+        'entidad_mult': entidad_mult,
+        'dias_transcurridos': dias_transcurridos,
+        'anios': round(dias_transcurridos / 365.25, 1),
+        'factor_tiempo': factor_tiempo,
+        'impacto': round(impacto, 1)
+    }
+
+def calculate_legalbot_v3(sanciones: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    LEGALBOT UNIVERSAL V3.0 - Scoring Multidimensional
+    
+    Fórmula: impacto = gravedad × entidad_mult × factor_tiempo
+    score = 100 - Σ(impacto de cada sanción)
+    """
+    if not sanciones:
+        return {
+            'score': 100,
+            'tier': 'GOLD',
+            'status': 'APTO',
+            'detalles': [],
+            'impacto_total': 0,
+            'confianza': 1.0,
+            'metodo': 'LEGALBOT_V3_MULTIDIMENSIONAL'
+        }
+    
+    detalles = []
+    impacto_total = 0
+    tiene_definitiva = False
+    
+    for sancion in sanciones:
+        detalle = calcular_impacto_sancion(sancion)
+        detalles.append(detalle)
+        impacto_total += detalle['impacto']
+        
+        # Detectar inhabilitación definitiva
+        if detalle['gravedad_base'] == 100:
+            tiene_definitiva = True
+    
+    # Calcular score final
+    score = max(0, 100 - impacto_total)
+    
+    # Aplicar CAP si tiene definitiva
+    if tiene_definitiva:
+        score = 0
+        tier = 'RECHAZADO'
+        status = 'BLOQUEO_PERMANENTE'
+    else:
+        # Determinar tier según score
+        if score >= 90:
+            tier = 'GOLD'
+            status = 'APTO'
+        elif score >= 70:
+            tier = 'SILVER'
+            status = 'APTO'
+        elif score >= 30:
+            tier = 'BRONZE'
+            status = 'APTO'
+        else:
+            tier = 'RECHAZADO'
+            status = 'RECHAZADO'
+    
+    return {
+        'score': round(score),
+        'tier': tier,
+        'status': status,
+        'detalles': detalles,
+        'impacto_total': round(impacto_total, 1),
+        'sanciones_count': len(sanciones),
+        'tiene_definitiva': tiene_definitiva,
+        'confianza': 0.95 if len(sanciones) <= 3 else 0.85,
+        'metodo': 'LEGALBOT_V3_MULTIDIMENSIONAL'
+    }
     """
     LEGALBOT UNIVERSAL V2.0
     Algoritmo universal que aplica a CUALQUIER RUC según Ley 30225.
@@ -842,8 +1013,8 @@ async def legalbot_validate(
         sanciones_scraping = scraping_service.get_osce_sanctions(ruc)
         sanciones_detalle = sanciones_scraping
     
-    # Calcular score LegalBot
-    resultado = calculate_legalbot_score(ruc, sanciones_detalle, db)
+    # Calcular score LegalBot V3.0 Multidimensional
+    resultado = calculate_legalbot_v3(sanciones_detalle)
     
     # Ajustar tier si califica para Founder (volumen > 50M y score >= 90)
     if resultado['score'] >= 90 and volumen >= 50000000:
@@ -855,31 +1026,42 @@ async def legalbot_validate(
     # Guardar auditoría si hay DB
     try:
         db.execute(text("""
-            INSERT INTO legal_decisions (
-                ruc, fecha_calculo, sanciones_count, sancion_mas_reciente_dias,
-                score_osce, tier_asignado, fecha_desbloqueo_gold, confianza,
-                es_zona_critica, requiere_verificacion, metodo_calculo
+            INSERT INTO legal_calculations (
+                ruc, fecha_calculo, sanciones_count, score,
+                tier_asignado, confianza, tiene_definitiva,
+                impacto_total, detalles_json, metodo_calculo
             ) VALUES (
-                :ruc, NOW(), :sanciones_count, :dias_max,
-                :score, :tier, :fecha_desbloqueo, :confianza,
-                :zona_critica, :req_verif, :metodo
+                :ruc, NOW(), :sanciones_count, :score,
+                :tier, :confianza, :tiene_definitiva,
+                :impacto_total, :detalles::jsonb, :metodo
             )
         """), {
             'ruc': ruc,
-            'sanciones_count': len(sanciones_detalle),
-            'dias_max': resultado.get('dias_max_sancion', 0),
+            'sanciones_count': resultado['sanciones_count'],
             'score': resultado['score'],
             'tier': resultado['tier'],
-            'fecha_desbloqueo': resultado['fecha_desbloqueo_gold'],
             'confianza': resultado['confianza'],
-            'zona_critica': resultado['zona_critica'],
-            'req_verif': resultado['requiere_verificacion'],
-            'metodo': resultado['metodo_calculo']
+            'tiene_definitiva': resultado['tiene_definitiva'],
+            'impacto_total': resultado['impacto_total'],
+            'detalles': json.dumps(resultado['detalles']),
+            'metodo': resultado['metodo']
         })
         db.commit()
     except Exception as e:
         print(f"[LegalBot] Error guardando auditoría: {e}")
         db.rollback()
+    
+    # Construir mensaje según resultado
+    if resultado['tier'] == 'RECHAZADO':
+        mensaje = "⛔ RECHAZADO - Sanción grave vigente. No apto para certificación."
+    elif resultado['score'] >= 90:
+        mensaje = "✅ GOLD disponible inmediatamente."
+    elif resultado['score'] >= 70:
+        mensaje = "✅ SILVER disponible. Mejorable a Gold con buena conducta."
+    elif resultado['score'] >= 30:
+        mensaje = "⚠️ BRONZE disponible. Sanciones detectadas con impacto moderado."
+    else:
+        mensaje = "❌ Riesgo elevado - No apto para certificación."
     
     return {
         "ruc": ruc,
@@ -887,15 +1069,14 @@ async def legalbot_validate(
         "score": resultado['score'],
         "tier": resultado['tier'],
         "status": resultado['status'],
-        "fecha_desbloqueo_gold": resultado['fecha_desbloqueo_gold'],
         "confianza": resultado['confianza'],
-        "zona_critica": resultado['zona_critica'],
-        "requiere_verificacion": resultado['requiere_verificacion'],
-        "automatico": resultado['automatico'],
+        "tiene_definitiva": resultado['tiene_definitiva'],
+        "impacto_total": resultado['impacto_total'],
+        "sanciones_count": resultado['sanciones_count'],
+        "detalles": resultado['detalles'],
         "es_founder_eligible": resultado.get('es_founder_eligible', False),
-        "sanciones_count": len(sanciones_detalle),
-        "metodo_calculo": resultado['metodo_calculo'],
-        "mensaje": f"Score calculado según LegalBot Universal V2.0. Gold disponible: {resultado['fecha_desbloqueo_gold'][:10] if resultado['fecha_desbloqueo_gold'] else 'INMEDIATO'}" if resultado['score'] >= 90 else "Sanción en período 2-3 años. Gold disponible post-fecha legal." if resultado['zona_critica'] else "Empresa con historial sancionado. Bronze disponible." if resultado['score'] >= 30 else "Riesgo elevado - No apto para certificación."
+        "metodo_calculo": resultado['metodo'],
+        "mensaje": mensaje
     }
 
 
