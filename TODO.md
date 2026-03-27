@@ -3,9 +3,11 @@
 ## ⚠️ URGENTE - Requiere atención inmediata
 
 ### 1. Actualizar RUC 20529400790 en Producción
-**Status**: 🔴 BLOQUEADO - Render no aplica cambios
+**Status**: 🟡 EN PROGRESO - Timestamp agregado a main.py para forzar redeploy
 **Creado**: 2026-03-26
+**Último intento**: 2026-03-27 18:20 UTC
 **Commits**:
+- `3280acd` - feat: Add multi-RUC comparison endpoint + connect Stats/Compare to API
 - `4dc1296` - Script update_sancion_20529400790.py
 - `8c5de7a` - Workflow fix sanción (DB detalle)
 - `b385ad3` - Workflow fix osce_risk_data (DB agregada)
@@ -25,14 +27,13 @@
 - Risk Level: high (debería ser low/medium)
 
 **Causas posibles**:
-1. Cache de Docker en Render
+1. ✅ Cache de Docker en Render - INTENTADO: timestamp en main.py
 2. Build fallando silenciosamente
 3. Código diferente entre local y producción
 
-**Soluciones a intentar**:
+**Soluciones pendientes**:
 - [ ] Verificar dashboard de Render por errores de build
 - [ ] Forzar redeploy manual desde Render Dashboard
-- [ ] Hacer cambio en otro archivo (main.py) para invalidar cache
 - [ ] Verificar si hay error en runtime (logs de Render)
 - [ ] Considerar migrar a otro servicio (Railway, Fly.io)
 
@@ -90,6 +91,10 @@
 
 ## ✅ COMPLETADAS RECIENTEMENTE
 
+- [x] Endpoint `/compare` para comparar múltiples RUCs (2-10 según plan)
+- [x] Stats page conectada a API real (`/dashboard/stats`)
+- [x] Compare page conectada a API real (`/compare`)
+- [x] Límites por plan en comparación: Essential(2), Pro(5), Enterprise(10)
 - [x] Fix Pydantic V2 (regex → pattern)
 - [x] Fix API routing (/api/v1 prefix)
 - [x] Fórmula "cruda pero justa" implementada
