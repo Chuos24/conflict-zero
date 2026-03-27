@@ -816,7 +816,8 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
             print(f"[LegalBot V3] Error parsing fecha '{fecha_inicio_str}' (tipo: {type(fecha_inicio_str)}): {e}")
             pass
     else:
-        print(f"[LegalBot V3] No fecha encontrada en sanción: {list(sancion.keys())}")
+        print(f"[LegalBot V3] No fecha encontrada. Keys: {list(sancion.keys())}")
+        print(f"[LegalBot V3] Valores fecha: fecha_inicio={sancion.get('fecha_inicio')}, date={sancion.get('date')}")
     
     # Calcular impacto
     impacto = gravedad * entidad_mult * factor_tiempo
