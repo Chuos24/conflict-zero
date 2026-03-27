@@ -139,3 +139,4 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 # Force redeploy Sat Mar 28 03:45:00 AM CST 2026 - LegalBot Universal V2.0
+# LegalBot V3.0 Redeploy Sat Mar 28 03:55:04 AM CST 2026
