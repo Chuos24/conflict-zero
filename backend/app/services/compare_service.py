@@ -2,10 +2,10 @@
 Servicio de comparación de RUCs
 Permite comparar múltiples RUCs simultáneamente
 """
+import asyncio
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
-from app.services.scoring import calculate_risk_score
-from app.services.data_collection import collect_all_data
+from app.services.data_collection import collect_all_data, calculate_risk_score
 
 
 async def compare_rucs(rucs: List[str], db: Session = None) -> Dict[str, Any]:
@@ -32,19 +32,22 @@ async def compare_rucs(rucs: List[str], db: Session = None) -> Dict[str, Any]:
             
             result = {
                 "ruc": ruc,
-                "razon_social": data.get("sunat", {}).get("razon_social", "No disponible"),
+                "razon_social": data.get("razon_social", "No disponible"),
                 "score": score_result["score"],
                 "risk_level": score_result["risk_level"],
                 "estado_sunat": data.get("sunat", {}).get("estado", "DESCONOCIDO"),
                 "condicion": data.get("sunat", {}).get("condicion", "DESCONOCIDO"),
                 "sanciones_osce": data.get("osce", {}).get("sanciones_vigentes", 0),
-                "sanciones_tce": len(data.get("tce", {}).get("sanciones", [])),
+                "sanciones_tce": data.get("rnp", {}).get("sanciones_vigentes", 0),
                 "deuda_sunat": data.get("sunat", {}).get("deuda", 0),
                 "fines_detalle": score_result.get("fines_summary", [])
             }
             results.append(result)
             
         except Exception as e:
+            import traceback
+            print(f"[Compare] Error con RUC {ruc}: {e}")
+            print(traceback.format_exc())
             errors.append({
                 "ruc": ruc,
                 "error": str(e)
