@@ -750,36 +750,69 @@ def calcular_factor_tiempo(dias_transcurridos: int) -> float:
 def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
     """Calcula el impacto de una sanción individual."""
     # Obtener descripción
-    descripcion = sancion.get('description', '') or sancion.get('motivo', '') or ''
+    descripcion = sancion.get('description', '') or sancion.get('motivo', '') or sancion.get('tipo_sancion', '') or ''
     
     # Detectar gravedad
     gravedad = detectar_gravedad(descripcion)
     
-    # Detectar entidad
-    entidad = sancion.get('entity', '') or sancion.get('entidad', '') or sancion.get('fuente', 'OSCE')
+    # Detectar entidad - extraer de múltiples fuentes posibles
+    entidad = 'OSCE'  # default
+    resolucion = sancion.get('sanction_id') or sancion.get('numero_resolucion') or ''
+    
+    # Intentar extraer entidad de la resolución (ej: 4162-2023-TCE-S4)
+    if resolucion:
+        res_upper = str(resolucion).upper()
+        if 'TCE' in res_upper:
+            entidad = 'TCE'
+        elif 'OSCE' in res_upper:
+            entidad = 'OSCE'
+        elif 'SUNAT' in res_upper:
+            entidad = 'SUNAT'
+        elif 'INDECOPI' in res_upper:
+            entidad = 'INDECOPI'
+    
+    # Fallback a campos de entidad si no se detectó de resolución
+    if entidad == 'OSCE':
+        entidad_raw = sancion.get('entity') or sancion.get('entidad') or sancion.get('fuente') or sancion.get('sancionador') or ''
+        if entidad_raw:
+            entidad = str(entidad_raw).strip()
+    
     entidad_mult = obtener_multiplicador_entidad(entidad)
     
-    # Calcular tiempo
-    fecha_inicio_str = sancion.get('fecha_inicio') or sancion.get('date') or sancion.get('fecha')
+    # Calcular tiempo - intentar múltiples formatos de fecha
+    fecha_inicio_str = (sancion.get('fecha_inicio') or sancion.get('date') or 
+                       sancion.get('fecha') or sancion.get('fecha_sancion') or 
+                       sancion.get('fecha_inicio_sancion') or sancion.get('periodo'))
+    
     dias_transcurridos = 0
     factor_tiempo = 1.0
     
     if fecha_inicio_str:
         try:
-            if 'T' in str(fecha_inicio_str):
-                fecha_inicio = datetime.fromisoformat(str(fecha_inicio_str).replace('Z', '').replace('+00:00', ''))
+            fecha_str = str(fecha_inicio_str).strip()
+            # Intentar parsear ISO format
+            if 'T' in fecha_str:
+                fecha_inicio = datetime.fromisoformat(fecha_str.replace('Z', '+00:00').replace('+00:00', ''))
+            # Intentar dd/mm/yyyy
+            elif '/' in fecha_str:
+                fecha_inicio = datetime.strptime(fecha_str, '%d/%m/%Y')
+            # Intentar yyyy-mm-dd
+            elif '-' in fecha_str and len(fecha_str) == 10:
+                fecha_inicio = datetime.strptime(fecha_str, '%Y-%m-%d')
             else:
-                fecha_inicio = datetime.strptime(str(fecha_inicio_str), '%Y-%m-%d')
+                fecha_inicio = datetime.strptime(fecha_str[:10], '%Y-%m-%d')
+            
             dias_transcurridos = (datetime.now() - fecha_inicio).days
             factor_tiempo = calcular_factor_tiempo(dias_transcurridos)
-        except:
+        except Exception as e:
+            print(f"[LegalBot V3] Error parsing fecha '{fecha_inicio_str}': {e}")
             pass
     
     # Calcular impacto
     impacto = gravedad * entidad_mult * factor_tiempo
     
     return {
-        'resolucion': sancion.get('sanction_id') or sancion.get('numero_resolucion') or 'N/A',
+        'resolucion': resolucion or 'N/A',
         'descripcion': descripcion[:100] + '...' if len(descripcion) > 100 else descripcion,
         'gravedad_base': gravedad,
         'entidad': entidad,
