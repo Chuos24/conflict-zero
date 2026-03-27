@@ -789,24 +789,32 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
     
     if fecha_inicio_str:
         try:
-            fecha_str = str(fecha_inicio_str).strip()
-            # Intentar parsear ISO format
-            if 'T' in fecha_str:
-                fecha_inicio = datetime.fromisoformat(fecha_str.replace('Z', '+00:00').replace('+00:00', ''))
-            # Intentar dd/mm/yyyy
-            elif '/' in fecha_str:
-                fecha_inicio = datetime.strptime(fecha_str, '%d/%m/%Y')
-            # Intentar yyyy-mm-dd
-            elif '-' in fecha_str and len(fecha_str) == 10:
-                fecha_inicio = datetime.strptime(fecha_str, '%Y-%m-%d')
+            # Si es un objeto date/datetime, convertir directamente
+            if hasattr(fecha_inicio_str, 'year'):
+                fecha_inicio = fecha_inicio_str
+                if not hasattr(fecha_inicio, 'hour'):  # date object, not datetime
+                    fecha_inicio = datetime.combine(fecha_inicio, datetime.min.time())
             else:
-                fecha_inicio = datetime.strptime(fecha_str[:10], '%Y-%m-%d')
+                fecha_str = str(fecha_inicio_str).strip()
+                # Intentar parsear ISO format
+                if 'T' in fecha_str:
+                    fecha_inicio = datetime.fromisoformat(fecha_str.replace('Z', '+00:00').replace('+00:00', ''))
+                # Intentar dd/mm/yyyy
+                elif '/' in fecha_str:
+                    fecha_inicio = datetime.strptime(fecha_str, '%d/%m/%Y')
+                # Intentar yyyy-mm-dd
+                elif '-' in fecha_str and len(fecha_str) == 10:
+                    fecha_inicio = datetime.strptime(fecha_str, '%Y-%m-%d')
+                else:
+                    fecha_inicio = datetime.strptime(fecha_str[:10], '%Y-%m-%d')
             
             dias_transcurridos = (datetime.now() - fecha_inicio).days
             factor_tiempo = calcular_factor_tiempo(dias_transcurridos)
         except Exception as e:
-            print(f"[LegalBot V3] Error parsing fecha '{fecha_inicio_str}': {e}")
+            print(f"[LegalBot V3] Error parsing fecha '{fecha_inicio_str}' (tipo: {type(fecha_inicio_str)}): {e}")
             pass
+    else:
+        print(f"[LegalBot V3] No fecha encontrada en sanción: {list(sancion.keys())}")
     
     # Calcular impacto
     impacto = gravedad * entidad_mult * factor_tiempo
