@@ -787,8 +787,16 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
     dias_transcurridos = 0
     factor_tiempo = 1.0
     fecha_debug = None
+    fecha_forzada = None
     
-    if fecha_inicio_str:
+    # 🚨 FALLBACK TEMPORAL: Hardcode para Zamora Jara (Padre - Founder #1)
+    ruc_sancion = sancion.get('ruc', '')
+    if ruc_sancion == '20529400790' and resolucion and '4162-2023-TCE-S4' in str(resolucion):
+        fecha_forzada = datetime(2023, 9, 28)  # Fecha conocida de la resolución
+        dias_transcurridos = (datetime.now() - fecha_forzada).days
+        factor_tiempo = calcular_factor_tiempo(dias_transcurridos)
+        fecha_debug = "2023-09-28 (FORZADA - Founder #1)"
+    elif fecha_inicio_str:
         fecha_debug = str(fecha_inicio_str)[:50]
         try:
             # Si es un objeto date/datetime, convertir directamente
@@ -816,8 +824,23 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
             print(f"[LegalBot V3] Error parsing fecha '{fecha_inicio_str}' (tipo: {type(fecha_inicio_str)}): {e}")
             pass
     else:
-        print(f"[LegalBot V3] No fecha encontrada. Keys: {list(sancion.keys())}")
-        print(f"[LegalBot V3] Valores fecha: fecha_inicio={sancion.get('fecha_inicio')}, date={sancion.get('date')}")
+        # 🚨 HEURÍSTICA PARA CLIENTES DEL LUNES: Extraer año de la resolución
+        # Patrones tipo: 4162-2023-TCE-S4, RES-2023-123, etc.
+        if resolucion:
+            import re
+            año_match = re.search(r'[-/](20\d{2})[-/]', str(resolucion))
+            if año_match:
+                año = int(año_match.group(1))
+                # Usar 1 de julio del año encontrado como fecha aproximada
+                fecha_aprox = datetime(año, 7, 1)
+                dias_transcurridos = (datetime.now() - fecha_aprox).days
+                factor_tiempo = calcular_factor_tiempo(dias_transcurridos)
+                fecha_debug = f"{año} (ESTIMADO de resolución)"
+                print(f"[LegalBot V3] Fecha estimada de resolución '{resolucion}': {año}")
+            else:
+                print(f"[LegalBot V3] No fecha encontrada. Keys: {list(sancion.keys())}")
+        else:
+            print(f"[LegalBot V3] No fecha ni resolución encontrada.")
     
     # Calcular impacto
     impacto = gravedad * entidad_mult * factor_tiempo
@@ -832,10 +855,10 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
         'anios': round(dias_transcurridos / 365.25, 1),
         'factor_tiempo': factor_tiempo,
         'impacto': round(impacto, 1),
-        'fecha_raw': fecha_debug  # Debug info
+        'fecha_info': fecha_debug  # Muestra origen de la fecha
     }
 
-def calculate_legalbot_v3(sanciones: List[Dict[str, Any]]) -> Dict[str, Any]:
+def calculate_legalbot_v3(sanciones: List[Dict[str, Any]], ruc: str = '') -> Dict[str, Any]:
     """
     LEGALBOT UNIVERSAL V3.0 - Scoring Multidimensional
     
@@ -858,7 +881,10 @@ def calculate_legalbot_v3(sanciones: List[Dict[str, Any]]) -> Dict[str, Any]:
     tiene_definitiva = False
     
     for sancion in sanciones:
-        detalle = calcular_impacto_sancion(sancion)
+        # Agregar RUC a la sanción para el fallback
+        sancion_con_ruc = dict(sancion)
+        sancion_con_ruc['ruc'] = ruc
+        detalle = calcular_impacto_sancion(sancion_con_ruc)
         detalles.append(detalle)
         impacto_total += detalle['impacto']
         
@@ -1059,7 +1085,7 @@ async def legalbot_validate(
         sanciones_detalle = sanciones_scraping
     
     # Calcular score LegalBot V3.0 Multidimensional
-    resultado = calculate_legalbot_v3(sanciones_detalle)
+    resultado = calculate_legalbot_v3(sanciones_detalle, ruc)
     
     # Ajustar tier si califica para Founder (volumen > 50M y score >= 90)
     if resultado['score'] >= 90 and volumen >= 50000000:
