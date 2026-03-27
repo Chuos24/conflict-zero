@@ -1,7 +1,8 @@
 # Conflict Zero API - Main Application
-# Last updated: 2026-03-27 18:20 UTC - Forzar redeploy
+# Last updated: 2026-03-28 03:55 UTC - LegalBot V3.0 Deploy
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
+# NEW: LegalBot V3.0 - Scoring Multidimensional
 # NEW: Added compare router for multi-RUC comparison
 
 from fastapi import FastAPI, HTTPException, Request
@@ -19,6 +20,8 @@ from app.routers import auth_router, verification_router, dashboard_router, heal
 import uuid
 
 settings = get_settings()
+
+print("🚀 Starting Conflict Zero API - LegalBot V3.0")
 
 # Crear tablas en la base de datos (con manejo de errores para no bloquear startup)
 def init_database():
