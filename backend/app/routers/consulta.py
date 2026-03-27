@@ -467,7 +467,7 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     summary="Score Predictivo de RUC",
     description="Obtiene solo el score y análisis de riesgo para un RUC."
 )
-async def consulta_score(ruc: str):
+async def consulta_score(ruc: str, db: Session = Depends(get_db)):
     """Endpoint para obtener solo el score de un RUC."""
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": True, "message": "RUC inválido"}
