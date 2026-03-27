@@ -1,7 +1,8 @@
 # Conflict Zero API - Main Application
-# Last updated: 2026-03-26 03:40 UTC
+# Last updated: 2026-03-27 18:20 UTC - Forzar redeploy
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
+# NEW: Added compare router for multi-RUC comparison
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router
 import uuid
 
 settings = get_settings()
@@ -119,11 +120,12 @@ async def rate_limit_middleware(request: Request, call_next):
 
 # Routers
 app.include_router(health_router, prefix="/api/v1")
-app.include_router(debug_router, prefix="/api/v1")  # Debug endpoint
-app.include_router(consulta_router, prefix="/api/v1")  # Endpoint compatible frontend
+app.include_router(debug_router, prefix="/api/v1")
+app.include_router(consulta_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
+app.include_router(compare_router, prefix="/api/v1")  # Nuevo router de comparación
 
 # Manejo de excepciones
 @app.exception_handler(Exception)
