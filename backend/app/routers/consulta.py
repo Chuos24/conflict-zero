@@ -786,8 +786,10 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
     
     dias_transcurridos = 0
     factor_tiempo = 1.0
+    fecha_debug = None
     
     if fecha_inicio_str:
+        fecha_debug = str(fecha_inicio_str)[:50]
         try:
             # Si es un objeto date/datetime, convertir directamente
             if hasattr(fecha_inicio_str, 'year'):
@@ -828,7 +830,8 @@ def calcular_impacto_sancion(sancion: Dict[str, Any]) -> Dict[str, Any]:
         'dias_transcurridos': dias_transcurridos,
         'anios': round(dias_transcurridos / 365.25, 1),
         'factor_tiempo': factor_tiempo,
-        'impacto': round(impacto, 1)
+        'impacto': round(impacto, 1),
+        'fecha_raw': fecha_debug  # Debug info
     }
 
 def calculate_legalbot_v3(sanciones: List[Dict[str, Any]]) -> Dict[str, Any]:
