@@ -674,4 +674,243 @@ async def admin_list_sanciones(
             for row in result
         ]
     }
-# Deploy force Fri Mar 27 12:10:25 AM CST 2026
+
+
+# ============================================================================
+# LEGALBOT UNIVERSAL V2.0 - Algoritmo Legal para TODOS los RUCs
+# ============================================================================
+
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
+
+def calculate_legalbot_score(ruc: str, sanciones: List[Dict[str, Any]], db=None) -> Dict[str, Any]:
+    """
+    LEGALBOT UNIVERSAL V2.0
+    Algoritmo universal que aplica a CUALQUIER RUC según Ley 30225.
+    
+    Zonas temporales:
+    - < 730 días (2 años): Sanción fresca - Score 0-20
+    - 730-1095 días (2-3 años): ZONA CRÍTICA - Score 50, requiere verificación
+    - > 1095 días (3+ años): Recuperación gradual - Score 75-95
+    
+    Returns:
+        Dict con score, tier, fecha_desbloqueo, confianza, flags
+    """
+    hoy = datetime.now()
+    score_osce = 100
+    fecha_bloqueo = None
+    requiere_verificacion = False
+    es_definitiva = False
+    dias_max_sancion = 0
+    
+    for sancion in sanciones:
+        # Obtener fecha de inicio
+        fecha_inicio_str = sancion.get('fecha_inicio') or sancion.get('date')
+        if not fecha_inicio_str:
+            continue
+            
+        try:
+            if 'T' in str(fecha_inicio_str):
+                fecha_inicio = datetime.fromisoformat(str(fecha_inicio_str).replace('Z', '+00:00').replace('+00:00', ''))
+            else:
+                fecha_inicio = datetime.strptime(str(fecha_inicio_str), '%Y-%m-%d')
+        except:
+            continue
+        
+        dias_transcurridos = (hoy - fecha_inicio).days
+        dias_max_sancion = max(dias_max_sancion, dias_transcurridos)
+        
+        # Detectar tipo de sanción
+        tipo = sancion.get('tipo', '').upper()
+        tipo_sancion = sancion.get('tipo_sancion', '').upper() if sancion.get('tipo_sancion') else ''
+        descripcion = (sancion.get('description', '') + sancion.get('motivo', '')).upper()
+        
+        # CASO 1: Inhabilitación Definitiva (Corrupción grave)
+        if 'DEFINITIVA' in tipo or 'DEFINITIVA' in tipo_sancion or 'DEFINITIVA' in descripcion:
+            es_definitiva = True
+            return {
+                'score': 0,
+                'tier': 'RECHAZADO',
+                'status': 'BLOQUEO_PERMANENTE',
+                'motivo': 'Inhabilitación definitiva - Requiere rehabilitación judicial',
+                'automatico': True,
+                'confianza': 1.0,
+                'zona_critica': False,
+                'fecha_desbloqueo_gold': None,
+                'dias_ley_aplicados': 1095,
+                'metodo_calculo': 'LEY_30225_DEFINITIVA'
+            }
+        
+        # Determinar tipo default si no está especificado
+        if not tipo:
+            tipo = 'TEMPORAL'
+        
+        # CASO 2: Sanción fresca (< 2 años) - Aún muy caliente
+        if dias_transcurridos < 730:
+            score_osce = min(score_osce, 20)
+            fecha_bloqueo_candidate = fecha_inicio + timedelta(days=730)
+            if fecha_bloqueo is None or fecha_bloqueo_candidate > fecha_bloqueo:
+                fecha_bloqueo = fecha_bloqueo_candidate
+        
+        # CASO 3: ZONA CRÍTICA (2-3 años) - Heurística legal
+        elif 730 <= dias_transcurridos < 1095:
+            score_osce = min(score_osce, 50)
+            fecha_bloqueo = fecha_inicio + timedelta(days=1095)  # Asumir máximo legal
+            requiere_verificacion = True
+        
+        # CASO 4: Sanción madura (> 3 años) - Recuperación gradual
+        elif dias_transcurridos >= 1095:
+            años_expirado = (dias_transcurridos - 1095) / 365.25
+            # Recuperación: 75 base + 5 por cada año adicional, máximo 95
+            score_recuperacion = min(95, 75 + (años_expirado * 5))
+            score_osce = min(score_osce, score_recuperacion)
+    
+    # Si no tiene sanciones, score perfecto
+    if not sanciones:
+        score_osce = 100
+    
+    # Determinar tier universal
+    if score_osce >= 90:
+        tier = 'GOLD'
+    elif score_osce >= 70:
+        tier = 'SILVER'
+    elif score_osce >= 30:
+        tier = 'BRONZE'
+        if requiere_verificacion:
+            tier = 'BRONZE_VERIFICACION'
+    else:
+        tier = 'RECHAZADO'
+    
+    # Calcular confianza
+    confianza = 0.95 if not requiere_verificacion else 0.65
+    
+    return {
+        'score': int(score_osce),
+        'tier': tier,
+        'status': 'VIGENTE' if score_osce > 0 else 'BLOQUEADO',
+        'fecha_desbloqueo_gold': fecha_bloqueo.isoformat() if fecha_bloqueo else None,
+        'confianza': round(confianza, 2),
+        'automatico': not requiere_verificacion,
+        'requiere_verificacion': requiere_verificacion,
+        'zona_critica': requiere_verificacion,
+        'dias_max_sancion': dias_max_sancion,
+        'dias_ley_aplicados': 1095,
+        'metodo_calculo': 'LEGALBOT_UNIVERSAL_V2'
+    }
+
+
+@router.post(
+    "/legal/validate",
+    summary="LegalBot Universal - Validación Legal",
+    description="Valida cualquier RUC usando el algoritmo LegalBot Universal V2.0 basado en Ley 30225."
+)
+async def legalbot_validate(
+    ruc: str,
+    volumen: float = 0,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint LegalBot Universal.
+    
+    - **ruc**: RUC a validar (11 dígitos)
+    - **volumen**: Volumen anual en soles (opcional, para determinar Founder)
+    
+    Returns score, tier, fecha de desbloqueo, y flags de verificación.
+    """
+    # Validar RUC
+    if len(ruc) != 11 or not ruc.isdigit():
+        return {
+            "error": True,
+            "message": "RUC debe tener 11 dígitos numéricos"
+        }
+    
+    # Obtener datos SUNAT
+    sunat_data = call_factiliza_api(ruc, db)
+    if not sunat_data.get("success"):
+        sunat_data = call_apiperu_dev(ruc, db)
+    if not sunat_data.get("success"):
+        sunat_data = call_peru_api(ruc, db)
+    if not sunat_data.get("success"):
+        sunat_data = call_buscaruc_api(ruc, db)
+    
+    # Obtener sanciones desde DB
+    from app.services.osce_datos_abiertos import osce_datos_abiertos
+    sanciones_detalle = osce_datos_abiertos.get_sanciones_detalle_from_db(ruc)
+    
+    # Si no hay en DB detallada, obtener desde scraping service
+    if not sanciones_detalle:
+        sanciones_scraping = scraping_service.get_osce_sanctions(ruc)
+        sanciones_detalle = sanciones_scraping
+    
+    # Calcular score LegalBot
+    resultado = calculate_legalbot_score(ruc, sanciones_detalle, db)
+    
+    # Ajustar tier si califica para Founder (volumen > 50M y score >= 90)
+    if resultado['score'] >= 90 and volumen >= 50000000:
+        resultado['tier'] = 'FOUNDER'
+        resultado['es_founder_eligible'] = True
+    else:
+        resultado['es_founder_eligible'] = False
+    
+    # Guardar auditoría si hay DB
+    try:
+        db.execute(text("""
+            INSERT INTO legal_decisions (
+                ruc, fecha_calculo, sanciones_count, sancion_mas_reciente_dias,
+                score_osce, tier_asignado, fecha_desbloqueo_gold, confianza,
+                es_zona_critica, requiere_verificacion, metodo_calculo
+            ) VALUES (
+                :ruc, NOW(), :sanciones_count, :dias_max,
+                :score, :tier, :fecha_desbloqueo, :confianza,
+                :zona_critica, :req_verif, :metodo
+            )
+        """), {
+            'ruc': ruc,
+            'sanciones_count': len(sanciones_detalle),
+            'dias_max': resultado.get('dias_max_sancion', 0),
+            'score': resultado['score'],
+            'tier': resultado['tier'],
+            'fecha_desbloqueo': resultado['fecha_desbloqueo_gold'],
+            'confianza': resultado['confianza'],
+            'zona_critica': resultado['zona_critica'],
+            'req_verif': resultado['requiere_verificacion'],
+            'metodo': resultado['metodo_calculo']
+        })
+        db.commit()
+    except Exception as e:
+        print(f"[LegalBot] Error guardando auditoría: {e}")
+        db.rollback()
+    
+    return {
+        "ruc": ruc,
+        "razon_social": sunat_data.get("razon_social", "No disponible"),
+        "score": resultado['score'],
+        "tier": resultado['tier'],
+        "status": resultado['status'],
+        "fecha_desbloqueo_gold": resultado['fecha_desbloqueo_gold'],
+        "confianza": resultado['confianza'],
+        "zona_critica": resultado['zona_critica'],
+        "requiere_verificacion": resultado['requiere_verificacion'],
+        "automatico": resultado['automatico'],
+        "es_founder_eligible": resultado.get('es_founder_eligible', False),
+        "sanciones_count": len(sanciones_detalle),
+        "metodo_calculo": resultado['metodo_calculo'],
+        "mensaje": f"Score calculado según LegalBot Universal V2.0. Gold disponible: {resultado['fecha_desbloqueo_gold'][:10] if resultado['fecha_desbloqueo_gold'] else 'INMEDIATO'}" if resultado['score'] >= 90 else "Sanción en período 2-3 años. Gold disponible post-fecha legal." if resultado['zona_critica'] else "Empresa con historial sancionado. Bronze disponible." if resultado['score'] >= 30 else "Riesgo elevado - No apto para certificación."
+    }
+
+
+@router.get(
+    "/legal/validate/{ruc}",
+    summary="LegalBot Universal - Validación Legal (GET)",
+    description="Valida cualquier RUC usando GET para compatibilidad."
+)
+async def legalbot_validate_get(
+    ruc: str,
+    volumen: float = 0,
+    db: Session = Depends(get_db)
+):
+    """GET version del endpoint LegalBot."""
+    return await legalbot_validate(ruc, volumen, db)
+
+
+# Deploy force Fri Mar 28 03:30:00 AM CST 2026 - LegalBot Universal V2.0
