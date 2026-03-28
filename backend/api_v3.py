@@ -8,6 +8,7 @@ import os
 import uuid
 import random
 import asyncio
+import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
@@ -16,10 +17,87 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
+# PostgreSQL Import
+import psycopg2
+from psycopg2.extras import RealDictCursor
+
 # Configuración
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
 API_PORT = int(os.environ.get('PORT', 8000))
+
+# ============ DATABASE FUNCTIONS ============
+
+def get_db_connection():
+    """Obtener conexión a PostgreSQL"""
+    if not DATABASE_URL:
+        return None
+    try:
+        return psycopg2.connect(DATABASE_URL)
+    except Exception as e:
+        print(f"[DB] Error conectando: {e}")
+        return None
+
+def save_validation_to_db(ruc: str, razon_social: str, score: float, tier: str, 
+                          factaliza_raw: dict, fuente: str = 'FACTALIZA_API'):
+    """Guardar validación en PostgreSQL"""
+    conn = get_db_connection()
+    if not conn:
+        print("[DB] No hay conexión, saltando persistencia")
+        return False
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                INSERT INTO validations_v3 
+                (ruc, razon_social, score_calculated, tier, factaliza_raw, fuente_datos, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (ruc) DO UPDATE SET
+                    razon_social = EXCLUDED.razon_social,
+                    score_calculated = EXCLUDED.score_calculated,
+                    tier = EXCLUDED.tier,
+                    factaliza_raw = EXCLUDED.factaliza_raw,
+                    fuente_datos = EXCLUDED.fuente_datos,
+                    updated_at = NOW()
+                RETURNING id
+            """, (ruc, razon_social, score, tier, json.dumps(factaliza_raw), fuente))
+            
+            result = cur.fetchone()
+            conn.commit()
+            print(f"[DB] ✅ Validación guardada: {ruc} -> Score {score}")
+            return True
+    except Exception as e:
+        print(f"[DB] ❌ Error guardando: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_validation_from_db(ruc: str, max_age_hours: int = 168) -> Optional[dict]:
+    """Obtener validación de cache PostgreSQL (7 días default)"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT * FROM validations_v3 
+                WHERE ruc = %s 
+                AND created_at > NOW() - INTERVAL '%s hours'
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """, (ruc, max_age_hours))
+            
+            result = cur.fetchone()
+            if result:
+                print(f"[DB] ✅ Cache hit: {ruc}")
+                return dict(result)
+            return None
+    except Exception as e:
+        print(f"[DB] Error leyendo cache: {e}")
+        return None
+    finally:
+        conn.close()
 
 app = FastAPI(
     title="Conflict Zero API V3.0",
@@ -361,7 +439,45 @@ async def validate_ruc(request: ValidateRequest):
         raise HTTPException(status_code=400, detail="RUC inválido")
     
     try:
-        result = await calculate_score_v3(ruc)
+        # 1. Verificar cache PostgreSQL primero (7 días)
+        cached = get_validation_from_db(ruc, max_age_hours=168)
+        if cached:
+            print(f"[Cache] Usando datos en cache para {ruc}")
+            result = {
+                'ruc': cached['ruc'],
+                'razon_social': cached['razon_social'],
+                'score': float(cached['score_calculated']),
+                'tier': cached['tier'],
+                'confianza': 0.90,
+                'sanciones': json.loads(cached['factaliza_raw']).get('sanciones', []),
+                'sunat_estado': 'ACTIVO',
+                'sunat_condicion': 'HABIDO',
+                'fuente_datos': f"CACHE_DB_{cached['fuente_datos']}",
+                'consultor_factaliza': '40648',
+                'timestamp': cached['created_at'].isoformat() if hasattr(cached['created_at'], 'isoformat') else str(cached['created_at'])
+            }
+        else:
+            # 2. Consultar Factaliza y calcular
+            result = await calculate_score_v3(ruc)
+            
+            # 3. Guardar en PostgreSQL
+            factaliza_raw = {
+                'ruc': result['ruc'],
+                'razon_social': result['razon_social'],
+                'sanciones': result.get('sanciones', []),
+                'sunat': {'estado': result['sunat_estado'], 'condicion': result['sunat_condicion']},
+                'consultor_id': result.get('consultor_factaliza', '40648'),
+                'timestamp': result['timestamp']
+            }
+            save_validation_to_db(
+                ruc=result['ruc'],
+                razon_social=result['razon_social'],
+                score=result['score'],
+                tier=result['tier'],
+                factaliza_raw=factaliza_raw,
+                fuente=result.get('fuente_datos', 'FACTALIZA_API')
+            )
+        
         tier_info = get_tier_info(result['score'])
         plans = get_available_plans(result['score'])
         
