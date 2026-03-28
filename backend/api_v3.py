@@ -314,7 +314,7 @@ DEMO_DATA = {
 # ============ SCORING CON FACTALIZA ============
 
 async def consultar_con_fallback(ruc: str) -> Dict:
-    """CHECKPOINT 8 FIX: Factaliza primero, cache solo como backup"""
+    """CHECKPOINT 8: Factaliza → DEMO → Default (cache desactivado temporalmente)"""
     
     # 1. Intentar Factaliza primero (fuente real)
     try:
@@ -322,38 +322,11 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         data = await factaliza.consultar_ruc(ruc)
         if data:
             print(f"[Factaliza] ✓ Datos recibidos")
-            # Guardar en cache para futuro
-            try:
-                save_validation_to_db(
-                    ruc=ruc,
-                    razon_social=data['razon_social'],
-                    score=0,
-                    tier='PENDING',
-                    factaliza_raw=data,
-                    fuente='FACTALIZA_API'
-                )
-            except Exception as e:
-                print(f"[CACHE] No se pudo guardar: {e}")
             return data
     except Exception as e:
         print(f"[Factaliza] ⚠ {e}")
     
-    # 2. Si Factaliza falló, revisar cache
-    cached = get_validation_from_db(ruc, max_age_hours=168)
-    if cached:
-        print(f"[CACHE] Usando datos cacheados para {ruc}")
-        return {
-            'ruc': ruc,
-            'razon_social': cached['razon_social'],
-            'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
-            'sanciones': [],
-            'tiene_sanciones': cached['tier'] in ['BRONZE', 'RECHAZADO'],
-            'fuente': 'CACHE_INSTITUCIONAL',
-            'consultor_id': '40648',
-            'timestamp': str(cached['created_at'])
-        }
-    
-    # 3. Fallback a DEMO_DATA (solo Zamora y Graña)
+    # 2. Fallback a DEMO_DATA (solo Zamora y Graña)
     if ruc in DEMO_DATA:
         demo = DEMO_DATA[ruc]
         print(f"[DEMO] Usando datos demo para {ruc}")
