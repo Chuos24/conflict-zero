@@ -512,6 +512,11 @@ async def validate_ruc(request: ValidateRequest):
     try:
         # 1. Verificar cache PostgreSQL primero (7 días)
         cached = get_validation_from_db(ruc, max_age_hours=168)
+        # CRITICAL FIX: Ignorar cache si es MOCK_DEFAULT fraudulento
+        if cached and cached.get('fuente_datos') == 'MOCK_DEFAULT':
+            print(f"[Cache] Ignorando MOCK_DEFAULT para {ruc}")
+            cached = None  # Forzar recálculo
+        
         if cached:
             print(f"[Cache] Usando datos en cache para {ruc}")
             # factaliza_raw puede ser dict o string JSON
