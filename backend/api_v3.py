@@ -317,17 +317,60 @@ DEMO_DATA = {
 async def consultar_con_fallback(ruc: str) -> Dict:
     """CHECKPOINT 8: Factaliza → DEMO → Default (cache desactivado temporalmente)"""
     
-    # 1. Intentar Factaliza primero (fuente real)
+    # 1. Intentar Factaliza primero (fuente real para CUALQUIER RUC)
+    factaliza_error = None
     try:
         print(f"[Factaliza] Consultando {ruc}...")
         data = await factaliza.consultar_ruc(ruc)
         if data:
-            print(f"[Factaliza] ✓ Datos recibidos")
+            print(f"[Factaliza] ✓ Datos recibidos para {ruc}")
+            # Guardar en cache para futuro
+            try:
+                save_validation_to_db(
+                    ruc=ruc,
+                    razon_social=data['razon_social'],
+                    score=0,  # Se calculará después
+                    tier='PENDING',
+                    factaliza_raw=data,
+                    fuente='FACTALIZA_API'
+                )
+            except Exception as e:
+                print(f"[CACHE] No se pudo guardar: {e}")
             return data
+        else:
+            # Factaliza devolvió None = RUC no existe
+            print(f"[Factaliza] RUC {ruc} no encontrado (404)")
+            return {
+                'error': 'RUC_NOT_FOUND',
+                'message': f'RUC {ruc} no encontrado en registros de SUNAT/OSCE/TCE.',
+                'ruc': ruc,
+                'status': 'NOT_FOUND',
+                'fuente': 'FACTALIZA_404',
+                'consultor_id': '40648',
+                'timestamp': datetime.now().isoformat()
+            }
     except Exception as e:
-        print(f"[Factaliza] ⚠ {e}")
+        factaliza_error = str(e)
+        print(f"[Factaliza] ⚠ Error: {factaliza_error}")
     
-    # 3. Solo DEMO_DATA permitido (Zamora y Graña) - Nada más
+    # 2. Si Factaliza falló por rate limit, revisar cache
+    if factaliza_error and ('RATE_LIMIT' in factaliza_error or '429' in factaliza_error):
+        print(f"[CACHE] Factaliza en rate limit, buscando cache para {ruc}")
+        cached = get_validation_from_db(ruc, max_age_hours=168)
+        if cached and cached.get('fuente_datos') != 'MOCK_DEFAULT':
+            print(f"[CACHE] ✓ Usando datos cacheados para {ruc}")
+            return {
+                'ruc': ruc,
+                'razon_social': cached['razon_social'],
+                'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
+                'sanciones': [],
+                'tiene_sanciones': cached['tier'] in ['BRONZE', 'RECHAZADO'],
+                'fuente': 'CACHE_INSTITUCIONAL',
+                'consultor_id': '40648',
+                'timestamp': str(cached['created_at'])
+            }
+    
+    # 3. Fallback a DEMO_DATA solo para Zamora y Graña (demo controlado)
     if ruc in DEMO_DATA:
         demo = DEMO_DATA[ruc]
         print(f"[DEMO] Usando datos demo para {ruc}")
@@ -343,11 +386,11 @@ async def consultar_con_fallback(ruc: str) -> Dict:
             'timestamp': datetime.now().isoformat()
         }
     
-    # 4. RUC no soportado en demo - Error honesto
-    print(f"[ERROR] RUC {ruc} no encontrado en Factaliza ni en DEMO permitido")
+    # 4. Error honesto - No tenemos datos de este RUC
+    print(f"[ERROR] RUC {ruc} no disponible. Factaliza: {factaliza_error}")
     return {
         'error': 'RUC_NOT_AVAILABLE',
-        'message': 'RUC requiere validación manual durante fase beta. Contactar al Comité de Admisión.',
+        'message': f'RUC {ruc} requiere validación manual. Factaliza no disponible o RUC no encontrado.',
         'ruc': ruc,
         'status': 'PENDING_REVIEW',
         'fuente': 'ERROR_HONESTO',
@@ -557,15 +600,15 @@ async def validate_ruc(request: ValidateRequest):
             # 2. Consultar Factaliza y calcular
             result = await calculate_score_v3(ruc)
             
-            # CHECKPOINT 8 FIX: Detectar error honesto (RUC no soportado)
-            if result.get('error') == 'RUC_NOT_AVAILABLE':
+            # CHECKPOINT 8 FIX: Detectar errores honestos
+            if result.get('error') in ['RUC_NOT_AVAILABLE', 'RUC_NOT_FOUND']:
                 return {
                     'success': False,
-                    'error': 'RUC_NOT_AVAILABLE',
+                    'error': result['error'],
                     'message': result['message'],
                     'ruc': ruc,
-                    'status': 'PENDING_REVIEW',
-                    'fuente_datos': 'ERROR_HONESTO',
+                    'status': result.get('status', 'PENDING_REVIEW'),
+                    'fuente_datos': result.get('fuente', 'ERROR_HONESTO'),
                     'consultor_factaliza': '40648',
                     'timestamp': result['timestamp']
                 }
