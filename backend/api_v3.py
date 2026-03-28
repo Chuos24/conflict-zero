@@ -562,21 +562,11 @@ async def validate_ruc(request: ValidateRequest):
             cached = None  # Forzar recálculo
         
         if cached:
-            print(f"[Cache] Usando datos en cache para {ruc}")
-            # CRITICAL FIX: Si es error honesto en cache, devolver error
-            if cached.get('fuente_datos') == 'ERROR_HONESTO':
-                return {
-                    'success': False,
-                    'error': 'RUC_NOT_AVAILABLE',
-                    'message': 'RUC requiere validación manual durante fase beta. Contactar al Comité de Admisión.',
-                    'ruc': ruc,
-                    'status': 'PENDING_REVIEW',
-                    'fuente_datos': 'CACHE_DB_ERROR_HONESTO',
-                    'consultor_factaliza': '40648',
-                    'timestamp': cached['created_at'].isoformat() if hasattr(cached['created_at'], 'isoformat') else str(cached['created_at'])
-                }
-            
-            # factaliza_raw puede ser dict o string JSON
+            print(f"[Cache] Datos encontrados en cache para {ruc}")
+            # CRITICAL FIX: Ignorar cache si es MOCK_DEFAULT o ERROR_HONESTO
+            if cached.get('fuente_datos') in ['MOCK_DEFAULT', 'ERROR_HONESTO']:
+                print(f"[Cache] Ignorando cache con fuente={cached.get('fuente_datos')} para {ruc}")
+                cached = None  # Forzar recálculo
             factaliza_raw = cached.get('factaliza_raw', {})
             if isinstance(factaliza_raw, str):
                 try:
