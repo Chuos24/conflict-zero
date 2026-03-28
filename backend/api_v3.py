@@ -43,6 +43,41 @@ def get_db_connection():
         print(f"[DB] Error conectando: {e}")
         return None
 
+def init_database():
+    """Inicializar tabla validations_v3 si no existe"""
+    if not PSYCOPG2_AVAILABLE:
+        print("[DB] psycopg2 no disponible, omitiendo inicialización")
+        return False
+    
+    conn = get_db_connection()
+    if not conn:
+        print("[DB] No hay conexión, omitiendo inicialización")
+        return False
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS validations_v3 (
+                    id SERIAL PRIMARY KEY,
+                    ruc VARCHAR(11) UNIQUE NOT NULL,
+                    razon_social VARCHAR(200),
+                    score_calculated DECIMAL(5,2),
+                    tier VARCHAR(20) CHECK (tier IN ('GOLD','SILVER','BRONZE','RECHAZADO')),
+                    factaliza_raw JSONB,
+                    fuente_datos VARCHAR(50) DEFAULT 'FACTALIZA_API',
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            conn.commit()
+            print("[DB] ✅ Tabla validations_v3 inicializada")
+            return True
+    except Exception as e:
+        print(f"[DB] ❌ Error inicializando: {e}")
+        return False
+    finally:
+        conn.close()
+
 def save_validation_to_db(ruc: str, razon_social: str, score: float, tier: str, 
                           factaliza_raw: dict, fuente: str = 'FACTALIZA_API'):
     """Guardar validación en PostgreSQL"""
@@ -125,6 +160,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============ STARTUP EVENT ============
+
+@app.on_event("startup")
+async def startup_event():
+    """Inicializar base de datos al arrancar"""
+    print("🚀 Iniciando Conflict Zero API V3.0...")
+    init_database()
 
 # ============ MODELOS ============
 
