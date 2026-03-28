@@ -314,21 +314,82 @@ DEMO_DATA = {
 # ============ SCORING CON FACTALIZA ============
 
 async def consultar_con_fallback(ruc: str) -> Dict:
-    """Estrategia cascada: Factaliza → Cache → Mock"""
+    """CHECKPOINT 8: MODO DEMO SEGURO - Cache first, Factaliza second, fallback elegante"""
     
-    # 1. Intentar Factaliza
+    # 1. CHECKPOINT 8A: ¿Está en PostgreSQL cache (< 7 días)?
+    cached = get_validation_from_db(ruc, max_age_hours=168)
+    if cached:
+        print(f"[CACHE] ✓ Datos en cache institucional para {ruc}")
+        return {
+            'ruc': ruc,
+            'razon_social': cached['razon_social'],
+            'sunat': {
+                'estado': 'ACTIVO',
+                'condicion': 'HABIDO'
+            },
+            'sanciones': cached.get('factaliza_raw', {}).get('sanciones', []),
+            'tiene_sanciones': cached['tier'] in ['BRONZE', 'RECHAZADO'],
+            'fuente': 'CACHE_INSTITUCIONAL',
+            'consultor_id': '40648',
+            'timestamp': cached['created_at'].isoformat() if hasattr(cached['created_at'], 'isoformat') else str(cached['created_at'])
+        }
+    
+    # 2. Llamar a Factaliza con manejo de errores
     try:
-        print(f"[Factaliza] Consultando {ruc}...")
+        print(f"[Factaliza] Consultando {ruc} en tiempo real...")
         data = await factaliza.consultar_ruc(ruc)
         if data:
-            print(f"[Factaliza] ✓ Datos recibidos")
+            print(f"[Factaliza] ✓ Datos recibidos en tiempo real")
+            # Guardar en cache
+            save_validation_to_db(
+                ruc=ruc,
+                razon_social=data['razon_social'],
+                score=0,  # Se calculará después
+                tier='PENDING',
+                factaliza_raw=data,
+                fuente='FACTALIZA_API'
+            )
             return data
     except Exception as e:
-        print(f"[Factaliza] ⚠ {e}")
+        error_msg = str(e)
+        print(f"[Factaliza] ⚠ {error_msg}")
+        
+        # CHECKPOINT 8B: Si es rate limit (429)
+        if 'RATE_LIMIT' in error_msg or '429' in error_msg:
+            # Solo usar mock para RUCs de demo conocidos
+            if ruc in DEMO_DATA:
+                print(f"[DEMO] Usando datos demo para {ruc} (rate limit)")
+                demo = DEMO_DATA[ruc]
+                return {
+                    'ruc': ruc,
+                    'razon_social': demo['razon_social'],
+                    'sunat': demo['sunat'],
+                    'sanciones': demo.get('sanciones', []),
+                    'tiene_sanciones': len(demo.get('sanciones', [])) > 0,
+                    'dias_desde_sancion': demo.get('sanciones', [{}])[0].get('dias_transcurridos', 0) if demo.get('sanciones') else 0,
+                    'fuente': 'MOCK_DEMO_RATE_LIMIT',
+                    'consultor_id': '40648',
+                    'timestamp': datetime.now().isoformat()
+                }
+            else:
+                # RUC desconocido + API caída = requiere validación manual
+                return {
+                    'ruc': ruc,
+                    'razon_social': f'Empresa {ruc}',
+                    'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
+                    'sanciones': [],
+                    'tiene_sanciones': False,
+                    'dias_desde_sancion': 0,
+                    'fuente': 'REQUIERE_VALIDACION_MANUAL',
+                    'error': 'API_RATE_LIMIT',
+                    'consultor_id': '40648',
+                    'timestamp': datetime.now().isoformat()
+                }
     
-    # 2. Fallback a mock demo
+    # 3. Fallback: Demo conocidos
     if ruc in DEMO_DATA:
         demo = DEMO_DATA[ruc]
+        print(f"[DEMO] Usando datos demo para {ruc}")
         return {
             'ruc': ruc,
             'razon_social': demo['razon_social'],
@@ -341,7 +402,8 @@ async def consultar_con_fallback(ruc: str) -> Dict:
             'timestamp': datetime.now().isoformat()
         }
     
-    # 3. Mock default
+    # 4. Mock default con advertencia
+    print(f"[DEFAULT] Usando mock default para {ruc}")
     return {
         'ruc': ruc,
         'razon_social': f'Empresa {ruc}',
