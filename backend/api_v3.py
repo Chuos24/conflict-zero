@@ -326,7 +326,7 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     except Exception as e:
         print(f"[Factaliza] ⚠ {e}")
     
-    # 2. Fallback a DEMO_DATA (solo Zamora y Graña)
+    # 3. Solo DEMO_DATA permitido (Zamora y Graña) - Nada más
     if ruc in DEMO_DATA:
         demo = DEMO_DATA[ruc]
         print(f"[DEMO] Usando datos demo para {ruc}")
@@ -342,16 +342,14 @@ async def consultar_con_fallback(ruc: str) -> Dict:
             'timestamp': datetime.now().isoformat()
         }
     
-    # 4. Mock default
-    print(f"[DEFAULT] Usando mock default para {ruc}")
+    # 4. RUC no soportado en demo - Error honesto
+    print(f"[ERROR] RUC {ruc} no encontrado en Factaliza ni en DEMO permitido")
     return {
+        'error': 'RUC_NOT_AVAILABLE',
+        'message': 'RUC requiere validación manual durante fase beta. Contactar al Comité de Admisión.',
         'ruc': ruc,
-        'razon_social': f'Empresa {ruc}',
-        'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
-        'sanciones': [],
-        'tiene_sanciones': False,
-        'dias_desde_sancion': 0,
-        'fuente': 'MOCK_DEFAULT',
+        'status': 'PENDING_REVIEW',
+        'fuente': 'ERROR_HONESTO',
         'consultor_id': '40648',
         'timestamp': datetime.now().isoformat()
     }
@@ -539,6 +537,19 @@ async def validate_ruc(request: ValidateRequest):
         else:
             # 2. Consultar Factaliza y calcular
             result = await calculate_score_v3(ruc)
+            
+            # CHECKPOINT 8 FIX: Detectar error honesto (RUC no soportado)
+            if result.get('error') == 'RUC_NOT_AVAILABLE':
+                return {
+                    'success': False,
+                    'error': 'RUC_NOT_AVAILABLE',
+                    'message': result['message'],
+                    'ruc': ruc,
+                    'status': 'PENDING_REVIEW',
+                    'fuente_datos': 'ERROR_HONESTO',
+                    'consultor_factaliza': '40648',
+                    'timestamp': result['timestamp']
+                }
             
             # 3. Guardar en PostgreSQL
             factaliza_raw = {
