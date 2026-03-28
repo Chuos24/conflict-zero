@@ -382,33 +382,6 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         'consultor_id': '40648',
         'timestamp': datetime.now().isoformat()
     }
-        demo = DEMO_DATA[ruc]
-        print(f"[DEMO] Usando datos demo para {ruc}")
-        return {
-            'ruc': ruc,
-            'razon_social': demo['razon_social'],
-            'sunat': demo['sunat'],
-            'sanciones': demo.get('sanciones', []),
-            'tiene_sanciones': len(demo.get('sanciones', [])) > 0,
-            'dias_desde_sancion': demo.get('sanciones', [{}])[0].get('dias_transcurridos', 0) if demo.get('sanciones') else 0,
-            'fuente': 'MOCK_DEMO',
-            'consultor_id': '40648',
-            'timestamp': datetime.now().isoformat()
-        }
-    
-    # 4. Mock default con advertencia
-    print(f"[DEFAULT] Usando mock default para {ruc}")
-    return {
-        'ruc': ruc,
-        'razon_social': f'Empresa {ruc}',
-        'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
-        'sanciones': [],
-        'tiene_sanciones': False,
-        'dias_desde_sancion': 0,
-        'fuente': 'MOCK_DEFAULT',
-        'consultor_id': '40648',
-        'timestamp': datetime.now().isoformat()
-    }
 
 async def calculate_score_v3(ruc: str) -> Dict:
     """LegalBot V3.0 - Scoring con Factaliza"""
