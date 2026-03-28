@@ -516,13 +516,20 @@ async def validate_ruc(request: ValidateRequest):
         cached = get_validation_from_db(ruc, max_age_hours=168)
         if cached:
             print(f"[Cache] Usando datos en cache para {ruc}")
+            # factaliza_raw puede ser dict o string JSON
+            factaliza_raw = cached.get('factaliza_raw', {})
+            if isinstance(factaliza_raw, str):
+                try:
+                    factaliza_raw = json.loads(factaliza_raw)
+                except:
+                    factaliza_raw = {}
             result = {
                 'ruc': cached['ruc'],
                 'razon_social': cached['razon_social'],
                 'score': float(cached['score_calculated']),
                 'tier': cached['tier'],
                 'confianza': 0.90,
-                'sanciones': json.loads(cached['factaliza_raw']).get('sanciones', []),
+                'sanciones': factaliza_raw.get('sanciones', []) if isinstance(factaliza_raw, dict) else [],
                 'sunat_estado': 'ACTIVO',
                 'sunat_condicion': 'HABIDO',
                 'fuente_datos': f"CACHE_DB_{cached['fuente_datos']}",
