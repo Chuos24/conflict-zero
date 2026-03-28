@@ -567,6 +567,71 @@ def get_demo_rucs():
         ]
     }
 
+@app.get("/api/v3/internal/db-check")
+async def db_check():
+    """CHECKPOINT 3: Verificar persistencia PostgreSQL"""
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'status': 'error', 'detail': 'psycopg2 no disponible'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'status': 'error', 'detail': 'No hay conexión a PostgreSQL'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            # Verificar tabla existe
+            cur.execute("""
+                SELECT table_name FROM information_schema.tables 
+                WHERE table_schema='public' AND table_name='validations_v3'
+            """)
+            if not cur.fetchone():
+                return JSONResponse(
+                    status_code=404,
+                    content={'status': 'error', 'detail': 'Tabla validations_v3 no existe'}
+                )
+            
+            # Obtener últimos registros
+            cur.execute("""
+                SELECT ruc, score_calculated, tier, created_at
+                FROM validations_v3
+                ORDER BY created_at DESC
+                LIMIT 5
+            """)
+            rows = cur.fetchall()
+            
+            # Contar total
+            cur.execute("SELECT COUNT(*) FROM validations_v3")
+            total = cur.fetchone()[0]
+            
+            return {
+                'status': 'ok',
+                'total_records': total,
+                'count': len(rows),
+                'last_records': [
+                    {
+                        'ruc': r[0], 
+                        'score': float(r[1]), 
+                        'tier': r[2], 
+                        'time': r[3].isoformat() if hasattr(r[3], 'isoformat') else str(r[3])
+                    }
+                    for r in rows
+                ]
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'status': 'error', 'detail': str(e)}
+        )
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Conflict Zero API V3.0 + Factaliza #40648")
