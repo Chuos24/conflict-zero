@@ -344,49 +344,52 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         }
     
     # 2. Llamar a Factaliza con manejo de errores
+    factaliza_error = None
     try:
         print(f"[Factaliza] Consultando {ruc} en tiempo real...")
         data = await factaliza.consultar_ruc(ruc)
         if data:
             print(f"[Factaliza] ✓ Datos recibidos en tiempo real")
             return data
+        else:
+            # 404 - RUC no encontrado en Factaliza
+            factaliza_error = "RUC_NO_ENCONTRADO"
+            print(f"[Factaliza] ⚠ RUC no encontrado en Factaliza")
     except Exception as e:
-        error_msg = str(e)
-        print(f"[Factaliza] ⚠ {error_msg}")
-        
-        # CHECKPOINT 8B: Si es rate limit (429)
-        if 'RATE_LIMIT' in error_msg or '429' in error_msg:
-            # Solo usar mock para RUCs de demo conocidos
-            if ruc in DEMO_DATA:
-                print(f"[DEMO] Usando datos demo para {ruc} (rate limit)")
-                demo = DEMO_DATA[ruc]
-                return {
-                    'ruc': ruc,
-                    'razon_social': demo['razon_social'],
-                    'sunat': demo['sunat'],
-                    'sanciones': demo.get('sanciones', []),
-                    'tiene_sanciones': len(demo.get('sanciones', [])) > 0,
-                    'dias_desde_sancion': demo.get('sanciones', [{}])[0].get('dias_transcurridos', 0) if demo.get('sanciones') else 0,
-                    'fuente': 'MOCK_DEMO_RATE_LIMIT',
-                    'consultor_id': '40648',
-                    'timestamp': datetime.now().isoformat()
-                }
-            else:
-                # RUC desconocido + API caída = requiere validación manual
-                return {
-                    'ruc': ruc,
-                    'razon_social': f'Empresa {ruc}',
-                    'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
-                    'sanciones': [],
-                    'tiene_sanciones': False,
-                    'dias_desde_sancion': 0,
-                    'fuente': 'REQUIERE_VALIDACION_MANUAL',
-                    'error': 'API_RATE_LIMIT',
-                    'consultor_id': '40648',
-                    'timestamp': datetime.now().isoformat()
-                }
+        factaliza_error = str(e)
+        print(f"[Factaliza] ⚠ {factaliza_error}")
     
-    # 3. Fallback: Demo conocidos
+    # Si Factaliza falló, verificar si es rate limit
+    if factaliza_error and ('RATE_LIMIT' in factaliza_error or '429' in factaliza_error):
+        if ruc in DEMO_DATA:
+            print(f"[DEMO] Usando datos demo para {ruc} (rate limit)")
+            demo = DEMO_DATA[ruc]
+            return {
+                'ruc': ruc,
+                'razon_social': demo['razon_social'],
+                'sunat': demo['sunat'],
+                'sanciones': demo.get('sanciones', []),
+                'tiene_sanciones': len(demo.get('sanciones', [])) > 0,
+                'dias_desde_sancion': demo.get('sanciones', [{}])[0].get('dias_transcurridos', 0) if demo.get('sanciones') else 0,
+                'fuente': 'MOCK_DEMO_RATE_LIMIT',
+                'consultor_id': '40648',
+                'timestamp': datetime.now().isoformat()
+            }
+        else:
+            return {
+                'ruc': ruc,
+                'razon_social': f'Empresa {ruc}',
+                'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
+                'sanciones': [],
+                'tiene_sanciones': False,
+                'dias_desde_sancion': 0,
+                'fuente': 'REQUIERE_VALIDACION_MANUAL',
+                'error': 'API_RATE_LIMIT',
+                'consultor_id': '40648',
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    # 3. Si Factaliza no encontró el RUC o falló, usar DEMO_DATA solo para conocidos
     if ruc in DEMO_DATA:
         demo = DEMO_DATA[ruc]
         print(f"[DEMO] Usando datos demo para {ruc}")
