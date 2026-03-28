@@ -147,6 +147,7 @@ def get_validation_from_db(ruc: str, max_age_hours: int = 168) -> Optional[dict]
                 SELECT * FROM validations_v3 
                 WHERE ruc = %s 
                 AND created_at > NOW() - INTERVAL '%s hours'
+                AND fuente_datos != 'MOCK_DEFAULT'
                 ORDER BY created_at DESC 
                 LIMIT 1
             """, (ruc, max_age_hours))
