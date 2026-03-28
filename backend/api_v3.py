@@ -17,9 +17,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
-# PostgreSQL Import
-import psycopg2
-from psycopg2.extras import RealDictCursor
+# PostgreSQL Import (condicional)
+try:
+    import psycopg2
+    from psycopg2.extras import RealDictCursor
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    print("⚠️ psycopg2 no disponible, persistencia desactivada")
 
 # Configuración
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
@@ -30,7 +35,7 @@ API_PORT = int(os.environ.get('PORT', 8000))
 
 def get_db_connection():
     """Obtener conexión a PostgreSQL"""
-    if not DATABASE_URL:
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
         return None
     try:
         return psycopg2.connect(DATABASE_URL)
@@ -41,6 +46,10 @@ def get_db_connection():
 def save_validation_to_db(ruc: str, razon_social: str, score: float, tier: str, 
                           factaliza_raw: dict, fuente: str = 'FACTALIZA_API'):
     """Guardar validación en PostgreSQL"""
+    if not PSYCOPG2_AVAILABLE:
+        print("[DB] psycopg2 no disponible, saltando persistencia")
+        return False
+        
     conn = get_db_connection()
     if not conn:
         print("[DB] No hay conexión, saltando persistencia")
@@ -74,6 +83,9 @@ def save_validation_to_db(ruc: str, razon_social: str, score: float, tier: str,
 
 def get_validation_from_db(ruc: str, max_age_hours: int = 168) -> Optional[dict]:
     """Obtener validación de cache PostgreSQL (7 días default)"""
+    if not PSYCOPG2_AVAILABLE:
+        return None
+        
     conn = get_db_connection()
     if not conn:
         return None
