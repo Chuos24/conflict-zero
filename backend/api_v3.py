@@ -69,8 +69,24 @@ def init_database():
                     updated_at TIMESTAMP DEFAULT NOW()
                 )
             """)
+            
+            # Crear tabla de certificados
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS certificates_v3 (
+                    id SERIAL PRIMARY KEY,
+                    ruc VARCHAR(11),
+                    company_name VARCHAR(200),
+                    score DECIMAL(5,2),
+                    tier VARCHAR(20),
+                    plan_type VARCHAR(20),
+                    cert_slug VARCHAR(50) UNIQUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    expires_at TIMESTAMP DEFAULT (NOW() + INTERVAL '1 year')
+                )
+            """)
+            
             conn.commit()
-            print("[DB] ✅ Tabla validations_v3 inicializada")
+            print("[DB] ✅ Tablas validations_v3 y certificates_v3 inicializadas")
             return True
     except Exception as e:
         print(f"[DB] ❌ Error inicializando: {e}")
@@ -563,43 +579,214 @@ async def validate_ruc_get(ruc: str, volumen: Optional[int] = 0):
 
 @app.post("/api/v3/generate-cert")
 async def generate_certificate(request: GenerateCertRequest):
-    """Genera certificado después de seleccionar plan"""
+    """CHECKPOINT 6: Genera certificado y lo guarda en BD"""
     ruc = request.ruc.strip()
     selected_plan = request.plan.lower()
     
-    if len(ruc) != 11:
+    if len(ruc) != 11 or not ruc.isdigit():
         raise HTTPException(status_code=400, detail="RUC inválido")
     
-    result = await calculate_score_v3(ruc)
-    score = result['score']
+    # 1. Obtener validación de la BD
+    validation = get_validation_from_db(ruc, max_age_hours=168)
     
-    allowed_plans = [p['id'] for p in get_available_plans(score) if not p.get('disabled')]
+    if not validation:
+        # Si no está en BD, calcular y guardar
+        result = await calculate_score_v3(ruc)
+        factaliza_raw = {
+            'ruc': result['ruc'],
+            'razon_social': result['razon_social'],
+            'sanciones': result.get('sanciones', []),
+            'sunat': {'estado': result['sunat_estado'], 'condicion': result['sunat_condicion']}
+        }
+        save_validation_to_db(
+            ruc=result['ruc'],
+            razon_social=result['razon_social'],
+            score=result['score'],
+            tier=result['tier'],
+            factaliza_raw=factaliza_raw,
+            fuente=result.get('fuente_datos', 'FACTALIZA_API')
+        )
+        score = result['score']
+        tier_name = result['tier']
+        company_name = result['razon_social']
+    else:
+        score = float(validation['score_calculated'])
+        tier_name = validation['tier']
+        company_name = validation['razon_social']
     
-    if selected_plan not in allowed_plans:
+    # 2. Validar plan permitido
+    allowed = False
+    if selected_plan == 'starter' and score >= 30:
+        allowed = True
+    elif selected_plan == 'professional' and score >= 70:
+        allowed = True
+    elif selected_plan == 'enterprise' and score >= 90:
+        allowed = True
+    
+    if not allowed:
         raise HTTPException(status_code=403, detail={
-            'error': 'Plan no permitido',
-            'score': score, 'tier': get_tier_info(score)['name'],
-            'allowed_plans': allowed_plans
+            'error': 'Plan no permitido para este Score',
+            'score': score,
+            'tier': tier_name,
+            'selected_plan': selected_plan,
+            'message': f'Score {score} no permite plan {selected_plan}'
         })
     
-    cert_slug = str(uuid.uuid4())[:12]
-    tier_info = get_tier_info(score)
+    # 3. Generar certificado único
+    cert_slug = str(uuid.uuid4())[:8]
     prices = {'starter': 400, 'professional': 800, 'enterprise': 2500}
+    
+    # 4. Guardar en certificates_v3
+    cert_saved = False
+    if PSYCOPG2_AVAILABLE:
+        conn = get_db_connection()
+        if conn:
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO certificates_v3 
+                        (ruc, company_name, score, tier, plan_type, cert_slug, created_at)
+                        VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                        ON CONFLICT (cert_slug) DO NOTHING
+                    """, (ruc, company_name, score, tier_name, selected_plan, cert_slug))
+                    conn.commit()
+                    cert_saved = True
+                    print(f"[CERT] ✅ Certificado guardado: {cert_slug}")
+            except Exception as e:
+                print(f"[CERT] ❌ Error guardando: {e}")
+            finally:
+                conn.close()
+    
+    # 5. Generar HTML del certificado
+    cert_html = generate_cert_html(cert_slug, ruc, company_name, score, tier_name, selected_plan)
     
     return {
         'success': True,
-        'cert_id': cert_slug,
+        'cert_slug': cert_slug,
         'ruc': ruc,
-        'company_name': request.company_name or result['razon_social'],
+        'company_name': company_name,
         'score': score,
-        'tier': {'name': tier_info['name'], 'color': tier_info['color'], 'badge': tier_info['badge']},
-        'plan': {'type': selected_plan, 'price_paid': prices[selected_plan]},
+        'tier': tier_name,
+        'plan': selected_plan,
+        'price_paid': prices[selected_plan],
+        'cert_saved': cert_saved,
         'urls': {
             'view': f'https://czperu.com/verificar.html?cert={cert_slug}&ruc={ruc}',
-            'qr': f'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://czperu.com/verificar.html?cert={cert_slug}'
+            'qr': f'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://czperu.com/verificar.html?cert={cert_slug}',
+            'html_preview': f'https://conflict-zero-api.onrender.com/api/v3/cert-preview/{cert_slug}'
         },
-        'issued_at': datetime.now().isoformat()
+        'issued_at': datetime.now().isoformat(),
+        'expires_at': (datetime.now() + timedelta(days=365)).isoformat()
     }
+
+def generate_cert_html(cert_slug: str, ruc: str, company: str, score: float, tier: str, plan: str) -> str:
+    """Genera HTML del certificado"""
+    tier_colors = {
+        'GOLD': '#D4AF37',
+        'SILVER': '#C0C0C0', 
+        'BRONZE': '#B87333',
+        'RECHAZADO': '#8B0000'
+    }
+    tier_badges = {
+        'GOLD': '★',
+        'SILVER': '◆',
+        'BRONZE': '●',
+        'RECHAZADO': '✕'
+    }
+    
+    color = tier_colors.get(tier, '#B87333')
+    badge = tier_badges.get(tier, '●')
+    fecha = datetime.now().strftime('%d de %B de %Y')
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Certificado Conflict Zero - {company}</title>
+        <style>
+            body {{ font-family: 'Cormorant Garamond', Georgia, serif; margin: 0; padding: 40px; background: #f5f5f5; }}
+            .cert {{ max-width: 800px; margin: 0 auto; background: white; padding: 60px; border: 3px solid {color}; box-shadow: 0 0 30px rgba(0,0,0,0.1); }}
+            .header {{ text-align: center; border-bottom: 2px solid {color}; padding-bottom: 30px; margin-bottom: 40px; }}
+            .logo {{ font-size: 28px; font-weight: 600; color: {color}; letter-spacing: 3px; }}
+            .tier-badge {{ font-size: 72px; color: {color}; text-align: center; margin: 30px 0; }}
+            .company {{ font-size: 32px; text-align: center; margin: 20px 0; font-weight: 600; }}
+            .ruc {{ text-align: center; color: #666; font-size: 18px; margin-bottom: 30px; }}
+            .score {{ text-align: center; font-size: 48px; color: {color}; font-weight: 700; margin: 20px 0; }}
+            .details {{ margin: 40px 0; padding: 20px; background: #f9f9f9; border-left: 4px solid {color}; }}
+            .footer {{ text-align: center; margin-top: 50px; padding-top: 30px; border-top: 1px solid #ddd; font-size: 12px; color: #999; }}
+            .qr {{ text-align: center; margin: 30px 0; }}
+        </style>
+    </head>
+    <body>
+        <div class="cert">
+            <div class="header">
+                <div class="logo">CONFLICT ZERO</div>
+                <div style="font-size: 12px; color: #999; margin-top: 10px;">Certificación de Cumplimiento Normativo</div>
+            </div>
+            
+            <div class="tier-badge">{badge}</div>
+            <div style="text-align: center; font-size: 24px; color: {color}; font-weight: 600; margin-bottom: 20px;">
+                SELLO {tier}
+            </div>
+            
+            <div class="company">{company}</div>
+            <div class="ruc">RUC: {ruc}</div>
+            
+            <div class="score">{score}/100</div>
+            <div style="text-align: center; color: #666;">Puntuación de Cumplimiento Legal</div>
+            
+            <div class="details">
+                <strong>Plan Contratado:</strong> {plan.upper()}<br>
+                <strong>Fecha de Emisión:</strong> {fecha}<br>
+                <strong>ID de Certificado:</strong> {cert_slug}<br>
+                <strong>Consultor Factaliza:</strong> #40648
+            </div>
+            
+            <div class="qr">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://czperu.com/verificar.html?cert={cert_slug}" alt="QR">
+                <div style="font-size: 11px; color: #999; margin-top: 10px;">Escanea para verificar autenticidad</div>
+            </div>
+            
+            <div class="footer">
+                Este certificado tiene validez de 1 año desde la fecha de emisión.<br>
+                Verificación en: czperu.com/verificar.html<br>
+                Datos proporcionados por Factaliza - Consultor #40648
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.get("/api/v3/cert-preview/{cert_slug}")
+async def cert_preview(cert_slug: str):
+    """Vista previa del certificado en HTML"""
+    if not PSYCOPG2_AVAILABLE:
+        return HTMLResponse(content="psycopg2 no disponible", status_code=503)
+    
+    conn = get_db_connection()
+    if not conn:
+        return HTMLResponse(content="No hay conexión a BD", status_code=503)
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT ruc, company_name, score, tier, plan_type 
+                FROM certificates_v3 
+                WHERE cert_slug = %s
+            """, (cert_slug,))
+            row = cur.fetchone()
+            
+            if not row:
+                return HTMLResponse(content="Certificado no encontrado", status_code=404)
+            
+            ruc, company, score, tier, plan = row
+            html = generate_cert_html(cert_slug, ruc, company, float(score), tier, plan)
+            return HTMLResponse(content=html)
+    except Exception as e:
+        return HTMLResponse(content=f"Error: {e}", status_code=500)
+    finally:
+        conn.close()
 
 @app.get("/api/v3/demo/rucs")
 def get_demo_rucs():
