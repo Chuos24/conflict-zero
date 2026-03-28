@@ -320,6 +320,15 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     cached = get_validation_from_db(ruc, max_age_hours=168)
     if cached:
         print(f"[CACHE] ✓ Datos en cache institucional para {ruc}")
+        # factaliza_raw puede ser dict o string JSON
+        factaliza_raw = cached.get('factaliza_raw', {})
+        if isinstance(factaliza_raw, str):
+            try:
+                import json
+                factaliza_raw = json.loads(factaliza_raw)
+            except:
+                factaliza_raw = {}
+        
         return {
             'ruc': ruc,
             'razon_social': cached['razon_social'],
@@ -327,7 +336,7 @@ async def consultar_con_fallback(ruc: str) -> Dict:
                 'estado': 'ACTIVO',
                 'condicion': 'HABIDO'
             },
-            'sanciones': cached.get('factaliza_raw', {}).get('sanciones', []),
+            'sanciones': factaliza_raw.get('sanciones', []) if isinstance(factaliza_raw, dict) else [],
             'tiene_sanciones': cached['tier'] in ['BRONZE', 'RECHAZADO'],
             'fuente': 'CACHE_INSTITUCIONAL',
             'consultor_id': '40648',
@@ -340,15 +349,6 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         data = await factaliza.consultar_ruc(ruc)
         if data:
             print(f"[Factaliza] ✓ Datos recibidos en tiempo real")
-            # Guardar en cache
-            save_validation_to_db(
-                ruc=ruc,
-                razon_social=data['razon_social'],
-                score=0,  # Se calculará después
-                tier='PENDING',
-                factaliza_raw=data,
-                fuente='FACTALIZA_API'
-            )
             return data
     except Exception as e:
         error_msg = str(e)
