@@ -304,8 +304,23 @@ DEMO_DATA = {
         }],
     },
     '20100123091': {
-        'razon_social': 'EMPRESA DEMO GOLD SAC',
+        'razon_social': 'GRAÑA Y MONTERO S.A.A.',
         'score': 95.0,
+        'tier': 'GOLD',
+        'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
+        'sanciones': [],
+    },
+    # RUCs adicionales que funcionan con Factaliza
+    '20100047218': {
+        'razon_social': 'BANCO DE CREDITO DEL PERU',
+        'score': 98.0,
+        'tier': 'GOLD',
+        'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
+        'sanciones': [],
+    },
+    '20100017923': {
+        'razon_social': 'RIMAC SEGUROS Y REASEGUROS S.A.',
+        'score': 97.0,
         'tier': 'GOLD',
         'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
         'sanciones': [],
