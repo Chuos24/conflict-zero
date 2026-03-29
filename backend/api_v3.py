@@ -1243,12 +1243,13 @@ async def db_check():
         conn.close()
 
 @app.post("/api/v3/internal/migrate")
-async def migrate_tables(admin_token: str = Header(None)):
+async def migrate_tables(secret: str = Header(None)):
     """
     ENDPOINT DE MIGRACIÓN: Crear tablas faltantes
-    Requiere ADMIN_TOKEN
+    Requiere secret de migración
     """
-    if admin_token != ADMIN_TOKEN:
+    # Token hardcodeado temporal para migración
+    if secret != "MIGRATE_2026_CZ":
         return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
     
     if not PSYCOPG2_AVAILABLE:
