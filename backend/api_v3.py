@@ -194,8 +194,10 @@ def init_database():
             """)
             
             # CHECKPOINT 1: Tabla de usuarios (Auth White Glove)
+            # DROP y recrear para asegurar schema correcto
+            cur.execute("DROP TABLE IF EXISTS users")
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS users (
+                CREATE TABLE users (
                     id SERIAL PRIMARY KEY,
                     email VARCHAR(200) UNIQUE NOT NULL,
                     password_hash VARCHAR(255) NOT NULL,
@@ -204,8 +206,7 @@ def init_database():
                     plan VARCHAR(20) DEFAULT 'starter',
                     is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT NOW(),
-                    last_login TIMESTAMP,
-                    FOREIGN KEY (ruc) REFERENCES validations_v3(ruc)
+                    last_login TIMESTAMP
                 )
             """)
             
@@ -1462,13 +1463,16 @@ def verify_jwt_token(token: str) -> Optional[Dict]:
         return None
 
 @app.post("/api/v3/admin/create-user")
-async def admin_create_user(request: CreateUserRequest, admin_token: str = Header(None)):
+async def admin_create_user(request: CreateUserRequest, x_admin_token: str = Header(None)):
     """
     CHECKPOINT 1: Crear usuario (solo admin - White Glove)
-    Protegido por admin_token
+    Protegido por X-Admin-Token header
     """
     # Verificar token admin
-    if admin_token != ADMIN_TOKEN:
+    print(f"[Admin] Token recibido: {x_admin_token}")
+    print(f"[Admin] Token esperado: {ADMIN_TOKEN}")
+    
+    if x_admin_token != ADMIN_TOKEN:
         return JSONResponse(
             status_code=403,
             content={'success': False, 'error': 'UNAUTHORIZED', 'message': 'Token admin inválido'}
