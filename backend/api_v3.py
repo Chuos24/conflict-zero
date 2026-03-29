@@ -210,8 +210,31 @@ def init_database():
                 )
             """)
             
+            # GRUPO B: Tabla de alertas
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS supplier_alerts (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    ruc VARCHAR(11) NOT NULL,
+                    alert_type VARCHAR(50) NOT NULL, -- 'score_drop', 'new_sanction', 'status_change', 'custom'
+                    threshold DECIMAL(5,2), -- Para alertas de score (ej: 70.00)
+                    message TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    triggered_at TIMESTAMP,
+                    triggered_count INTEGER DEFAULT 0,
+                    last_triggered_data JSONB
+                )
+            """)
+            
+            # Índice para búsquedas rápidas por usuario y RUC
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc 
+                ON supplier_alerts(user_id, ruc)
+            """)
+            
             conn.commit()
-            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users")
+            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users, supplier_alerts")
             return True
     except Exception as e:
         print(f"[DB] ❌ Error inicializando: {e}")
@@ -339,6 +362,31 @@ class LoginRequest(BaseModel):
     password: str
 
 class UserResponse(BaseModel):
+    id: int
+    email: str
+    ruc: str
+    company_name: str
+    plan: str
+
+# ============ ALERTAS MODELS ============
+class CreateAlertRequest(BaseModel):
+    ruc: str
+    alert_type: str  # 'score_drop', 'new_sanction', 'status_change', 'custom'
+    threshold: Optional[float] = None  # Para alertas de score
+    message: Optional[str] = None
+    is_active: bool = True
+
+class AlertResponse(BaseModel):
+    id: int
+    user_id: int
+    ruc: str
+    alert_type: str
+    threshold: Optional[float]
+    message: Optional[str]
+    is_active: bool
+    created_at: str
+    triggered_at: Optional[str]
+    triggered_count: int
     id: int
     email: str
     ruc: str
@@ -1639,8 +1687,339 @@ async def auth_me(authorization: str = Header(None)):
         }
     }
 
+# ============ GRUPO B: SISTEMA DE ALERTAS ============
+
+def get_current_user(authorization: str = Header(None)):
+    """Helper para obtener usuario actual desde JWT"""
+    if not authorization or not authorization.startswith('Bearer '):
+        return None
+    
+    token = authorization.replace('Bearer ', '')
+    return verify_jwt_token(token)
+
+@app.post("/api/v3/alerts")
+async def create_alert(
+    request: CreateAlertRequest,
+    authorization: str = Header(None)
+):
+    """
+    GRUPO B: Crear alerta para un RUC
+    Requiere plan Professional o Enterprise
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED', 'message': 'Token requerido'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            # Verificar plan del usuario
+            cur.execute("SELECT plan FROM users WHERE id = %s", (user['user_id'],))
+            result = cur.fetchone()
+            if not result:
+                return JSONResponse(status_code=404, content={'success': False, 'error': 'USER_NOT_FOUND'})
+            
+            user_plan = result[0]
+            if user_plan not in ['professional', 'enterprise']:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        'success': False, 
+                        'error': 'PLAN_REQUIRED',
+                        'message': 'Alertas requieren plan Professional o Enterprise',
+                        'upgrade_url': '/pricing'
+                    }
+                )
+            
+            # Crear alerta
+            cur.execute("""
+                INSERT INTO supplier_alerts 
+                (user_id, ruc, alert_type, threshold, message, is_active, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id, created_at
+            """, (
+                user['user_id'], request.ruc, request.alert_type, 
+                request.threshold, request.message, request.is_active
+            ))
+            
+            result = cur.fetchone()
+            conn.commit()
+            
+            return {
+                'success': True,
+                'alert': {
+                    'id': result[0],
+                    'ruc': request.ruc,
+                    'alert_type': request.alert_type,
+                    'threshold': request.threshold,
+                    'message': request.message,
+                    'is_active': request.is_active,
+                    'created_at': str(result[1])
+                }
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.get("/api/v3/alerts")
+async def list_alerts(
+    ruc: Optional[str] = None,
+    authorization: str = Header(None)
+):
+    """
+    GRUPO B: Listar alertas del usuario
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            query = """
+                SELECT id, ruc, alert_type, threshold, message, is_active,
+                       created_at, triggered_at, triggered_count
+                FROM supplier_alerts
+                WHERE user_id = %s
+            """
+            params = [user['user_id']]
+            
+            if ruc:
+                query += " AND ruc = %s"
+                params.append(ruc)
+            
+            query += " ORDER BY created_at DESC"
+            
+            cur.execute(query, params)
+            alerts = cur.fetchall()
+            
+            return {
+                'success': True,
+                'alerts': [dict(a) for a in alerts],
+                'count': len(alerts)
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.delete("/api/v3/alerts/{alert_id}")
+async def delete_alert(alert_id: int, authorization: str = Header(None)):
+    """
+    GRUPO B: Eliminar una alerta
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            cur.execute("""
+                DELETE FROM supplier_alerts 
+                WHERE id = %s AND user_id = %s
+                RETURNING id
+            """, (alert_id, user['user_id']))
+            
+            result = cur.fetchone()
+            conn.commit()
+            
+            if not result:
+                return JSONResponse(
+                    status_code=404,
+                    content={'success': False, 'error': 'ALERT_NOT_FOUND'}
+                )
+            
+            return {'success': True, 'message': 'Alerta eliminada'}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.get("/api/v3/alerts/triggered")
+async def get_triggered_alerts(
+    limit: int = 10,
+    authorization: str = Header(None)
+):
+    """
+    GRUPO B: Obtener alertas que ya se dispararon
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, ruc, alert_type, threshold, message,
+                       triggered_at, triggered_count, last_triggered_data
+                FROM supplier_alerts
+                WHERE user_id = %s AND triggered_count > 0
+                ORDER BY triggered_at DESC
+                LIMIT %s
+            """, (user['user_id'], limit))
+            
+            alerts = cur.fetchall()
+            
+            return {
+                'success': True,
+                'triggered_alerts': [dict(a) for a in alerts],
+                'count': len(alerts)
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+def check_and_trigger_alerts(ruc: str, new_score: float, old_data: Optional[dict] = None):
+    """
+    GRUPO B: Verificar y disparar alertas cuando cambia un RUC
+    Llamado automáticamente después de validación
+    """
+    if not PSYCOPG2_AVAILABLE:
+        return
+    
+    conn = get_db_connection()
+    if not conn:
+        return
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Buscar alertas activas para este RUC
+            cur.execute("""
+                SELECT * FROM supplier_alerts
+                WHERE ruc = %s AND is_active = TRUE
+            """, (ruc,))
+            
+            alerts = cur.fetchall()
+            triggered = []
+            
+            for alert in alerts:
+                should_trigger = False
+                trigger_reason = None
+                
+                if alert['alert_type'] == 'score_drop':
+                    threshold = alert['threshold'] or 70.0
+                    if new_score < threshold:
+                        should_trigger = True
+                        trigger_reason = f'Score bajó a {new_score} (umbral: {threshold})'
+                
+                elif alert['alert_type'] == 'new_sanction':
+                    # Detectar si hay nuevas sanciones comparando con old_data
+                    if old_data and old_data.get('sanciones_count', 0) < new_data.get('sanciones_count', 0):
+                        should_trigger = True
+                        trigger_reason = 'Nueva sanción detectada'
+                
+                elif alert['alert_type'] == 'status_change':
+                    if old_data and old_data.get('estado') != new_data.get('estado'):
+                        should_trigger = True
+                        trigger_reason = f'Estado cambió de {old_data.get("estado")} a {new_data.get("estado")}'
+                
+                if should_trigger:
+                    triggered.append({
+                        'alert_id': alert['id'],
+                        'user_id': alert['user_id'],
+                        'reason': trigger_reason
+                    })
+                    
+                    # Actualizar alerta
+                    cur.execute("""
+                        UPDATE supplier_alerts
+                        SET triggered_at = NOW(),
+                            triggered_count = triggered_count + 1,
+                            last_triggered_data = %s
+                        WHERE id = %s
+                    """, (
+                        json.dumps({'score': new_score, 'reason': trigger_reason}),
+                        alert['id']
+                    ))
+            
+            conn.commit()
+            
+            if triggered:
+                print(f"[ALERTS] {len(triggered)} alertas disparadas para RUC {ruc}")
+                
+    except Exception as e:
+        print(f"[ALERTS] Error verificando alertas: {e}")
+    finally:
+        conn.close()
+
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Conflict Zero API V3.0 + Factaliza #40648")
+    print("🚀 Conflict Zero API V3.1 + Alertas + Factaliza #40648")
     uvicorn.run(app, host="0.0.0.0", port=API_PORT)
-# Deploy timestamp: Sun Mar 29 10:22:15 AM CST 2026
+# Deploy timestamp: Sun Mar 30 04:25:00 AM CST 2026
