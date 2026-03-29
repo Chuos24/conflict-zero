@@ -1246,9 +1246,7 @@ async def db_check():
 async def migrate_tables(secret: str = Header(None)):
     """
     ENDPOINT DE MIGRACIÓN: Crear tablas faltantes
-    Requiere secret de migración
     """
-    # Token hardcodeado temporal para migración
     if secret != "MIGRATE_2026_CZ":
         return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
     
@@ -1260,57 +1258,60 @@ async def migrate_tables(secret: str = Header(None)):
         return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
     
     created_tables = []
+    errors = []
     
     try:
         with conn.cursor() as cur:
-            # Tabla invitations (GRUPO C) - sin foreign keys para evitar conflictos
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS invitations (
-                    id SERIAL PRIMARY KEY,
-                    invitador_ruc VARCHAR(11) NOT NULL,
-                    email VARCHAR(200) NOT NULL,
-                    token VARCHAR(100) UNIQUE NOT NULL,
-                    ruc_invitado VARCHAR(11),
-                    expira TIMESTAMP DEFAULT (NOW() + INTERVAL '24 hours'),
-                    usada BOOLEAN DEFAULT FALSE,
-                    usada_por INTEGER,
-                    created_at TIMESTAMP DEFAULT NOW()
-                )
-            """)
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_invitations_token 
-                ON invitations(token)
-            """)
-            created_tables.append('invitations')
+            # Tabla invitations (GRUPO C) - completamente independiente
+            try:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS invitations (
+                        id SERIAL PRIMARY KEY,
+                        invitador_ruc VARCHAR(11) NOT NULL,
+                        email VARCHAR(200) NOT NULL,
+                        token VARCHAR(100) UNIQUE NOT NULL,
+                        ruc_invitado VARCHAR(11),
+                        expira TIMESTAMP DEFAULT (NOW() + INTERVAL '24 hours'),
+                        usada BOOLEAN DEFAULT FALSE,
+                        usada_por INTEGER,
+                        created_at TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_invitations_invitador ON invitations(invitador_ruc)")
+                created_tables.append('invitations')
+            except Exception as e:
+                errors.append(f'invitations: {str(e)}')
             
-            # Tabla supplier_alerts (GRUPO B)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS supplier_alerts (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                    ruc VARCHAR(11) NOT NULL,
-                    alert_type VARCHAR(50) NOT NULL,
-                    threshold DECIMAL(5,2),
-                    message TEXT,
-                    is_active BOOLEAN DEFAULT TRUE,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    triggered_at TIMESTAMP,
-                    triggered_count INTEGER DEFAULT 0,
-                    last_triggered_data JSONB
-                )
-            """)
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc 
-                ON supplier_alerts(user_id, ruc)
-            """)
-            created_tables.append('supplier_alerts')
+            # Tabla supplier_alerts (GRUPO B) - sin foreign keys
+            try:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS supplier_alerts (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER,
+                        ruc VARCHAR(11) NOT NULL,
+                        alert_type VARCHAR(50) NOT NULL,
+                        threshold DECIMAL(5,2),
+                        message TEXT,
+                        is_active BOOLEAN DEFAULT TRUE,
+                        created_at TIMESTAMP DEFAULT NOW(),
+                        triggered_at TIMESTAMP,
+                        triggered_count INTEGER DEFAULT 0,
+                        last_triggered_data JSONB
+                    )
+                """)
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc ON supplier_alerts(user_id, ruc)")
+                created_tables.append('supplier_alerts')
+            except Exception as e:
+                errors.append(f'supplier_alerts: {str(e)}')
             
             conn.commit()
             
             return {
                 'success': True,
-                'message': 'Tablas migradas exitosamente',
-                'tables_created': created_tables
+                'message': 'Migración completada',
+                'tables_created': created_tables,
+                'errors': errors if errors else None
             }
     except Exception as e:
         return JSONResponse(
