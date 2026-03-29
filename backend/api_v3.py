@@ -571,7 +571,12 @@ async def validate_ruc(request: ValidateRequest):
             if cached.get('fuente_datos') in ['MOCK_DEFAULT', 'ERROR_HONESTO']:
                 print(f"[Cache] Ignorando cache con fuente={cached.get('fuente_datos')} para {ruc}")
                 cached = None  # Forzar recálculo
-            factaliza_raw = cached.get('factaliza_raw', {})
+            
+            if not cached:
+                # Cache fue invalidado, continuar a consultar Factaliza
+                pass
+            else:
+                factaliza_raw = cached.get('factaliza_raw', {})
             if isinstance(factaliza_raw, str):
                 try:
                     factaliza_raw = json.loads(factaliza_raw)
