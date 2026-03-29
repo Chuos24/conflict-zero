@@ -292,36 +292,30 @@ factaliza = FactalizaAdapter()
 DEMO_DATA = {
     '20529400790': {
         'razon_social': 'CONSTRUCTORA ZAMORA JARA SAC',
-        'score': 41.0,
-        'tier': 'BRONZE',
         'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
         'sanciones': [{
             'resolucion': '4162-2023-TCE-S4',
             'entidad': 'TCE',
+            'tipo': 'Impedimento',  # Tipo para scoring
             'fecha_inicio': '2023-09-28',
+            'fecha': '2023-09-28',  # Alias para compatibilidad
             'dias_transcurridos': 912,
             'estado': 'VIGENTE'
         }],
     },
     '20100123091': {
         'razon_social': 'GRAÑA Y MONTERO S.A.A.',
-        'score': 95.0,
-        'tier': 'GOLD',
         'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
         'sanciones': [],
     },
     # RUCs adicionales que funcionan con Factaliza
     '20100047218': {
         'razon_social': 'BANCO DE CREDITO DEL PERU',
-        'score': 98.0,
-        'tier': 'GOLD',
         'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
         'sanciones': [],
     },
     '20100017923': {
         'razon_social': 'RIMAC SEGUROS Y REASEGUROS S.A.',
-        'score': 97.0,
-        'tier': 'GOLD',
         'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
         'sanciones': [],
     }
@@ -414,45 +408,99 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     }
 
 async def calculate_score_v3(ruc: str) -> Dict:
-    """LegalBot V3.0 - Scoring con Factaliza"""
+    """
+    LegalBot V3.0 - Scoring combinando Factaliza + OSCE/TCE
     
-    # Obtener datos (Factaliza o fallback)
-    data = await consultar_con_fallback(ruc)
+    FUENTE 1: Factaliza API (30% peso)
+      - razon_social, estado, condicion, deuda_total, representantes[]
+    
+    FUENTE 2: Scraping OSCE/TCE (70% peso)
+      - Lista de sanciones con tipo, fecha, entidad, resolucion
+    """
+    
+    # Obtener datos de Factaliza
+    factaliza_data = await consultar_con_fallback(ruc)
     
     # Si hay error en los datos, propagar el error
-    if data.get('error'):
-        return data  # Propagar el dict de error tal cual
+    if factaliza_data.get('error'):
+        return factaliza_data
+    
+    # Obtener sanciones OSCE/TCE (del fallback o scraping futuro)
+    # Por ahora usamos las sanciones que vienen en factaliza_data (del DEMO_DATA)
+    osce_tce_data = factaliza_data.get('sanciones', [])
     
     score = 100.0
-    sanciones = data.get('sanciones', [])
-    sunat = data.get('sunat', {})
+    detalles = []
     
-    # Penalización por sanciones
-    if sanciones:
-        sancion = sanciones[0]
-        dias = sancion.get('dias_transcurridos', 0)
-        anios = dias / 365 if dias > 0 else 0
-        entidad = sancion.get('entidad', 'OSCE')
-        
-        base_penalizacion = 70.0
-        entidad_mult = {'TCE': 1.2, 'OSCE': 1.0, 'SUNAT': 0.9}.get(entidad, 1.0)
-        
-        # Factor temporal (recuperación gradual)
-        if anios > 3:
-            factor_tiempo = 0.3
-        elif anios > 1:
-            factor_tiempo = 0.7
+    # === PARTE 1: SANCIONES OSCE/TCE (70% peso) ===
+    for sancion in osce_tce_data:
+        # 1. Gravedad según tipo
+        tipo = sancion.get('tipo', '').lower()
+        if 'inhabilitacion' in tipo or 'impedimento' in tipo:
+            gravedad = 70  # Caso Zamora: Impedimento = 70
+        elif 'colusion' in tipo:
+            gravedad = 95
+        elif 'multa' in tipo:
+            gravedad = 40
         else:
-            factor_tiempo = 1.0
+            gravedad = 50
         
-        impacto = base_penalizacion * entidad_mult * factor_tiempo
-        score = max(0.0, score - impacto)
+        # 2. Entidad multiplicador
+        entidad = sancion.get('entidad', 'OSCE')
+        multiplicador = 1.5 if entidad == 'OSCE' else 1.2 if entidad == 'TCE' else 0.8
+        
+        # 3. Factor tiempo (días desde la sanción)
+        fecha_str = sancion.get('fecha_inicio', sancion.get('fecha', '2020-01-01'))
+        try:
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d')
+            dias = (datetime.now() - fecha).days
+        except:
+            dias = 0
+        
+        if dias < 365: 
+            factor_t = 1.0
+        elif dias < 730: 
+            factor_t = 0.7   # Zamora: 2.5 años = 0.7
+        elif dias < 1095: 
+            factor_t = 0.4
+        else: 
+            factor_t = 0.1
+        
+        # Impacto de esta sanción
+        impacto = gravedad * multiplicador * factor_t
+        score -= impacto
+        
+        detalles.append({
+            'fuente': entidad,
+            'resolucion': sancion.get('resolucion', 'N/A'),
+            'tipo': tipo,
+            'impacto': round(impacto, 1)
+        })
     
-    # Penalización SUNAT
-    if sunat.get('condicion') == 'NO HABIDO':
-        score = min(score, 20.0)
+    # === PARTE 2: DATOS FACTALIZA (30% peso) ===
+    sunat = factaliza_data.get('sunat', {})
+    
+    # Penalización deuda (si está disponible)
+    deuda = factaliza_data.get('deuda_total', 0)
+    if deuda > 100000:
+        score -= 30
+    elif deuda > 10000:
+        score -= 15
+    
+    # Penalización estado SUNAT
     if sunat.get('estado') == 'BAJA':
-        score = 0.0
+        score -= 30
+    if sunat.get('condicion') == 'NO HABIDO':
+        score -= 50
+    
+    # Penalización representantes inhabilitados (si está disponible)
+    representantes = factaliza_data.get('representantes', [])
+    for rep in representantes:
+        if rep.get('estado') == 'inhabilitado':
+            score -= 20
+    
+    # Asegurar score entre 0-100
+    score = max(0.0, min(100.0, round(score, 1)))
     
     # Determinar tier
     if score >= 90:
@@ -466,7 +514,18 @@ async def calculate_score_v3(ruc: str) -> Dict:
     
     return {
         'ruc': ruc,
-        'razon_social': data.get('razon_social', f'Empresa {ruc}'),
+        'razon_social': factaliza_data.get('razon_social', f'Empresa {ruc}'),
+        'score': score,
+        'tier': tier,
+        'confianza': 0.95 if factaliza_data.get('fuente') == 'FACTALIZA_API' else 0.85,
+        'sanciones': osce_tce_data,
+        'detalles_impacto': detalles,
+        'sunat_estado': sunat.get('estado', 'ACTIVO'),
+        'sunat_condicion': sunat.get('condicion', 'HABIDO'),
+        'fuente_datos': factaliza_data.get('fuente', 'UNKNOWN'),
+        'consultor_factaliza': '40648',
+        'timestamp': factaliza_data.get('timestamp', datetime.now().isoformat())
+    }
         'score': round(score, 1),
         'tier': tier,
         'confianza': 0.95 if data.get('fuente') == 'FACTALIZA_API' else 0.85,
