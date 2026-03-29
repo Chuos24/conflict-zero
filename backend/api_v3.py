@@ -194,8 +194,8 @@ def init_database():
             """)
             
             # CHECKPOINT 1: Tabla de usuarios (Auth White Glove)
-            # DROP y recrear para asegurar schema correcto
-            cur.execute("DROP TABLE IF EXISTS users")
+            # Usar CASCADE para eliminar dependencias
+            cur.execute("DROP TABLE IF EXISTS users CASCADE")
             cur.execute("""
                 CREATE TABLE users (
                     id SERIAL PRIMARY KEY,
