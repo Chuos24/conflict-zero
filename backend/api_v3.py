@@ -17,6 +17,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
+# Importar adapters externos ( Factaliza, BuscarUC )
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from app.services.factaliza_adapter import factaliza
+from app.services.buscaruc_adapter import buscaruc
+
 # PostgreSQL Import (condicional)
 try:
     import psycopg2
@@ -362,7 +368,20 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         factaliza_error = str(e)
         print(f"[Factaliza] ⚠ Error: {factaliza_error}")
     
-    # 2. Si Factaliza falló por rate limit, revisar cache
+    # 2. Si Factaliza falló, intentar BuscarUC
+    if factaliza_error:
+        print(f"[BuscarUC] Intentando consultar {ruc}...")
+        try:
+            buscaruc_data = await buscaruc.consultar_ruc(ruc)
+            if buscaruc_data:
+                print(f"[BuscarUC] ✓ Datos recibidos para {ruc}")
+                return buscaruc_data
+            else:
+                print(f"[BuscarUC] RUC {ruc} no encontrado")
+        except Exception as e:
+            print(f"[BuscarUC] ⚠ Error: {e}")
+    
+    # 3. Si Factaliza falló por rate limit, revisar cache
     if factaliza_error and ('RATE_LIMIT' in factaliza_error or '429' in factaliza_error):
         print(f"[CACHE] Factaliza en rate limit, buscando cache para {ruc}")
         cached = get_validation_from_db(ruc, max_age_hours=168)
