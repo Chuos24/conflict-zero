@@ -26,6 +26,15 @@ except ImportError:
     PSYCOPG2_AVAILABLE = False
     print("⚠️ psycopg2 no disponible, persistencia desactivada")
 
+# JWT y Auth
+try:
+    import jwt
+    import bcrypt
+    AUTH_AVAILABLE = True
+except ImportError:
+    AUTH_AVAILABLE = False
+    print("⚠️ jwt/bcrypt no disponible, auth desactivado")
+
 # Redis Import - import directo para evitar dependencias circulares
 import sys
 import os
@@ -36,6 +45,8 @@ from redis_cache import redis_cache, validation_key, RateLimiter, JobQueue
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
 API_PORT = int(os.environ.get('PORT', 8000))
+JWT_SECRET = os.environ.get('JWT_SECRET', 'conflict-zero-secret-key-2024')
+ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
 
 # ============ ADAPTERS INLINE (evita problemas de import) ============
 import httpx
@@ -140,7 +151,7 @@ def get_db_connection():
         return None
 
 def init_database():
-    """Inicializar tabla validations_v3 si no existe"""
+    """Inicializar tablas si no existen"""
     if not PSYCOPG2_AVAILABLE:
         print("[DB] psycopg2 no disponible, omitiendo inicialización")
         return False
@@ -152,6 +163,7 @@ def init_database():
     
     try:
         with conn.cursor() as cur:
+            # Tabla de validaciones
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS validations_v3 (
                     id SERIAL PRIMARY KEY,
@@ -166,7 +178,7 @@ def init_database():
                 )
             """)
             
-            # Crear tabla de certificados
+            # Tabla de certificados
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS certificates_v3 (
                     id SERIAL PRIMARY KEY,
@@ -181,8 +193,24 @@ def init_database():
                 )
             """)
             
+            # CHECKPOINT 1: Tabla de usuarios (Auth White Glove)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    email VARCHAR(200) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    ruc VARCHAR(11) NOT NULL,
+                    company_name VARCHAR(200),
+                    plan VARCHAR(20) DEFAULT 'starter',
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    last_login TIMESTAMP,
+                    FOREIGN KEY (ruc) REFERENCES validations_v3(ruc)
+                )
+            """)
+            
             conn.commit()
-            print("[DB] ✅ Tablas validations_v3 y certificates_v3 inicializadas")
+            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users")
             return True
     except Exception as e:
         print(f"[DB] ❌ Error inicializando: {e}")
@@ -296,6 +324,26 @@ class GenerateCertRequest(BaseModel):
     plan: str
     email: Optional[str] = None
     company_name: Optional[str] = None
+
+# ============ MODELOS AUTH (White Glove) ============
+
+class CreateUserRequest(BaseModel):
+    ruc: str
+    email: str
+    password: str
+    plan: str = "starter"
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    ruc: str
+    company_name: str
+    plan: str
+    created_at: str
 
 # ============ DATOS DEMO ============
 
@@ -1377,6 +1425,214 @@ async def api_v1_docs():
         ],
         'rate_limits': '100 requests/hour',
         'contact': 'api@czperu.com'
+    }
+
+# ============ AUTH ENDPOINTS (White Glove) ============
+
+def hash_password(password: str) -> str:
+    """Hashear password con bcrypt"""
+    if not AUTH_AVAILABLE:
+        return password  # Fallback inseguro solo para desarrollo
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verificar password"""
+    if not AUTH_AVAILABLE:
+        return password == hashed  # Fallback inseguro solo para desarrollo
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+def create_jwt_token(user_id: int, email: str, ruc: str) -> str:
+    """Crear JWT token"""
+    payload = {
+        'user_id': user_id,
+        'email': email,
+        'ruc': ruc,
+        'exp': datetime.utcnow() + timedelta(days=7),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+
+def verify_jwt_token(token: str) -> Optional[Dict]:
+    """Verificar JWT token"""
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+@app.post("/api/v3/admin/create-user")
+async def admin_create_user(request: CreateUserRequest, admin_token: str = Header(None)):
+    """
+    CHECKPOINT 1: Crear usuario (solo admin - White Glove)
+    Protegido por admin_token
+    """
+    # Verificar token admin
+    if admin_token != ADMIN_TOKEN:
+        return JSONResponse(
+            status_code=403,
+            content={'success': False, 'error': 'UNAUTHORIZED', 'message': 'Token admin inválido'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE', 'message': 'Base de datos no disponible'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR', 'message': 'No hay conexión a BD'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            # Obtener nombre de empresa desde validations_v3
+            cur.execute("SELECT razon_social FROM validations_v3 WHERE ruc = %s", (request.ruc,))
+            result = cur.fetchone()
+            company_name = result[0] if result else request.ruc
+            
+            # Hashear password
+            password_hash = hash_password(request.password)
+            
+            # Crear usuario
+            cur.execute("""
+                INSERT INTO users (email, password_hash, ruc, company_name, plan, created_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+                ON CONFLICT (email) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    ruc = EXCLUDED.ruc,
+                    company_name = EXCLUDED.company_name,
+                    plan = EXCLUDED.plan
+                RETURNING id, email, ruc, company_name, plan, created_at
+            """, (request.email, password_hash, request.ruc, company_name, request.plan))
+            
+            user = cur.fetchone()
+            conn.commit()
+            
+            return {
+                'success': True,
+                'message': 'Usuario creado exitosamente',
+                'user': {
+                    'id': user[0],
+                    'email': user[1],
+                    'ruc': user[2],
+                    'company_name': user[3],
+                    'plan': user[4],
+                    'created_at': str(user[5])
+                }
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.post("/api/v3/auth/login")
+async def auth_login(request: LoginRequest):
+    """
+    CHECKPOINT 1: Login de usuario (público)
+    Retorna JWT token
+    """
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE', 'message': 'Base de datos no disponible'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR', 'message': 'No hay conexión a BD'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, email, password_hash, ruc, company_name, plan, is_active
+                FROM users WHERE email = %s
+            """, (request.email,))
+            
+            user = cur.fetchone()
+            
+            if not user:
+                return JSONResponse(
+                    status_code=401,
+                    content={'success': False, 'error': 'INVALID_CREDENTIALS', 'message': 'Email o password incorrectos'}
+                )
+            
+            if not user['is_active']:
+                return JSONResponse(
+                    status_code=403,
+                    content={'success': False, 'error': 'ACCOUNT_DISABLED', 'message': 'Cuenta desactivada'}
+                )
+            
+            # Verificar password
+            if not verify_password(request.password, user['password_hash']):
+                return JSONResponse(
+                    status_code=401,
+                    content={'success': False, 'error': 'INVALID_CREDENTIALS', 'message': 'Email o password incorrectos'}
+                )
+            
+            # Actualizar last_login
+            cur.execute("UPDATE users SET last_login = NOW() WHERE id = %s", (user['id'],))
+            conn.commit()
+            
+            # Crear JWT
+            token = create_jwt_token(user['id'], user['email'], user['ruc'])
+            
+            return {
+                'success': True,
+                'token': token,
+                'user': {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'ruc': user['ruc'],
+                    'company_name': user['company_name'],
+                    'plan': user['plan']
+                }
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.get("/api/v3/auth/me")
+async def auth_me(authorization: str = Header(None)):
+    """
+    CHECKPOINT 1: Obtener datos del usuario logueado
+    Requiere JWT en header Authorization: Bearer <token>
+    """
+    if not authorization or not authorization.startswith('Bearer '):
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'NO_TOKEN', 'message': 'Token no proporcionado'}
+        )
+    
+    token = authorization.replace('Bearer ', '')
+    payload = verify_jwt_token(token)
+    
+    if not payload:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'INVALID_TOKEN', 'message': 'Token inválido o expirado'}
+        )
+    
+    return {
+        'success': True,
+        'user': {
+            'id': payload['user_id'],
+            'email': payload['email'],
+            'ruc': payload['ruc']
+        }
     }
 
 if __name__ == "__main__":
