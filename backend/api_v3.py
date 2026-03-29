@@ -1,3 +1,4 @@
+# TEST DEPLOY - 2026-03-29 20:07:03.191492
 """
 Conflict Zero API V3.0 - Score/Plan Desacoplado + Factaliza Integration
 Backend para el sistema de validación legal con scoring multidimensional
