@@ -1,4 +1,3 @@
-# TEST DEPLOY - 2026-03-29 20:07:03.191492
 """
 Conflict Zero API V3.0 - Score/Plan Desacoplado + Factaliza Integration
 Backend para el sistema de validación legal con scoring multidimensional
@@ -18,12 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel
 
-# Importar adapters externos ( Factaliza, BuscarUC )
-import sys
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from app.services.factaliza_adapter import factaliza
-from app.services.buscaruc_adapter import buscaruc
-
 # PostgreSQL Import (condicional)
 try:
     import psycopg2
@@ -38,16 +31,61 @@ DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
 API_PORT = int(os.environ.get('PORT', 8000))
 
-# ============ BUSCARUC ADAPTER (inline para evitar problemas de import) ============
+# ============ ADAPTERS INLINE (evita problemas de import) ============
 import httpx
 
+# Factaliza Config
+FACTALIZA_TOKEN = os.environ.get(
+    'FACTALIZA_TOKEN',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDY0OCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6ImNvbnN1bHRvciJ9.d_-YT6RuTIrq-RZj1TO6Q6r3EG2NL4MRO9odkcaGDYA'
+)
+FACTALIZA_BASE_URL = "https://api.factiliza.com/v1"
+
+async def consultar_factaliza(ruc: str) -> Optional[Dict]:
+    """Consulta RUC en Factaliza API"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{FACTALIZA_BASE_URL}/ruc/info/{ruc}",
+                headers={'Authorization': f'Bearer {FACTALIZA_TOKEN}'}
+            )
+            
+            if response.status_code == 404:
+                return None
+            if response.status_code == 429:
+                print(f"[Factaliza] Rate limit")
+                return None
+                
+            response.raise_for_status()
+            data = response.json()
+            
+            if not data.get('success'):
+                return None
+                
+            result = data.get('data', {})
+            
+            return {
+                'ruc': ruc,
+                'razon_social': result.get('nombre_o_razon_social', f'Empresa {ruc}'),
+                'sunat': {
+                    'estado': result.get('estado', 'ACTIVO'),
+                    'condicion': result.get('condicion', 'HABIDO'),
+                },
+                'fuente': 'FACTALIZA_API',
+                'consultor_id': '40648',
+            }
+    except Exception as e:
+        print(f"[Factaliza] Error: {e}")
+        return None
+
+# BuscarUC Config  
 BUSCARUC_TOKEN = os.environ.get(
     'BUSCARUC_TOKEN',
     'eyJ1c2VySWQiOjU0NzAsInVzZXJUb2tlbklkIjo1NDY5fQ.QK8EdbO21g2rCk3jqUqdOf3pKKhNZqymmG30RTbMURhtp7-JPJcPX3xHXAaH46qAoHrTnQLgqTGo1yY1zu64QfPvLux0EbX2R9V_1tAy8Fdos2-Z-_XXTe7Wi0lRTBK55uh_zCm5zCiYs7VJBW4T9e2mZdd6EaXYaXOwEybmseE'
 )
 
 async def consultar_buscaruc(ruc: str) -> Optional[Dict]:
-    """Consulta RUC en BuscarUC API (inline para evitar problemas de import)"""
+    """Consulta RUC en BuscarUC API"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
@@ -58,7 +96,7 @@ async def consultar_buscaruc(ruc: str) -> Optional[Dict]:
             
             if response.status_code != 200:
                 return None
-            
+                
             data = response.json()
             result = data.get('result', {})
             
@@ -78,7 +116,6 @@ async def consultar_buscaruc(ruc: str) -> Optional[Dict]:
                 'tiene_sanciones': False,
                 'fuente': 'BUSCARUC_API',
                 'consultor_id': '5470',
-                'timestamp': datetime.now().isoformat()
             }
     except Exception as e:
         print(f"[BuscarUC] Error: {e}")
@@ -251,95 +288,6 @@ class GenerateCertRequest(BaseModel):
     email: Optional[str] = None
     company_name: Optional[str] = None
 
-# ============ FACTALIZA ADAPTER (Inline para Render) ============
-
-FACTALIZA_TOKEN = os.environ.get(
-    'FACTALIZA_TOKEN',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDY0OCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6ImNvbnN1bHRvciJ9.d_-YT6RuTIrq-RZj1TO6Q6r3EG2NL4MRO9odkcaGDYA'
-)
-FACTALIZA_BASE_URL = "https://api.factaliza.pe/api/v1"
-
-class FactalizaAdapter:
-    def __init__(self, token: str = None):
-        self.token = token or FACTALIZA_TOKEN
-        self.headers = {
-            'Authorization': f'Bearer {self.token}',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-    
-    async def consultar_ruc(self, ruc: str) -> Optional[Dict]:
-        """Consulta RUC en Factaliza API"""
-        import httpx
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            try:
-                response = await client.get(
-                    f"{FACTALIZA_BASE_URL}/ruc/{ruc}",
-                    headers=self.headers
-                )
-                
-                if response.status_code == 429:
-                    raise Exception("RATE_LIMIT")
-                if response.status_code == 404:
-                    return None
-                
-                response.raise_for_status()
-                return self._normalize(ruc, response.json())
-                
-            except Exception as e:
-                raise Exception(f"FACTALIZA_ERROR: {str(e)}")
-    
-    def _normalize(self, ruc: str, data: dict) -> Dict:
-        """Normaliza datos de Factaliza a formato interno"""
-        sunat = data.get('sunat', {})
-        sanciones_raw = data.get('osce', {}).get('sanciones', []) or data.get('sanciones', [])
-        
-        # Normalizar sanciones
-        sanciones = []
-        dias_desde = 0
-        
-        for s in sanciones_raw:
-            try:
-                fecha_inicio = s.get('fecha_inicio', '')
-                if fecha_inicio:
-                    fecha_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-                    dias = (datetime.now() - fecha_dt).days
-                    if dias_desde == 0 or dias < dias_desde:
-                        dias_desde = dias
-                else:
-                    dias = 0
-                
-                sanciones.append({
-                    'resolucion': s.get('resolucion', 'N/A'),
-                    'entidad': s.get('entidad', 'OSCE'),
-                    'fecha_inicio': fecha_inicio,
-                    'estado': s.get('estado', 'VIGENTE'),
-                    'dias_transcurridos': dias,
-                    'descripcion': s.get('descripcion', '')
-                })
-            except:
-                continue
-        
-        return {
-            'ruc': ruc,
-            'razon_social': sunat.get('razon_social') or sunat.get('nombre_o_razon_social', f'Empresa {ruc}'),
-            'sunat': {
-                'estado': sunat.get('estado_del_contribuyente', 'ACTIVO'),
-                'condicion': sunat.get('condicion_del_contribuyente', 'HABIDO'),
-            },
-            'sanciones': sanciones,
-            'tiene_sanciones': len(sanciones) > 0,
-            'dias_desde_sancion': dias_desde,
-            'anios_desde_sancion': round(dias_desde / 365, 2) if dias_desde > 0 else 0,
-            'fuente': 'FACTALIZA_API',
-            'consultor_id': '40648',
-            'timestamp': datetime.now().isoformat()
-        }
-
-# Instancia global
-factaliza = FactalizaAdapter()
-
 # ============ DATOS DEMO ============
 
 DEMO_DATA = {
@@ -383,7 +331,7 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     factaliza_error = None
     try:
         print(f"[Factaliza] Consultando {ruc}...")
-        data = await factaliza.consultar_ruc(ruc)
+        data = await consultar_factaliza(ruc)
         if data:
             print(f"[Factaliza] ✓ Datos recibidos para {ruc}")
             # Guardar en cache para futuro
