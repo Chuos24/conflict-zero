@@ -74,21 +74,38 @@ class BuscarUCAdapter:
     def _normalize_data(self, ruc: str, buscaruc_data: dict) -> Dict[str, Any]:
         """
         Normaliza los datos de BuscarUC al formato interno de Conflict Zero
+        
+        Estructura respuesta BuscarUC:
+        {
+            "success": true,
+            "message": "Success", 
+            "result": {
+                "ruc": "...",
+                "social_reason": "...",
+                "taxpayer_state": "...",
+                "domicile_condition": "...",
+                "address": "..."
+            }
+        }
         """
-        # BuscarUC devuelve datos del PADRÓN REDUCIDO SUNAT
-        # Estructura típica: {"ruc": "...", "razon_social": "...", "estado": "...", ...}
+        # Extraer datos del campo 'result'
+        result = buscaruc_data.get('result', {})
+        
+        if not result:
+            print(f"[BuscarUC] No hay datos en 'result' para {ruc}")
+            return None
         
         return {
             'ruc': ruc,
-            'razon_social': buscaruc_data.get('razon_social') or buscaruc_data.get('nombre_o_razon_social', f'Empresa {ruc}'),
+            'razon_social': result.get('social_reason', f'Empresa {ruc}'),
             'sunat': {
-                'estado': buscaruc_data.get('estado', 'ACTIVO'),
-                'condicion': buscaruc_data.get('condicion', 'HABIDO'),
-                'direccion': buscaruc_data.get('direccion', ''),
-                'departamento': buscaruc_data.get('departamento', ''),
-                'provincia': buscaruc_data.get('provincia', ''),
-                'distrito': buscaruc_data.get('distrito', ''),
-                'actividad_economica': buscaruc_data.get('actividad_economica', []),
+                'estado': result.get('taxpayer_state', 'ACTIVO'),
+                'condicion': result.get('domicile_condition', 'HABIDO'),
+                'direccion': result.get('address', ''),
+                'departamento': result.get('department', ''),
+                'provincia': result.get('province', ''),
+                'distrito': result.get('district', ''),
+                'ubigeo': result.get('ubigeo', ''),
             },
             'osce': {
                 'total_sanciones': 0,  # BuscarUC no tiene sanciones OSCE
