@@ -526,16 +526,6 @@ async def calculate_score_v3(ruc: str) -> Dict:
         'consultor_factaliza': '40648',
         'timestamp': factaliza_data.get('timestamp', datetime.now().isoformat())
     }
-        'score': round(score, 1),
-        'tier': tier,
-        'confianza': 0.95 if data.get('fuente') == 'FACTALIZA_API' else 0.85,
-        'sanciones': sanciones,
-        'sunat_estado': sunat.get('estado', 'DESCONOCIDO'),
-        'sunat_condicion': sunat.get('condicion', 'DESCONOCIDO'),
-        'fuente_datos': data.get('fuente', 'MOCK'),
-        'consultor_factaliza': data.get('consultor_id', '40648'),
-        'timestamp': data.get('timestamp', datetime.now().isoformat())
-    }
 
 def get_tier_info(score: float) -> Dict:
     """Info visual del tier"""
