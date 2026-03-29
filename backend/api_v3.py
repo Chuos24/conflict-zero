@@ -26,8 +26,11 @@ except ImportError:
     PSYCOPG2_AVAILABLE = False
     print("⚠️ psycopg2 no disponible, persistencia desactivada")
 
-# Redis Import
-from app.services.redis_cache import redis_cache, validation_key, RateLimiter, JobQueue
+# Redis Import - import directo para evitar dependencias circulares
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app', 'services'))
+from redis_cache import redis_cache, validation_key, RateLimiter, JobQueue
 
 # Configuración
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
