@@ -1286,6 +1286,99 @@ async def get_network(ruc: str):
     
     return network_data
 
+# ============ API PÚBLICA V1 ============
+
+class APIValidateRequest(BaseModel):
+    ruc: str
+    api_key: Optional[str] = None
+
+@app.post("/api/v1/validate")
+async def api_v1_validate(request: APIValidateRequest):
+    """
+    API Pública V1 - Validación de RUC para integraciones externas
+    Compatible con bancos, aseguradoras, ERPs
+    """
+    ruc = request.ruc.strip()
+    
+    if len(ruc) != 11 or not ruc.isdigit():
+        return JSONResponse(
+            status_code=400,
+            content={
+                'success': False,
+                'error': 'INVALID_RUC',
+                'message': 'RUC debe tener 11 dígitos numéricos'
+            }
+        )
+    
+    try:
+        # Usar mismo cálculo que v3
+        result = await calculate_score_v3(ruc)
+        
+        if 'error' in result:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    'success': False,
+                    'error': result['error'],
+                    'message': result.get('message', 'RUC no disponible')
+                }
+            )
+        
+        # Formato estándar para API pública
+        return {
+            'success': True,
+            'data': {
+                'ruc': result['ruc'],
+                'razon_social': result['razon_social'],
+                'score': result['score'],
+                'tier': result['tier'],
+                'recomendacion': result.get('recomendacion', ''),
+                'planes_disponibles': result.get('planes_disponibles', []),
+                'fuente_datos': result.get('fuente_datos', 'unknown'),
+                'consultor_verificador': '40648',
+                'timestamp': datetime.now().isoformat()
+            },
+            'api_version': '1.0.0',
+            'documentation': 'https://czperu.com/docs/api'
+        }
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                'success': False,
+                'error': 'INTERNAL_ERROR',
+                'message': str(e)
+            }
+        )
+
+@app.get("/api/v1/docs")
+async def api_v1_docs():
+    """Documentación de API Pública V1"""
+    return {
+        'api': 'Conflict Zero Public API',
+        'version': '1.0.0',
+        'endpoints': [
+            {
+                'path': '/api/v1/validate',
+                'method': 'POST',
+                'description': 'Validar RUC y obtener score',
+                'request': {'ruc': 'string (11 dígitos)'},
+                'response': {
+                    'success': 'boolean',
+                    'data': {
+                        'ruc': 'string',
+                        'razon_social': 'string',
+                        'score': 'number (0-100)',
+                        'tier': 'string (GOLD/SILVER/BRONZE/RECHAZADO)'
+                    }
+                }
+            }
+        ],
+        'rate_limits': '100 requests/hour',
+        'contact': 'api@czperu.com'
+    }
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Conflict Zero API V3.0 + Factaliza #40648")
