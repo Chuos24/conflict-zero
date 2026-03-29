@@ -85,64 +85,51 @@ class FactalizaAdapter:
     def _normalize_data(self, ruc: str, factaliza_data: dict) -> Dict[str, Any]:
         """
         Normaliza los datos de Factaliza al formato interno de Conflict Zero
+        
+        Formato entrada Factaliza:
+        {
+            "status": 200,
+            "message": "Exito",
+            "success": true,
+            "data": {
+                "numero": "...",
+                "nombre_o_razon_social": "...",
+                "estado": "ACTIVO",
+                "condicion": "HABIDO"
+            }
+        }
         """
-        # Extraer datos SUNAT
-        sunat = factaliza_data.get('sunat', {})
-        osce = factaliza_data.get('osce', {})
-        sanciones = factaliza_data.get('sanciones', [])
+        # Extraer datos del campo 'data'
+        data = factaliza_data.get('data', {})
         
-        # Calcular días desde inicio de sanción más reciente
-        sancion_mas_reciente = None
-        dias_transcurridos = 0
+        # Si no hay data, usar factaliza_data directamente (fallback)
+        if not data:
+            data = factaliza_data
         
-        if sanciones:
-            # Ordenar por fecha
-            sanciones_sorted = sorted(
-                sanciones,
-                key=lambda x: x.get('fecha_inicio', '1900-01-01'),
-                reverse=True
-            )
-            sancion_mas_reciente = sanciones_sorted[0]
-            
-            try:
-                fecha_inicio = datetime.strptime(
-                    sancion_mas_reciente.get('fecha_inicio', '1900-01-01'),
-                    '%Y-%m-%d'
-                )
-                dias_transcurridos = (datetime.now() - fecha_inicio).days
-            except:
-                dias_transcurridos = 0
-        
+        # Factaliza solo devuelve datos SUNAT básicos en este endpoint
+        # Las sanciones vienen de otro endpoint o están vacías
         return {
             'ruc': ruc,
-            'razon_social': sunat.get('razon_social') or sunat.get('nombre_o_razon_social', f'Empresa {ruc}'),
+            'razon_social': data.get('nombre_o_razon_social') or data.get('razon_social', f'Empresa {ruc}'),
             'sunat': {
-                'estado': sunat.get('estado_del_contribuyente', 'ACTIVO'),
-                'condicion': sunat.get('condicion_del_contribuyente', 'HABIDO'),
-                'actividad_economica': sunat.get('actividad_economica', []),
-                'direccion': sunat.get('direccion', ''),
-                'telefono': sunat.get('telefono', ''),
+                'estado': data.get('estado', 'ACTIVO'),
+                'condicion': data.get('condicion', 'HABIDO'),
+                'actividad_economica': data.get('actividad_economica', []),
+                'direccion': data.get('direccion', data.get('direccion_completa', '')),
+                'telefono': data.get('telefono', ''),
+                'departamento': data.get('departamento', ''),
+                'provincia': data.get('provincia', ''),
+                'distrito': data.get('distrito', ''),
             },
             'osce': {
-                'total_sanciones': osce.get('total_sanciones', len(sanciones)),
-                'sanciones_vigentes': osce.get('sanciones_vigentes', 0),
+                'total_sanciones': 0,  # Este endpoint no devuelve sanciones
+                'sanciones_vigentes': 0,
             },
-            'sanciones': [
-                {
-                    'resolucion': s.get('resolucion', 'N/A'),
-                    'entidad': s.get('entidad', 'OSCE'),
-                    'fecha_inicio': s.get('fecha_inicio', ''),
-                    'fecha_fin': s.get('fecha_fin', ''),
-                    'estado': s.get('estado', 'VIGENTE'),
-                    'descripcion': s.get('descripcion', ''),
-                    'dias_transcurridos': dias_transcurridos if s == sancion_mas_reciente else 0
-                }
-                for s in sanciones
-            ],
-            'tiene_sanciones': len(sanciones) > 0,
-            'sancion_mas_reciente': sancion_mas_reciente,
-            'dias_desde_sancion': dias_transcurridos,
-            'anios_desde_sancion': round(dias_transcurridos / 365, 2),
+            'sanciones': [],  # Array vacío - sin sanciones en datos SUNAT básicos
+            'tiene_sanciones': False,
+            'sancion_mas_reciente': None,
+            'dias_desde_sancion': 0,
+            'anios_desde_sancion': 0.0,
             'fuente': 'FACTALIZA_API',
             'consultor_id': '40648',
             'timestamp_consulta': datetime.now().isoformat()
