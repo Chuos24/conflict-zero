@@ -2417,3 +2417,4 @@ if __name__ == "__main__":
     print("🚀 Conflict Zero API V3.2 + Invitaciones + Alertas + Factaliza #40648")
     uvicorn.run(app, host="0.0.0.0", port=API_PORT)
 # Deploy timestamp: Sun Mar 30 04:45:00 AM CST 2026
+# Test GitHub Actions - Mon Mar 30 07:12:41 AM CST 2026
