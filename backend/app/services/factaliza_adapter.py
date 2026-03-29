@@ -14,7 +14,7 @@ FACTALIZA_TOKEN = os.environ.get(
     'FACTALIZA_TOKEN',
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDY0OCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6ImNvbnN1bHRvciJ9.d_-YT6RuTIrq-RZj1TO6Q6r3EG2NL4MRO9odkcaGDYA'
 )
-FACTALIZA_BASE_URL = "https://api.factaliza.com/api/v1"
+FACTALIZA_BASE_URL = "https://api.factiliza.com/v1"
 
 # Rate limiting
 MAX_REQUESTS_PER_MINUTE = 30
@@ -60,7 +60,7 @@ class FactalizaAdapter:
             try:
                 # Consulta principal del RUC
                 response = await client.get(
-                    f"{FACTALIZA_BASE_URL}/ruc/{ruc}",
+                    f"{FACTALIZA_BASE_URL}/ruc/info/{ruc}",
                     headers=self.headers
                 )
                 
