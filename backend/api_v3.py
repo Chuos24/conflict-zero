@@ -210,6 +210,27 @@ def init_database():
                 )
             """)
             
+            # GRUPO C: Tabla de invitaciones simples
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS invitations (
+                    id SERIAL PRIMARY KEY,
+                    invitador_ruc VARCHAR(11) NOT NULL,
+                    email VARCHAR(200) NOT NULL,
+                    token VARCHAR(100) UNIQUE NOT NULL,
+                    ruc_invitado VARCHAR(11),
+                    expira TIMESTAMP DEFAULT (NOW() + INTERVAL '24 hours'),
+                    usada BOOLEAN DEFAULT FALSE,
+                    usada_por INTEGER REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            
+            # Índice para tokens
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_invitations_token 
+                ON invitations(token)
+            """)
+            
             # GRUPO B: Tabla de alertas
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS supplier_alerts (
@@ -234,7 +255,7 @@ def init_database():
             """)
             
             conn.commit()
-            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users, supplier_alerts")
+            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users, supplier_alerts, invitations")
             return True
     except Exception as e:
         print(f"[DB] ❌ Error inicializando: {e}")
@@ -368,7 +389,26 @@ class UserResponse(BaseModel):
     company_name: str
     plan: str
 
-# ============ ALERTAS MODELS ============
+# ============ GRUPO C: INVITACIONES MODELS ============
+class CreateInvitationRequest(BaseModel):
+    email: str
+    ruc_invitado: Optional[str] = None  # Pre-llenar RUC si se conoce
+
+class InvitationResponse(BaseModel):
+    id: int
+    email: str
+    token: str
+    invitador_ruc: str
+    expira: str
+    usada: bool
+    created_at: str
+
+class RegisterWithInvitationRequest(BaseModel):
+    token: str
+    email: str
+    password: str
+    ruc: str
+    company_name: Optional[str] = None
 class CreateAlertRequest(BaseModel):
     ruc: str
     alert_type: str  # 'score_drop', 'new_sanction', 'status_change', 'custom'
@@ -1687,6 +1727,296 @@ async def auth_me(authorization: str = Header(None)):
         }
     }
 
+# ============ GRUPO C: INVITACIONES SIMPLES ============
+import secrets
+
+def generate_invitation_token():
+    """Genera token único para invitación"""
+    return secrets.token_urlsafe(32)
+
+@app.post("/api/v3/invitations")
+async def create_invitation(
+    request: CreateInvitationRequest,
+    authorization: str = Header(None)
+):
+    """
+    GRUPO C: Crear invitación para subcontratista
+    Requiere plan Professional o Enterprise
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            # Verificar plan
+            cur.execute("SELECT plan FROM users WHERE id = %s", (user['user_id'],))
+            result = cur.fetchone()
+            if not result or result[0] not in ['professional', 'enterprise']:
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        'success': False,
+                        'error': 'PLAN_REQUIRED',
+                        'message': 'Invitaciones requieren plan Professional o Enterprise'
+                    }
+                )
+            
+            # Generar token único
+            token = generate_invitation_token()
+            
+            # Crear invitación (expira en 24h)
+            cur.execute("""
+                INSERT INTO invitations (invitador_ruc, email, token, ruc_invitado, expira)
+                VALUES (%s, %s, %s, %s, NOW() + INTERVAL '24 hours')
+                RETURNING id, token, expira, created_at
+            """, (user['ruc'], request.email, token, request.ruc_invitado))
+            
+            result = cur.fetchone()
+            conn.commit()
+            
+            # Link de registro
+            register_link = f"https://czperu.com/registro?invitador={user['ruc']}&token={token}"
+            
+            return {
+                'success': True,
+                'invitation': {
+                    'id': result[0],
+                    'email': request.email,
+                    'token': result[1],
+                    'expira': str(result[2]),
+                    'created_at': str(result[3]),
+                    'register_link': register_link
+                },
+                'message': f"Invitación creada. Link: {register_link}"
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.get("/api/v3/invitations/validate")
+async def validate_invitation(token: str):
+    """
+    GRUPO C: Validar token de invitación
+    Retorna info del invitador si es válido
+    """
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT i.*, u.company_name as invitador_company
+                FROM invitations i
+                LEFT JOIN users u ON u.ruc = i.invitador_ruc
+                WHERE i.token = %s 
+                AND i.usada = FALSE 
+                AND i.expira > NOW()
+            """, (token,))
+            
+            invitation = cur.fetchone()
+            
+            if not invitation:
+                return JSONResponse(
+                    status_code=400,
+                    content={'success': False, 'error': 'INVALID_TOKEN', 'message': 'Token inválido o expirado'}
+                )
+            
+            return {
+                'success': True,
+                'valid': True,
+                'invitador': {
+                    'ruc': invitation['invitador_ruc'],
+                    'company_name': invitation['invitador_company'] or invitation['invitador_ruc']
+                },
+                'email': invitation['email'],
+                'expira': str(invitation['expira'])
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.post("/api/v3/auth/register")
+async def register_with_invitation(request: RegisterWithInvitationRequest):
+    """
+    GRUPO C: Registrar usuario con invitación
+    """
+    if not PSYCOPG2_AVAILABLE or not AUTH_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'SERVICE_UNAVAILABLE'}
+        )
+    
+    # Validar token primero
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Verificar token válido
+            cur.execute("""
+                SELECT * FROM invitations 
+                WHERE token = %s 
+                AND usada = FALSE 
+                AND expira > NOW()
+            """, (request.token,))
+            
+            invitation = cur.fetchone()
+            if not invitation:
+                return JSONResponse(
+                    status_code=400,
+                    content={'success': False, 'error': 'INVALID_TOKEN'}
+                )
+            
+            # Validar que el email coincida
+            if invitation['email'].lower() != request.email.lower():
+                return JSONResponse(
+                    status_code=400,
+                    content={'success': False, 'error': 'EMAIL_MISMATCH', 'message': 'El email no coincide con la invitación'}
+                )
+            
+            # Crear usuario
+            password_hash = hash_password(request.password)
+            company_name = request.company_name or f"Empresa {request.ruc}"
+            
+            cur.execute("""
+                INSERT INTO users (email, password_hash, ruc, company_name, plan, is_active, created_at)
+                VALUES (%s, %s, %s, %s, 'starter', TRUE, NOW())
+                ON CONFLICT (email) DO UPDATE SET
+                    password_hash = EXCLUDED.password_hash,
+                    ruc = EXCLUDED.ruc,
+                    company_name = EXCLUDED.company_name
+                RETURNING id, email, ruc, company_name
+            """, (request.email, password_hash, request.ruc, company_name))
+            
+            user = cur.fetchone()
+            
+            # Marcar invitación como usada
+            cur.execute("""
+                UPDATE invitations 
+                SET usada = TRUE, usada_por = %s 
+                WHERE id = %s
+            """, (user['id'], invitation['id']))
+            
+            conn.commit()
+            
+            # Crear JWT
+            token_jwt = create_jwt_token(user['id'], user['email'], user['ruc'])
+            
+            return {
+                'success': True,
+                'message': 'Usuario registrado exitosamente',
+                'token': token_jwt,
+                'user': {
+                    'id': user['id'],
+                    'email': user['email'],
+                    'ruc': user['ruc'],
+                    'company_name': user['company_name'],
+                    'invitado_por': invitation['invitador_ruc']
+                },
+                'invitador': {
+                    'ruc': invitation['invitador_ruc']
+                }
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+@app.get("/api/v3/invitations/mis-invitados")
+async def get_invitados(authorization: str = Header(None)):
+    """
+    GRUPO C: Ver usuarios invitados por mí
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT i.id, i.email, i.ruc_invitado, i.usada, i.created_at, i.expira,
+                       u.ruc as registrado_ruc, u.company_name as registrado_company,
+                       u.created_at as registrado_fecha
+                FROM invitations i
+                LEFT JOIN users u ON u.id = i.usada_por
+                WHERE i.invitador_ruc = %s
+                ORDER BY i.created_at DESC
+            """, (user['ruc'],))
+            
+            invitados = cur.fetchall()
+            
+            return {
+                'success': True,
+                'invitados': [dict(inv) for inv in invitados],
+                'count': len(invitados),
+                'count_registrados': sum(1 for inv in invitados if inv['usada'])
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
 # ============ GRUPO B: SISTEMA DE ALERTAS ============
 
 def get_current_user(authorization: str = Header(None)):
@@ -2020,6 +2350,6 @@ def check_and_trigger_alerts(ruc: str, new_score: float, old_data: Optional[dict
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Conflict Zero API V3.1 + Alertas + Factaliza #40648")
+    print("🚀 Conflict Zero API V3.2 + Invitaciones + Alertas + Factaliza #40648")
     uvicorn.run(app, host="0.0.0.0", port=API_PORT)
-# Deploy timestamp: Sun Mar 30 04:25:00 AM CST 2026
+# Deploy timestamp: Sun Mar 30 04:45:00 AM CST 2026
