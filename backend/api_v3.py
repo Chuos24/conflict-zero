@@ -26,6 +26,9 @@ except ImportError:
     PSYCOPG2_AVAILABLE = False
     print("⚠️ psycopg2 no disponible, persistencia desactivada")
 
+# Redis Import
+from app.services.redis_cache import redis_cache, validation_key, RateLimiter, JobQueue
+
 # Configuración
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
@@ -272,9 +275,12 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup_event():
-    """Inicializar base de datos al arrancar"""
+    """Inicializar base de datos y Redis al arrancar"""
     print("🚀 Iniciando Conflict Zero API V3.0...")
     init_database()
+    # Inicializar Redis (no bloquea si falla)
+    await redis_cache.connect()
+    print("🚀 Conflict Zero API V3.0 + Factaliza #40648 + Redis Cache")
 
 # ============ MODELOS ============
 
@@ -607,12 +613,17 @@ def get_available_plans(score: float) -> List[Dict]:
 # ============ ENDPOINTS ============
 
 @app.get("/api/v3/health")
-def health_check():
+async def health_check():
+    redis_status = await redis_cache.health_check()
     return {
         "status": "healthy",
         "version": "3.0.0",
-        "system": "Score/Plan Desacoplado + Factaliza #40648",
-        "timestamp": datetime.now().isoformat()
+        "system": "Score/Plan Desacoplado + Factaliza #40648 + Redis Cache",
+        "timestamp": datetime.now().isoformat(),
+        "cache": {
+            "redis": redis_status,
+            "postgresql": "active" if PSYCOPG2_AVAILABLE else "disabled"
+        }
     }
 
 @app.post("/api/v3/validate")
@@ -624,7 +635,20 @@ async def validate_ruc(request: ValidateRequest):
         raise HTTPException(status_code=400, detail="RUC inválido")
     
     try:
-        # 1. Verificar cache PostgreSQL primero (7 días)
+        # 1. Verificar cache REDIS primero (rápido)
+        cache_key = validation_key(ruc)
+        redis_cached = await redis_cache.get(cache_key)
+        
+        if redis_cached:
+            # CRITICAL FIX: Ignorar si es MOCK_DEFAULT
+            if redis_cached.get('fuente_datos') == 'MOCK_DEFAULT':
+                print(f"[Redis] Ignorando MOCK_DEFAULT para {ruc}")
+                redis_cached = None
+            else:
+                print(f"[Redis] ✅ Cache HIT para {ruc}")
+                return redis_cached
+        
+        # 2. Verificar cache PostgreSQL (persistente, 7 días)
         cached = get_validation_from_db(ruc, max_age_hours=168)
         # CRITICAL FIX: Ignorar cache si es MOCK_DEFAULT fraudulento
         if cached and cached.get('fuente_datos') == 'MOCK_DEFAULT':
@@ -659,8 +683,10 @@ async def validate_ruc(request: ValidateRequest):
                 'consultor_factaliza': '40648',
                 'timestamp': cached['created_at'].isoformat() if hasattr(cached['created_at'], 'isoformat') else str(cached['created_at'])
             }
+            # Guardar en Redis para próximas consultas
+            await redis_cache.set(cache_key, result, ttl=3600)  # 1h en Redis
         else:
-            # 2. Consultar Factaliza y calcular
+            # 3. Consultar Factaliza y calcular
             result = await calculate_score_v3(ruc)
             
             # CHECKPOINT 8 FIX: Detectar errores honestos
@@ -1076,6 +1102,58 @@ async def db_check():
     finally:
         conn.close()
 
+# ============ REDIS CACHE ENDPOINTS ============
+
+@app.get("/api/v3/internal/redis-status")
+async def redis_status():
+    """Verificar estado de Redis Cache"""
+    status = await redis_cache.health_check()
+    return {
+        "status": "ok",
+        "redis": status,
+        "cache_strategy": "Redis (1h) → PostgreSQL (7d) → Factaliza API"
+    }
+
+@app.get("/api/v3/internal/cache-test/{ruc}")
+async def cache_test(ruc: str):
+    """Test de cache: validar RUC y mostrar fuente de datos"""
+    cache_key = validation_key(ruc)
+    
+    # Verificar Redis
+    redis_data = await redis_cache.get(cache_key)
+    
+    # Verificar PostgreSQL
+    db_data = get_validation_from_db(ruc, max_age_hours=168)
+    
+    return {
+        "ruc": ruc,
+        "cache_key": cache_key,
+        "redis": {
+            "hit": redis_data is not None,
+            "data": redis_data
+        },
+        "postgresql": {
+            "hit": db_data is not None,
+            "data": {
+                "ruc": db_data.get('ruc'),
+                "score": float(db_data['score_calculated']) if db_data else None,
+                "tier": db_data.get('tier'),
+                "fuente": db_data.get('fuente_datos'),
+                "created_at": str(db_data.get('created_at')) if db_data else None
+            } if db_data else None
+        }
+    }
+
+@app.delete("/api/v3/internal/cache-clear/{ruc}")
+async def cache_clear(ruc: str):
+    """Limpiar cache de un RUC específico"""
+    cache_key = validation_key(ruc)
+    result = await redis_cache.delete(cache_key)
+    return {
+        "ruc": ruc,
+        "redis_cleared": result,
+        "message": f"Cache Redis eliminado para {ruc}"
+    }
 
 if __name__ == "__main__":
     import uvicorn
