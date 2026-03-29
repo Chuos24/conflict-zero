@@ -1263,7 +1263,7 @@ async def migrate_tables(secret: str = Header(None)):
     
     try:
         with conn.cursor() as cur:
-            # Tabla invitations (GRUPO C)
+            # Tabla invitations (GRUPO C) - sin foreign keys para evitar conflictos
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS invitations (
                     id SERIAL PRIMARY KEY,
@@ -1273,7 +1273,7 @@ async def migrate_tables(secret: str = Header(None)):
                     ruc_invitado VARCHAR(11),
                     expira TIMESTAMP DEFAULT (NOW() + INTERVAL '24 hours'),
                     usada BOOLEAN DEFAULT FALSE,
-                    usada_por INTEGER REFERENCES users(id),
+                    usada_por INTEGER,
                     created_at TIMESTAMP DEFAULT NOW()
                 )
             """)
