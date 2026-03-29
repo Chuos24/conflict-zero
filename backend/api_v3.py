@@ -1158,6 +1158,134 @@ async def cache_clear(ruc: str):
         "message": f"Cache Redis eliminado para {ruc}"
     }
 
+# ============ NETWORK / MI RED ENDPOINT ============
+
+@app.get("/api/v3/network/{ruc}")
+async def get_network(ruc: str):
+    """
+    Obtener red de subcontratistas para visualización D3.js
+    Demo: Solo funciona para Zamora (20529400790)
+    """
+    if ruc != '20529400790':
+        return JSONResponse(
+            status_code=403,
+            content={'error': 'Solo demo para Zamora disponible'}
+        )
+    
+    # Mock data realista - electricistas en Chiclayo/Cajamarca
+    network_data = {
+        'centro': {
+            'ruc': '20529400790',
+            'nombre': 'CONSTRUCTORA ZAMORA JARA SAC',
+            'score': 41.2,
+            'tier': 'BRONZE',
+            'color': '#B87333',
+            'tipo': 'contratista_principal'
+        },
+        'nodos': [
+            {
+                'id': '20987654321',
+                'ruc': '20987654321',
+                'nombre': 'ELECTRICISTAS DEL NORTE SAC',
+                'score': 85,
+                'tier': 'SILVER',
+                'color': '#C0C0C0',
+                'conexion': 'directo',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Chiclayo'
+            },
+            {
+                'id': '20876543210',
+                'ruc': '20876543210',
+                'nombre': 'INGELÉCTRICA PERÚ SRL',
+                'score': 45,
+                'tier': 'BRONZE',
+                'color': '#B87333',
+                'conexion': 'indirecto',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Cajamarca'
+            },
+            {
+                'id': '20765432109',
+                'ruc': '20765432109',
+                'nombre': 'CABLEADO INDUSTRIAL DEL SUR SAC',
+                'score': 95,
+                'tier': 'GOLD',
+                'color': '#D4AF37',
+                'conexion': 'directo',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Chiclayo'
+            },
+            {
+                'id': '20654321098',
+                'ruc': '20654321098',
+                'nombre': 'LUZ Y FUERZA CHICLAYO EIRL',
+                'score': 22,
+                'tier': 'RECHAZADO',
+                'color': '#8B0000',
+                'conexion': 'observado',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Chiclayo',
+                'alerta': 'Inhabilitado para contratación'
+            },
+            {
+                'id': '20543210987',
+                'ruc': '20543210987',
+                'nombre': 'SERVICIOS ELÉCTRICOS NORTE SAC',
+                'score': 73,
+                'tier': 'SILVER',
+                'color': '#C0C0C0',
+                'conexion': 'directo',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Lambayeque'
+            },
+            {
+                'id': '20432109876',
+                'ruc': '20432109876',
+                'nombre': 'INSTALACIONES ELÉCTRICAS JOSÉ SRL',
+                'score': 68,
+                'tier': 'BRONZE',
+                'color': '#B87333',
+                'conexion': 'indirecto',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Cajamarca'
+            },
+            {
+                'id': '20321098765',
+                'ruc': '20321098765',
+                'nombre': 'ENERGÍA Y SISTEMAS DEL NORTE EIRL',
+                'score': 91,
+                'tier': 'GOLD',
+                'color': '#D4AF37',
+                'conexion': 'directo',
+                'tipo': 'subcontratista',
+                'ubicacion': 'Chiclayo'
+            }
+        ],
+        'links': [
+            {'source': '20529400790', 'target': '20987654321', 'tipo': 'directo'},
+            {'source': '20529400790', 'target': '20765432109', 'tipo': 'directo'},
+            {'source': '20529400790', 'target': '20543210987', 'tipo': 'directo'},
+            {'source': '20529400790', 'target': '20321098765', 'tipo': 'directo'},
+            {'source': '20987654321', 'target': '20876543210', 'tipo': 'indirecto'},
+            {'source': '20987654321', 'target': '20432109876', 'tipo': 'indirecto'},
+            {'source': '20529400790', 'target': '20654321098', 'tipo': 'observado'}
+        ],
+        'resumen': {
+            'total_nodos': 7,
+            'por_tier': {
+                'GOLD': 2,
+                'SILVER': 2,
+                'BRONZE': 2,
+                'RECHAZADO': 1
+            },
+            'score_promedio': 68.5,
+            'riesgo_red': 'MEDIO'
+        }
+    }
+    
+    return network_data
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Conflict Zero API V3.0 + Factaliza #40648")
