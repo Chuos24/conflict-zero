@@ -348,30 +348,21 @@ async def consultar_con_fallback(ruc: str) -> Dict:
                 print(f"[CACHE] No se pudo guardar: {e}")
             return data
         else:
-            # Factaliza devolvió None = RUC no existe
-            print(f"[Factaliza] RUC {ruc} no encontrado (404)")
-            return {
-                'error': 'RUC_NOT_FOUND',
-                'message': f'RUC {ruc} no encontrado en registros de SUNAT/OSCE/TCE.',
-                'ruc': ruc,
-                'status': 'NOT_FOUND',
-                'fuente': 'FACTALIZA_404',
-                'consultor_id': '40648',
-                'timestamp': datetime.now().isoformat()
-            }
+            # Factaliza devolvió None = RUC no existe en Factaliza
+            print(f"[Factaliza] RUC {ruc} no encontrado (404), intentando BuscarUC...")
+            # No retornar error aún - intentar BuscarUC primero
     except Exception as e:
         factaliza_error = str(e)
         print(f"[Factaliza] ⚠ Error: {factaliza_error}")
     
-    # 2. Si Factaliza falló, intentar BuscarUC
-    if factaliza_error:
-        print(f"[BuscarUC] Intentando consultar {ruc}...")
-        buscaruc_data = await consultar_buscaruc(ruc)
-        if buscaruc_data:
-            print(f"[BuscarUC] ✓ Datos recibidos para {ruc}")
-            return buscaruc_data
-        else:
-            print(f"[BuscarUC] RUC {ruc} no encontrado")
+    # 2. Si Factaliza no encontró el RUC o falló, intentar BuscarUC
+    print(f"[BuscarUC] Intentando consultar {ruc}...")
+    buscaruc_data = await consultar_buscaruc(ruc)
+    if buscaruc_data:
+        print(f"[BuscarUC] ✓ Datos recibidos para {ruc}")
+        return buscaruc_data
+    else:
+        print(f"[BuscarUC] RUC {ruc} no encontrado")
     
     # 3. Si Factaliza falló por rate limit, revisar cache
     if factaliza_error and ('RATE_LIMIT' in factaliza_error or '429' in factaliza_error):
