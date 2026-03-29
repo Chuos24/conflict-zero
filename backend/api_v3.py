@@ -1242,6 +1242,83 @@ async def db_check():
     finally:
         conn.close()
 
+@app.post("/api/v3/internal/migrate")
+async def migrate_tables(admin_token: str = Header(None)):
+    """
+    ENDPOINT DE MIGRACIÓN: Crear tablas faltantes
+    Requiere ADMIN_TOKEN
+    """
+    if admin_token != ADMIN_TOKEN:
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_UNAVAILABLE'})
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
+    
+    created_tables = []
+    
+    try:
+        with conn.cursor() as cur:
+            # Tabla invitations (GRUPO C)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS invitations (
+                    id SERIAL PRIMARY KEY,
+                    invitador_ruc VARCHAR(11) NOT NULL,
+                    email VARCHAR(200) NOT NULL,
+                    token VARCHAR(100) UNIQUE NOT NULL,
+                    ruc_invitado VARCHAR(11),
+                    expira TIMESTAMP DEFAULT (NOW() + INTERVAL '24 hours'),
+                    usada BOOLEAN DEFAULT FALSE,
+                    usada_por INTEGER REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_invitations_token 
+                ON invitations(token)
+            """)
+            created_tables.append('invitations')
+            
+            # Tabla supplier_alerts (GRUPO B)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS supplier_alerts (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    ruc VARCHAR(11) NOT NULL,
+                    alert_type VARCHAR(50) NOT NULL,
+                    threshold DECIMAL(5,2),
+                    message TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    triggered_at TIMESTAMP,
+                    triggered_count INTEGER DEFAULT 0,
+                    last_triggered_data JSONB
+                )
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc 
+                ON supplier_alerts(user_id, ruc)
+            """)
+            created_tables.append('supplier_alerts')
+            
+            conn.commit()
+            
+            return {
+                'success': True,
+                'message': 'Tablas migradas exitosamente',
+                'tables_created': created_tables
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'MIGRATION_FAILED', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
 # ============ REDIS CACHE ENDPOINTS ============
 
 @app.get("/api/v3/internal/redis-status")
