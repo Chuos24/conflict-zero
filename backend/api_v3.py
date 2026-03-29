@@ -37,6 +37,52 @@ DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
 API_PORT = int(os.environ.get('PORT', 8000))
 
+# ============ BUSCARUC ADAPTER (inline para evitar problemas de import) ============
+import httpx
+
+BUSCARUC_TOKEN = os.environ.get(
+    'BUSCARUC_TOKEN',
+    'eyJ1c2VySWQiOjU0NzAsInVzZXJUb2tlbklkIjo1NDY5fQ.QK8EdbO21g2rCk3jqUqdOf3pKKhNZqymmG30RTbMURhtp7-JPJcPX3xHXAaH46qAoHrTnQLgqTGo1yY1zu64QfPvLux0EbX2R9V_1tAy8Fdos2-Z-_XXTe7Wi0lRTBK55uh_zCm5zCiYs7VJBW4T9e2mZdd6EaXYaXOwEybmseE'
+)
+
+async def consultar_buscaruc(ruc: str) -> Optional[Dict]:
+    """Consulta RUC en BuscarUC API (inline para evitar problemas de import)"""
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                'https://buscaruc.com/api/v1/ruc',
+                headers={'Content-Type': 'application/json'},
+                json={'token': BUSCARUC_TOKEN, 'ruc': ruc}
+            )
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            result = data.get('result', {})
+            
+            if not result:
+                return None
+            
+            return {
+                'ruc': ruc,
+                'razon_social': result.get('social_reason', f'Empresa {ruc}'),
+                'sunat': {
+                    'estado': result.get('taxpayer_state', 'ACTIVO'),
+                    'condicion': result.get('domicile_condition', 'HABIDO'),
+                    'direccion': result.get('address', ''),
+                },
+                'osce': {'total_sanciones': 0, 'sanciones_vigentes': 0},
+                'sanciones': [],
+                'tiene_sanciones': False,
+                'fuente': 'BUSCARUC_API',
+                'consultor_id': '5470',
+                'timestamp': datetime.now().isoformat()
+            }
+    except Exception as e:
+        print(f"[BuscarUC] Error: {e}")
+        return None
+
 # ============ DATABASE FUNCTIONS ============
 
 def get_db_connection():
@@ -371,15 +417,12 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     # 2. Si Factaliza falló, intentar BuscarUC
     if factaliza_error:
         print(f"[BuscarUC] Intentando consultar {ruc}...")
-        try:
-            buscaruc_data = await buscaruc.consultar_ruc(ruc)
-            if buscaruc_data:
-                print(f"[BuscarUC] ✓ Datos recibidos para {ruc}")
-                return buscaruc_data
-            else:
-                print(f"[BuscarUC] RUC {ruc} no encontrado")
-        except Exception as e:
-            print(f"[BuscarUC] ⚠ Error: {e}")
+        buscaruc_data = await consultar_buscaruc(ruc)
+        if buscaruc_data:
+            print(f"[BuscarUC] ✓ Datos recibidos para {ruc}")
+            return buscaruc_data
+        else:
+            print(f"[BuscarUC] RUC {ruc} no encontrado")
     
     # 3. Si Factaliza falló por rate limit, revisar cache
     if factaliza_error and ('RATE_LIMIT' in factaliza_error or '429' in factaliza_error):
