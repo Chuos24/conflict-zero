@@ -1258,14 +1258,22 @@ async def migrate_tables(secret: str = Header(None)):
         return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
     
     created_tables = []
-    errors = []
     
     try:
         with conn.cursor() as cur:
-            # Tabla invitations (GRUPO C) - completamente independiente
-            try:
+            # Verificar si existe tabla invitations
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' AND table_name = 'invitations'
+                )
+            """)
+            invitations_exists = cur.fetchone()[0]
+            
+            if not invitations_exists:
+                # Crear tabla invitations
                 cur.execute("""
-                    CREATE TABLE IF NOT EXISTS invitations (
+                    CREATE TABLE invitations (
                         id SERIAL PRIMARY KEY,
                         invitador_ruc VARCHAR(11) NOT NULL,
                         email VARCHAR(200) NOT NULL,
@@ -1277,33 +1285,9 @@ async def migrate_tables(secret: str = Header(None)):
                         created_at TIMESTAMP DEFAULT NOW()
                     )
                 """)
-                cur.execute("CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token)")
-                cur.execute("CREATE INDEX IF NOT EXISTS idx_invitations_invitador ON invitations(invitador_ruc)")
+                cur.execute("CREATE INDEX idx_invitations_token ON invitations(token)")
+                cur.execute("CREATE INDEX idx_invitations_invitador ON invitations(invitador_ruc)")
                 created_tables.append('invitations')
-            except Exception as e:
-                errors.append(f'invitations: {str(e)}')
-            
-            # Tabla supplier_alerts (GRUPO B) - sin foreign keys
-            try:
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS supplier_alerts (
-                        id SERIAL PRIMARY KEY,
-                        user_id INTEGER,
-                        ruc VARCHAR(11) NOT NULL,
-                        alert_type VARCHAR(50) NOT NULL,
-                        threshold DECIMAL(5,2),
-                        message TEXT,
-                        is_active BOOLEAN DEFAULT TRUE,
-                        created_at TIMESTAMP DEFAULT NOW(),
-                        triggered_at TIMESTAMP,
-                        triggered_count INTEGER DEFAULT 0,
-                        last_triggered_data JSONB
-                    )
-                """)
-                cur.execute("CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc ON supplier_alerts(user_id, ruc)")
-                created_tables.append('supplier_alerts')
-            except Exception as e:
-                errors.append(f'supplier_alerts: {str(e)}')
             
             conn.commit()
             
@@ -1311,9 +1295,10 @@ async def migrate_tables(secret: str = Header(None)):
                 'success': True,
                 'message': 'Migración completada',
                 'tables_created': created_tables,
-                'errors': errors if errors else None
+                'invitations_existed': invitations_exists
             }
     except Exception as e:
+        conn.rollback()
         return JSONResponse(
             status_code=500,
             content={'success': False, 'error': 'MIGRATION_FAILED', 'message': str(e)}
