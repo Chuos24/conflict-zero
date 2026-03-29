@@ -404,6 +404,10 @@ async def calculate_score_v3(ruc: str) -> Dict:
     # Obtener datos (Factaliza o fallback)
     data = await consultar_con_fallback(ruc)
     
+    # Si hay error en los datos, propagar el error
+    if data.get('error'):
+        return data  # Propagar el dict de error tal cual
+    
     score = 100.0
     sanciones = data.get('sanciones', [])
     sunat = data.get('sunat', {})
