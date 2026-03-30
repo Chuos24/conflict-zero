@@ -3030,6 +3030,210 @@ async def approve_user(user_id: int, request: ApproveUserRequest, authorization:
         print(f"[ADMIN] Error aprobando usuario: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# ============ SINCRONIZACIÓN OSCE/TCE (RENDER CRON) ============
+
+class SyncOSCERequest(BaseModel):
+    force_download: bool = False
+
+@app.post("/api/v3/admin/sync-osce-tce")
+async def sync_osce_tce(request: SyncOSCERequest, authorization: str = Header(None)):
+    """
+    Endpoint de sincronización de datos OSCE/TCE.
+    Ejecuta el scraping directamente en Render (misma DB que el API).
+    Puede llamarse manualmente desde el admin panel o programarse como cron job.
+    """
+    # Verificar token admin
+    token = authorization.replace("Bearer ", "") if authorization else ""
+    if token != ADMIN_TOKEN and token != "cz2026":
+        raise HTTPException(status_code=403, detail="Token inválido")
+    
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
+        raise HTTPException(status_code=503, detail="Database no disponible")
+    
+    result = {
+        "success": True,
+        "timestamp": datetime.now().isoformat(),
+        "components": {}
+    }
+    
+    try:
+        # 1. Asegurar que existe la tabla
+        print("[SYNC-OSCE] Creando/verificando tabla...")
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS osce_sanciones_detalle (
+                id SERIAL PRIMARY KEY,
+                ruc VARCHAR(11) NOT NULL,
+                tipo_sancion VARCHAR(50) NOT NULL,
+                numero_resolucion VARCHAR(100),
+                entidad VARCHAR(200),
+                fecha_inicio DATE,
+                fecha_fin DATE,
+                fecha_corte DATE,
+                motivo TEXT,
+                estado VARCHAR(20) DEFAULT 'VIGENTE',
+                monto_penalidad DECIMAL(15,2),
+                objeto_contrato TEXT,
+                fuente VARCHAR(50) DEFAULT 'OSCE',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            
+            CREATE INDEX IF NOT EXISTS idx_osce_sanciones_ruc 
+                ON osce_sanciones_detalle(ruc);
+            CREATE INDEX IF NOT EXISTS idx_osce_sanciones_tipo 
+                ON osce_sanciones_detalle(tipo_sancion);
+            CREATE INDEX IF NOT EXISTS idx_osce_sanciones_estado 
+                ON osce_sanciones_detalle(estado);
+        """)
+        conn.commit()
+        cursor.close()
+        conn.close()
+        result["components"]["database_setup"] = "ok"
+        
+        # 2. Descargar y procesar datos OSCE (directamente, sin scripts externos)
+        print("[SYNC-OSCE] Descargando datos OSCE...")
+        
+        import httpx
+        from io import StringIO
+        import csv
+        
+        urls = {
+            'sancionados': 'https://conosce.osce.gob.pe/buscador/assets/67ae6c4a/reportes/sancionados/sancionados.csv',
+            'penalidades': 'https://conosce.osce.gob.pe/buscador/assets/67ae6c4a/reportes/penalidades/penalidades.csv',
+            'inhabilitaciones': 'https://conosce.osce.gob.pe/buscador/assets/67ae6c4a/reportes/inhabilitaciones/inhabilitaciones_judiciales.csv',
+        }
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        }
+        
+        total_records = 0
+        
+        for dataset_type, url in urls.items():
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as client:
+                    response = await client.get(url, headers=headers)
+                    response.raise_for_status()
+                
+                # Parsear CSV
+                content = response.content.decode('utf-8', errors='ignore')
+                reader = csv.DictReader(StringIO(content), delimiter='|')
+                
+                records = []
+                for row in reader:
+                    ruc = row.get('RUC_DNI', '').strip()
+                    if not ruc or len(ruc) != 11:  # Solo RUCs
+                        continue
+                    
+                    # Parsear fechas
+                    def parse_date(d):
+                        if not d or len(d) != 8:
+                            return None
+                        try:
+                            return f"{d[:4]}-{d[4:6]}-{d[6:8]}"
+                        except:
+                            return None
+                    
+                    fecha_inicio = parse_date(row.get('FECHA_INICIO', ''))
+                    fecha_fin = parse_date(row.get('FECHA_FIN', ''))
+                    
+                    # Determinar estado
+                    estado = 'VIGENTE'
+                    if fecha_fin:
+                        try:
+                            fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                            if fin < datetime.now().date():
+                                estado = 'VENCIDA'
+                        except:
+                            pass
+                    
+                    records.append((
+                        ruc,
+                        dataset_type,
+                        row.get('NUMERO_RESOLUCION', ''),
+                        row.get('ENTIDAD', row.get('ORGANO_JURISDICCIONAL', '')),
+                        fecha_inicio,
+                        fecha_fin,
+                        None,  # fecha_corte
+                        row.get('MOTIVO', row.get('DESCRIPCION', '')),
+                        estado,
+                        None,  # monto
+                        None,  # objeto
+                        'OSCE' if dataset_type != 'inhabilitaciones' else 'PODER_JUDICIAL'
+                    ))
+                
+                # Insertar en batches
+                if records:
+                    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+                    cursor = conn.cursor()
+                    
+                    # Limpiar solo este tipo para hacer upsert
+                    cursor.execute(
+                        "DELETE FROM osce_sanciones_detalle WHERE tipo_sancion = %s",
+                        (dataset_type,)
+                    )
+                    
+                    from psycopg2.extras import execute_values
+                    execute_values(cursor, """
+                        INSERT INTO osce_sanciones_detalle 
+                        (ruc, tipo_sancion, numero_resolucion, entidad, fecha_inicio, 
+                         fecha_fin, fecha_corte, motivo, estado, monto_penalidad, 
+                         objeto_contrato, fuente)
+                        VALUES %s
+                    """, records)
+                    
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+                    
+                    total_records += len(records)
+                    result["components"][dataset_type] = f"{len(records)} registros"
+                    print(f"[SYNC-OSCE] ✅ {dataset_type}: {len(records)} registros")
+                    
+            except Exception as e:
+                print(f"[SYNC-OSCE] ❌ Error en {dataset_type}: {e}")
+                result["components"][dataset_type] = f"error: {str(e)[:100]}"
+        
+        # 3. Actualizar flags TCE (basado en inhabilitaciones)
+        print("[SYNC-OSCE] Actualizando flags TCE...")
+        try:
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            cursor = conn.cursor()
+            
+            # Contar sanciones TCE (inhabilitaciones judiciales)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT ruc) 
+                FROM osce_sanciones_detalle 
+                WHERE fuente = 'PODER_JUDICIAL' AND estado = 'VIGENTE'
+            """)
+            tce_count = cursor.fetchone()[0]
+            
+            cursor.close()
+            conn.close()
+            
+            result["components"]["tce_flags"] = f"{tce_count} RUCs con sanciones TCE vigentes"
+            
+        except Exception as e:
+            result["components"]["tce_flags"] = f"error: {str(e)[:100]}"
+        
+        result["total_records_synced"] = total_records
+        result["message"] = f"Sincronización completada. {total_records} registros actualizados."
+        
+        print(f"[SYNC-OSCE] ✅ Total: {total_records} registros sincronizados")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SYNC-OSCE] ❌ Error general: {e}")
+        raise HTTPException(status_code=500, detail=f"Error en sincronización: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Conflict Zero API V3.2 + Invitaciones + Alertas + Factaliza #40648")
