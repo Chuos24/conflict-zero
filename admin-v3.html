@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conflict Zero V3.0 — Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0A0A0F;
+            --bg-card: #141418;
+            --bg-hover: #1A1A1E;
+            --gold: #C5A059;
+            --gold-light: #D4AF37;
+            --gold-dark: #8B6914;
+            --text: #F5F5F0;
+            --text-muted: #6B6B6E;
+            --border: #2A2A2E;
+            --bronze: #B87333;
+            --silver: #C0C0C0;
+            --danger: #8B0000;
+        }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            min-height: 100vh;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+        }
+        
+        .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid rgba(197, 160, 89, 0.2);
+        }
+        
+        .logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 11px;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 16px;
+        }
+        
+        h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            font-weight: 300;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+        
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 8px;
+            letter-spacing: 0.05em;
+        }
+        
+        /* Login */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .login-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .login-box input {
+            width: 100%;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 16px 20px;
+            font-size: 15px;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .login-box input:focus {
+            border-color: var(--gold);
+        }
+        
+        /* Validación Box */
+        .validation-box {
+            background: rgba(20, 20, 24, 0.8);
+            border: 1px solid rgba(197, 160, 89, 0.3);
+            padding: 40px;
+            margin-bottom: 50px;
+            text-align: center;
+        }
+        
+        .input-group {
+            max-width: 550px;
+            margin: 0 auto;
+            display: flex;
+            gap: 16px;
+        }
+        
+        input[type="text"] {
+            flex: 1;
+            background: var(--bg-dark);
+            border: 1px solid rgba(197, 160, 89, 0.4);
+            color: var(--text);
+            padding: 16px 20px;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.05em;
+            outline: none;
+            transition: all 0.3s;
+        }
+        
+        input[type="text"]:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 20px rgba(197, 160, 89, 0.1);
+        }
+        
+        button {
+            background: var(--gold);
+            color: var(--bg-dark);
+            border: none;
+            padding: 16px 32px;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover:not(:disabled) {
+            background: var(--gold-light);
+            box-shadow: 0 8px 25px rgba(197, 160, 89, 0.3);
+        }
+        
+        button:disabled {
+            background: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+        
+        /* Resultados */
+        .results { 
+            display: none; 
+            animation: fadeIn 0.6s ease;
+        }
+        
+        @keyframes fadeIn { 
+            from { opacity: 0; transform: translateY(20px); } 
+            to { opacity: 1; transform: translateY(0); } 
+        }
+        
+        .score-card {
+            background: linear-gradient(135deg, rgba(26, 26, 30, 0.9) 0%, rgba(13, 13, 18, 0.9) 100%);
+            border: 2px solid var(--tier-color, var(--gold));
+            padding: 50px 40px;
+            text-align: center;
+            margin-bottom: 50px;
+            position: relative;
+        }
+        
+        .score-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--tier-color, var(--gold));
+        }
+        
+        .tier-badge {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--tier-color, var(--gold));
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 40px;
+            color: var(--bg-dark);
+            font-weight: 600;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+        }
+        
+        .tier-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 36px;
+            color: var(--tier-color, var(--gold));
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        
+        .score-number {
+            font-size: 56px;
+            font-weight: 300;
+            color: var(--text);
+            font-variant-numeric: tabular-nums;
+            margin-bottom: 8px;
+        }
+        
+        .score-label {
+            color: var(--text-muted);
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+        
+        .tier-desc {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 18px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+        
+        .company-info {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .company-name {
+            font-size: 20px;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .company-ruc {
+            font-size: 13px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+        }
+        
+        /* Planes */
+        .plans-section {
+            background: rgba(20, 20, 24, 0.6);
+            border: 1px solid var(--border);
+            padding: 50px 40px;
+        }
+        
+        .plans-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .plans-header h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        
+        .plans-header p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        
+        .plans-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 900px) {
+            .plans-grid { grid-template-columns: 1fr; }
+            .input-group { flex-direction: column; }
+        }
+        
+        .plan-card {
+            border: 1px solid var(--border);
+            padding: 35px 28px;
+            position: relative;
+            transition: all 0.3s ease;
+            background: rgba(10, 10, 15, 0.5);
+        }
+        
+        .plan-card:hover:not(.disabled) {
+            border-color: rgba(197, 160, 89, 0.3);
+        }
+        
+        .plan-card.recommended {
+            border: 2px solid var(--gold);
+            background: rgba(197, 160, 89, 0.05);
+        }
+        
+        .plan-card.disabled {
+            opacity: 0.4;
+            border-color: #2A2A3A;
+        }
+        
+        .plan-card.disabled::after {
+            content: 'BLOQUEADO';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-5deg);
+            background: var(--danger);
+            color: white;
+            padding: 10px 20px;
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            font-weight: 600;
+        }
+        
+        .recommended-badge {
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gold);
+            color: var(--bg-dark);
+            padding: 6px 16px;
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .plan-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 22px;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+        
+        .plan-price {
+            font-size: 32px;
+            color: var(--gold);
+            font-weight: 300;
+            margin-bottom: 24px;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .plan-price span {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .plan-features {
+            list-style: none;
+            margin-bottom: 28px;
+        }
+        
+        .plan-features li {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+        
+        .plan-features li::before {
+            content: '—';
+            color: var(--gold);
+            margin-right: 10px;
+        }
+        
+        .restriction {
+            background: rgba(139, 0, 0, 0.1);
+            border-left: 3px solid var(--danger);
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .btn-select {
+            width: 100%;
+            padding: 14px;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+        }
+        
+        .btn-select.selected {
+            background: transparent;
+            border: 2px solid var(--gold);
+            color: var(--gold);
+        }
+        
+        /* Acciones */
+        .actions-footer {
+            margin-top: 50px;
+            text-align: center;
+            padding-top: 35px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .btn-generate {
+            padding: 20px 50px;
+            font-size: 14px;
+            letter-spacing: 0.2em;
+            display: none;
+        }
+        
+        .btn-generate.visible {
+            display: inline-block;
+        }
+        
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 2px solid rgba(197, 160, 89, 0.2);
+            border-top-color: var(--gold);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Error/Success */
+        .message {
+            padding: 16px 24px;
+            margin: 20px 0;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .message.error {
+            background: rgba(139, 0, 0, 0.1);
+            border-left: 3px solid var(--danger);
+            color: #ff6b6b;
+        }
+        
+        .message.success {
+            background: rgba(45, 74, 62, 0.3);
+            border-left: 3px solid #2D4A3E;
+            color: #7fb069;
+        }
+        
+        .message.show { display: block; }
+        
+        /* Cert Result */
+        .cert-result {
+            display: none;
+            background: var(--bg-card);
+            border: 1px solid var(--gold);
+            padding: 40px;
+            margin-top: 40px;
+            text-align: center;
+        }
+        
+        .cert-result.show { display: block; }
+        
+        .cert-url {
+            background: var(--bg-dark);
+            padding: 16px 20px;
+            margin: 20px 0;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--gold);
+            word-break: break-all;
+        }
+        
+        .cert-qr {
+            margin: 20px 0;
+        }
+        
+        .cert-qr img {
+            width: 150px;
+            height: 150px;
+        }
+    </style>
+</head>
+<body>
+    <!-- LOGIN -->
+    <div class="login-container" id="loginScreen">
+        <div class="login-box">
+            <div class="logo">◆ Conflict Zero</div>
+            <h1>Admin V3.0</h1>
+            <p class="subtitle">Score/Plan Desacoplado</p>
+            <input type="password" id="passwordInput" placeholder="Contraseña">
+            <button onclick="doLogin()">ACCEDER</button>
+            <div class="message error" id="loginError"></div>
+        </div>
+    </div>
+    
+    <!-- MAIN APP -->
+    <div class="container" id="mainApp" style="display: none;">
+        <div class="header">
+            <div class="logo">◆ Conflict Zero</div>
+            <h1>Validación Legal V3.0</h1>
+            <p class="subtitle">Score determina Sello · Plan determina Herramientas</p>
+        </div>
+        
+        <!-- Validación -->
+        <div class="validation-box">
+            <div class="input-group">
+                <input type="text" id="rucInput" placeholder="Ingrese RUC (11 dígitos)" maxlength="11">
+                <button onclick="validateRUC()" id="btnValidate">Validar Empresa</button>
+            </div>
+            <div class="spinner" id="spinner"></div>
+            <div class="message error" id="errorMsg"></div>
+        </div>
+        
+        <!-- Resultados -->
+        <div class="results" id="results">
+            <div class="score-card" id="scoreCard">
+                <div class="tier-badge" id="tierBadge">CZ</div>
+                <div class="tier-name" id="tierName">--</div>
+                <div class="score-number" id="scoreNumber">--</div>
+                <div class="score-label">Score de Cumplimiento</div>
+                <div class="tier-desc" id="tierDesc">--</div>
+                
+                <div class="company-info">
+                    <div class="company-name" id="companyName">--</div>
+                    <div class="company-ruc" id="companyRuc">--</div>
+                </div>
+            </div>
+            
+            <!-- Planes -->
+            <div class="plans-section">
+                <div class="plans-header">
+                    <h2>Selección de Servicio</h2>
+                    <p>El Score determina su Sello. El Plan determina sus herramientas.</p>
+                </div>
+                
+                <div class="plans-grid" id="plansGrid">
+                    <!-- Injected via JS -->
+                </div>
+            </div>
+            
+            <div class="actions-footer">
+                <button class="btn-generate" id="btnGenerate" onclick="generateCert()">Generar Certificado</button>
+            </div>
+            
+            <!-- Cert Result -->
+            <div class="cert-result" id="certResult">
+                <h3 style="font-family: 'Cormorant Garamond', serif; font-size: 24px; margin-bottom: 20px;">✓ Certificado Generado</h3>
+                <p style="color: var(--text-muted); margin-bottom: 20px;">El certificado ha sido creado exitosamente.</p>
+                
+                <div class="cert-qr" id="certQr"></div>
+                <div class="cert-url" id="certUrl"></div>
+                
+                <button onclick="window.open(document.getElementById('certUrl').textContent, '_blank')">Ver Certificado</button>
+            </div>
+        </div>
+        
+        <!-- Solicitudes Pendientes -->
+        <div class="pending-section" id="pendingSection" style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border);">
+            <div class="plans-header">
+                <h2>📋 Solicitudes Pendientes</h2>
+                <p>Usuarios registrados esperando aprobación del Comité</p>
+            </div>
+            
+            <div id="pendingList" style="background: var(--bg-card); border: 1px solid var(--border); padding: 24px;">
+                <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                    Cargando solicitudes...
+                </div>
+            </div>
+            
+            <button onclick="loadPendingUsers()" style="margin-top: 20px; background: transparent; border: 1px solid var(--gold); color: var(--gold);">
+                🔄 Actualizar Lista
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ========== CONFIG ==========
+        const API_URL = 'https://conflict-zero-api.onrender.com/api/v3';
+        const ADMIN_PASSWORD = 'cz2026';
+        
+        let currentData = null;
+        let selectedPlan = null;
+        
+        // ========== LOGIN ==========
+        function doLogin() {
+            const input = document.getElementById('passwordInput').value;
+            const errorEl = document.getElementById('loginError');
+            
+            if (input === ADMIN_PASSWORD) {
+                localStorage.setItem('cz_admin_v3_logged', 'true');
+                showApp();
+            } else {
+                errorEl.textContent = 'Contraseña incorrecta';
+                errorEl.classList.add('show');
+            }
+        }
+        
+        function showApp() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+        }
+        
+        // Auto-login
+        if (localStorage.getItem('cz_admin_v3_logged') === 'true') {
+            showApp();
+        }
+        
+        document.getElementById('passwordInput')?.addEventListener('keypress', e => {
+            if (e.key === 'Enter') doLogin();
+        });
+        
+        // ========== VALIDACIÓN ==========
+        async function validateRUC() {
+            const ruc = document.getElementById('rucInput').value.trim();
+            const btn = document.getElementById('btnValidate');
+            const spinner = document.getElementById('spinner');
+            const errorEl = document.getElementById('errorMsg');
+            const resultsEl = document.getElementById('results');
+            
+            if (ruc.length !== 11) {
+                errorEl.textContent = 'Ingrese un RUC válido de 11 dígitos';
+                errorEl.classList.add('show');
+                return;
+            }
+            
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            errorEl.classList.remove('show');
+            resultsEl.style.display = 'none';
+            selectedPlan = null;
+            
+            try {
+                const response = await fetch(`${API_URL}/validate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ruc })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Error en validación');
+                }
+                
+                currentData = data;
+                renderResults(data);
+                resultsEl.style.display = 'block';
+                
+            } catch (err) {
+                errorEl.textContent = 'Error: ' + err.message;
+                errorEl.classList.add('show');
+                console.error(err);
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        }
+        
+        function renderResults(data) {
+            const card = document.getElementById('scoreCard');
+            card.style.setProperty('--tier-color', data.tier.color);
+            
+            document.getElementById('tierBadge').textContent = data.tier.badge;
+            document.getElementById('tierBadge').style.background = data.tier.color;
+            document.getElementById('tierName').textContent = data.tier.name;
+            document.getElementById('tierName').style.color = data.tier.color;
+            document.getElementById('scoreNumber').innerHTML = `${data.score}/100`;
+            document.getElementById('tierDesc').textContent = data.tier.description;
+            
+            document.getElementById('companyName').textContent = data.company_name;
+            document.getElementById('companyRuc').textContent = `RUC: ${data.ruc}`;
+            
+            // Render planes
+            const grid = document.getElementById('plansGrid');
+            grid.innerHTML = '';
+            
+            data.plans.forEach(plan => {
+                const div = document.createElement('div');
+                div.className = `plan-card ${plan.disabled ? 'disabled' : ''} ${plan.recommended ? 'recommended' : ''}`;
+                
+                const features = plan.features.map(f => `<li>${f}</li>`).join('');
+                const restriction = plan.disabled ? `<div class="restriction">${plan.reason}</div>` : '';
+                const recommendedBadge = plan.recommended ? '<div class="recommended-badge">Recomendado</div>' : '';
+                
+                div.innerHTML = `
+                    ${recommendedBadge}
+                    <div class="plan-name">${plan.name}</div>
+                    <div class="plan-price">${plan.price_formatted}<span>/año</span></div>
+                    ${restriction}
+                    <ul class="plan-features">${features}</ul>
+                    <button class="btn-select ${selectedPlan === plan.id ? 'selected' : ''}" 
+                            onclick="selectPlan('${plan.id}', ${plan.disabled})" 
+                            ${plan.disabled ? 'disabled' : ''}>
+                        ${selectedPlan === plan.id ? 'SELECCIONADO' : (plan.disabled ? 'NO DISPONIBLE' : 'SELECCIONAR')}
+                    </button>
+                `;
+                grid.appendChild(div);
+            });
+        }
+        
+        function selectPlan(planId, disabled) {
+            if (disabled) return;
+            
+            selectedPlan = planId;
+            
+            document.querySelectorAll('.btn-select').forEach(btn => {
+                btn.classList.remove('selected');
+                if (!btn.disabled) btn.textContent = 'SELECCIONAR';
+            });
+            
+            event.target.classList.add('selected');
+            event.target.textContent = 'SELECCIONADO';
+            document.getElementById('btnGenerate').classList.add('visible');
+        }
+        
+        // ========== GENERAR CERTIFICADO ==========
+        async function generateCert() {
+            if (!selectedPlan || !currentData) {
+                alert('Seleccione un plan primero');
+                return;
+            }
+            
+            const btn = document.getElementById('btnGenerate');
+            btn.disabled = true;
+            btn.textContent = 'Generando...';
+            
+            try {
+                const response = await fetch(`${API_URL}/generate-cert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ruc: currentData.ruc,
+                        plan: selectedPlan,
+                        company_name: currentData.company_name
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail?.error || 'Error generando certificado');
+                }
+                
+                // Mostrar resultado
+                document.getElementById('certUrl').textContent = result.urls.view;
+                document.getElementById('certQr').innerHTML = `<img src="${result.urls.qr}" alt="QR">`;
+                document.getElementById('certResult').classList.add('show');
+                
+                // Scroll al resultado
+                document.getElementById('certResult').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generar Certificado';
+            }
+        }
+        
+        // Enter key
+        document.getElementById('rucInput')?.addEventListener('keypress', e => {
+            if (e.key === 'Enter') validateRUC();
+        });
+        
+        // ========== CARGAR SOLICITUDES PENDIENTES ==========
+        async function loadPendingUsers() {
+            const container = document.getElementById('pendingList');
+            
+            try {
+                const response = await fetch(`${API_URL}/admin/pending-users`, {
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (!data.success) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: #ff6b6b; padding: 40px;">
+                            Error cargando solicitudes: ${data.error || 'Desconocido'}
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const pending = data.pending || [];
+                
+                if (pending.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">✓</div>
+                            <p>No hay solicitudes pendientes</p>
+                            <p style="font-size: 13px; margin-top: 8px;">Todas las postulaciones han sido procesadas</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Renderizar lista de pendientes
+                let html = `
+                    <div style="margin-bottom: 16px; color: var(--gold); font-size: 14px;">
+                        ${pending.length} solicitud(es) pendiente(s)
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid var(--border);">
+                                <th style="text-align: left; padding: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Empresa</th>
+                                <th style="text-align: left; padding: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">RUC</th>
+                                <th style="text-align: left; padding: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Email</th>
+                                <th style="text-align: left; padding: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Plan</th>
+                                <th style="text-align: left; padding: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Fecha</th>
+                                <th style="text-align: center; padding: 12px; color: var(--text-muted); font-size: 12px; text-transform: uppercase;">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                pending.forEach(user => {
+                    const date = new Date(user.created_at).toLocaleDateString('es-PE');
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border);" data-user-id="${user.id}">
+                            <td style="padding: 16px 12px; color: var(--text);">${user.company_name || 'N/A'}</td>
+                            <td style="padding: 16px 12px; color: var(--text-muted); font-family: monospace;">${user.ruc || 'N/A'}</td>
+                            <td style="padding: 16px 12px; color: var(--text-muted);">${user.email}</td>
+                            <td style="padding: 16px 12px;">
+                                <span style="background: rgba(197, 160, 89, 0.2); color: var(--gold); padding: 4px 12px; border-radius: 4px; font-size: 12px; text-transform: uppercase;">
+                                    ${user.plan || 'professional'}
+                                </span>
+                            </td>
+                            <td style="padding: 16px 12px; color: var(--text-muted); font-size: 13px;">${date}</td>
+                            <td style="padding: 16px 12px; text-align: center;">
+                                <button onclick="approveUser(${user.id}, '${user.email}')" 
+                                        style="background: var(--gold); color: var(--bg-dark); border: none; padding: 8px 16px; font-size: 12px; cursor: pointer; font-weight: 500;">
+                                    Aprobar
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                html += '</tbody></table>';
+                container.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error loading pending users:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; color: #ff6b6b; padding: 40px;">
+                        Error de conexión. Intente nuevamente.
+                    </div>
+                `;
+            }
+        }
+        
+        // ========== APROBAR USUARIO ==========
+        async function approveUser(userId, email) {
+            if (!confirm(`¿Está seguro de aprobar al usuario ${email}?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_URL}/admin/approve-user/${userId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${ADMIN_PASSWORD}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Usuario ${email} aprobado exitosamente`);
+                    // Recargar lista
+                    loadPendingUsers();
+                } else {
+                    alert(`❌ Error: ${data.error || 'No se pudo aprobar'}`);
+                }
+            } catch (error) {
+                console.error('Error approving user:', error);
+                alert('❌ Error de conexión al aprobar usuario');
+            }
+        }
+        
+        // Cargar pendientes al iniciar
+        if (localStorage.getItem('cz_admin_v3_logged') === 'true') {
+            loadPendingUsers();
+        }
+    </script>
+</body>
+</html>
