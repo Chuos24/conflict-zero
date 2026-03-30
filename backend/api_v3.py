@@ -2754,9 +2754,9 @@ async def approve_user(user_id: int, request: ApproveUserRequest, authorization:
         conn = psycopg2.connect(DATABASE_URL, sslmode='require')
         cursor = conn.cursor()
         
-        # Verificar que el usuario existe y está pendiente
+        # Verificar que el usuario existe
         cursor.execute(
-            "SELECT id, status FROM users WHERE id = %s",
+            "SELECT id, is_active FROM users WHERE id = %s",
             (user_id,)
         )
         user = cursor.fetchone()
@@ -2766,17 +2766,17 @@ async def approve_user(user_id: int, request: ApproveUserRequest, authorization:
             conn.close()
             raise HTTPException(status_code=404, detail="Usuario no encontrado")
         
-        if user[1] != 'pending_approval':
-            cursor.close()
-            conn.close()
-            raise HTTPException(status_code=400, detail="Usuario no está pendiente de aprobación")
-        
-        # Actualizar estado
-        new_status = 'active' if request.approved else 'rejected'
-        cursor.execute(
-            "UPDATE users SET status = %s, updated_at = NOW() WHERE id = %s",
-            (new_status, user_id)
-        )
+        # Actualizar estado (usar is_active en lugar de status)
+        if request.approved:
+            cursor.execute(
+                "UPDATE users SET is_active = TRUE WHERE id = %s",
+                (user_id,)
+            )
+            new_status = 'active'
+        else:
+            # Si se rechaza, eliminar el usuario
+            cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            new_status = 'rejected'
         
         conn.commit()
         cursor.close()
