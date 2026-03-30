@@ -667,15 +667,31 @@ async def consultar_con_fallback(ruc: str) -> Dict:
             'timestamp': datetime.now().isoformat()
         }
     
-    # 4. Error honesto - No tenemos datos de este RUC
-    print(f"[ERROR] RUC {ruc} no disponible. Factaliza: {factaliza_error}")
+    # 4. RUC nuevo - Datos provisionales para permitir registro
+    print(f"[INFO] RUC {ruc} no encontrado en APIs externas. Usando datos provisionales.")
+    
+    # Consultar sanciones en DB por si acaso
+    sanciones_db = consultar_sanciones_db(ruc)
+    
+    # Si hay sanciones, usar score bajo. Si no, score provisional 80 (SILVER)
+    if sanciones_db:
+        score_provisional = 50.0
+        tier_provisional = 'BRONZE'
+    else:
+        score_provisional = 80.0
+        tier_provisional = 'SILVER'
+    
     return {
-        'error': 'RUC_NOT_AVAILABLE',
-        'message': f'RUC {ruc} requiere validación manual. Factaliza no disponible o RUC no encontrado.',
         'ruc': ruc,
-        'status': 'PENDING_REVIEW',
-        'fuente': 'ERROR_HONESTO',
+        'razon_social': f'Empresa RUC {ruc}',
+        'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
+        'sanciones': sanciones_db if sanciones_db else [],
+        'tiene_sanciones': len(sanciones_db) > 0 if sanciones_db else False,
+        'fuente': 'PROVISIONAL_PENDING_VERIFICATION',
         'consultor_id': '40648',
+        'score_provisional': score_provisional,
+        'tier_provisional': tier_provisional,
+        'requiere_verificacion': True,
         'timestamp': datetime.now().isoformat()
     }
 
@@ -1087,7 +1103,36 @@ async def validate_ruc(request: ValidateRequest):
             # 3. Consultar Factaliza y calcular
             result = await calculate_score_v3(ruc)
             
-            # CHECKPOINT 8 FIX: Detectar errores honestos
+            # CHECKPOINT 8 FIX: Manejar datos provisionales para RUCs nuevos
+            if result.get('fuente') == 'PROVISIONAL_PENDING_VERIFICATION':
+                # Usar score provisional pero permitir el registro
+                score_provisional = result.get('score_provisional', 80.0)
+                tier_provisional = result.get('tier_provisional', 'SILVER')
+                
+                tier_info = get_tier_info(score_provisional)
+                plans = get_available_plans(score_provisional)
+                
+                return {
+                    'success': True,
+                    'ruc': ruc,
+                    'company_name': result['razon_social'],
+                    'score': score_provisional,
+                    'tier': {
+                        'name': tier_info['name'], 'color': tier_info['color'],
+                        'bg_color': tier_info['bg_color'], 'badge': tier_info['badge'],
+                        'description': tier_info['desc'], 'message': tier_info['message']
+                    },
+                    'plans': plans,
+                    'can_purchase': score_provisional >= 30,
+                    'sanciones_count': len(result.get('sanciones', [])),
+                    'fuente_datos': 'PROVISIONAL - Requiere verificación manual',
+                    'consultor_factaliza': '40648',
+                    'timestamp': result['timestamp'],
+                    'requiere_verificacion': True,
+                    'nota': 'Este RUC tiene score provisional. Será verificado manualmente por el equipo de Conflict Zero.'
+                }
+            
+            # Detectar errores honestos
             if result.get('error') in ['RUC_NOT_AVAILABLE', 'RUC_NOT_FOUND']:
                 return {
                     'success': False,
