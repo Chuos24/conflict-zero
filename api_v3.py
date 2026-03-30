@@ -2,6 +2,7 @@
 Conflict Zero API V3.0 - Score/Plan Desacoplado + Factaliza Integration
 Backend para el sistema de validación legal con scoring multidimensional
 Consultor Factaliza #40648
+DEPLOY: 2026-03-30-01-35-FORCE
 """
 
 import os
