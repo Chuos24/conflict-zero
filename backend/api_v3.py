@@ -1017,6 +1017,13 @@ async def health_check():
     
     return health_data
 
+@app.get("/api/v1/health")
+async def health_check_v1():
+    """
+    Health Check V1 - Alias para compatibilidad
+    """
+    return await health_check()
+
 @app.post("/api/v3/validate")
 async def validate_ruc(request: ValidateRequest):
     """Valida RUC y retorna Score + Tier + Planes"""
@@ -1427,6 +1434,66 @@ async def certs_check():
         return {'status': 'error', 'detail': str(e)}
     finally:
         conn.close()
+
+
+@app.get("/api/v3/certificates/{cert_slug}")
+async def verify_certificate(cert_slug: str):
+    """
+    Verifica un certificado por su slug.
+    Retorna los datos del certificado si es válido.
+    """
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    conn = None
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT ruc, company_name, score, tier, plan_type, 
+                   cert_slug, created_at, factaliza_raw
+            FROM certificates_v3
+            WHERE cert_slug = %s
+        """, (cert_slug,))
+        
+        row = cursor.fetchone()
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Certificado no encontrado")
+        
+        # Verificar si el certificado está vigente (1 año de validez)
+        created_at = row[6]
+        if created_at:
+            expiry_date = created_at + timedelta(days=365)
+            is_valid = datetime.now() < expiry_date
+        else:
+            is_valid = True
+            expiry_date = None
+        
+        return {
+            'success': True,
+            'valid': is_valid,
+            'certificate': {
+                'slug': row[5],
+                'ruc': row[0],
+                'company_name': row[1],
+                'score': float(row[2]),
+                'tier': row[3],
+                'plan': row[4],
+                'issued_at': row[6].isoformat() if hasattr(row[6], 'isoformat') else str(row[6]),
+                'expires_at': expiry_date.isoformat() if expiry_date else None
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[VerifyCert] Error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error verificando certificado: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
 
 
 @app.get("/api/v3/internal/db-check")
