@@ -2706,7 +2706,7 @@ async def get_pending_users(authorization: str = Header(None)):
         
         cursor.execute("""
             SELECT 
-                id, ruc, company_name as business_name, email, plan_type as plan, 
+                id, ruc, company_name, email, plan, 
                 score_at_registration, status, created_at,
                 phone, contact_name
             FROM users 
