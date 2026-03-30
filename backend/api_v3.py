@@ -2265,6 +2265,7 @@ async def notify_admin(request: NotifyAdminRequest):
         return JSONResponse(
             status_code=500,
             content={'success': False, 'error': 'NOTIFICATION_ERROR', 'message': str(e)}
+        )
 
 
 @app.get("/api/v3/invitations/mis-invitados")
