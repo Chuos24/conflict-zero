@@ -2028,6 +2028,72 @@ async def register_with_invitation(request: RegisterWithInvitationRequest):
     finally:
         conn.close()
 
+# Schema para registro web sin invitación
+class RegisterWebRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    company_name: Optional[str] = None
+    ruc: Optional[str] = None
+
+@app.post("/api/v3/auth/register-web")
+async def register_web(request: RegisterWebRequest):
+    """
+    Registro desde formulario web (sin invitación requerida)
+    """
+    if not PSYCOPG2_AVAILABLE or not AUTH_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'SERVICE_UNAVAILABLE'}
+        )
+    
+    # Validar email único
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Verificar si email ya existe
+            cur.execute("SELECT id FROM users WHERE email = %s", (request.email,))
+            if cur.fetchone():
+                return JSONResponse(
+                    status_code=400,
+                    content={'success': False, 'error': 'EMAIL_EXISTS', 'message': 'El email ya está registrado'}
+                )
+            
+            # Hash de contraseña
+            hashed_pw = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt()).decode()
+            
+            # Crear usuario
+            user_id = str(uuid.uuid4())
+            cur.execute("""
+                INSERT INTO users (id, email, hashed_password, full_name, company_name, ruc, 
+                                   plan_type, is_active, created_at, monthly_requests, monthly_limit)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, NOW(), 0, 5000)
+                RETURNING id
+            """, (user_id, request.email, hashed_pw, request.full_name, 
+                  request.company_name or '', request.ruc or '00000000000', 'professional'))
+            
+            conn.commit()
+            
+            return {
+                'success': True,
+                'message': 'Usuario registrado exitosamente',
+                'user_id': user_id
+            }
+    except Exception as e:
+        print(f"[Register Web] Error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
 @app.get("/api/v3/invitations/mis-invitados")
 async def get_invitados(authorization: str = Header(None)):
     """
