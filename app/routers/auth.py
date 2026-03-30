@@ -1,3 +1,7 @@
+"""
+Autenticación y gestión de usuarios - Conflict Zero API
+DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z
+"""
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
@@ -797,3 +801,5 @@ async def generate_admin_token(
         }
     }
 # Redeploy force Mon Mar 30 09:11:26 AM CST 2026
+
+# FORCE CHANGE 1774834640
