@@ -796,3 +796,4 @@ async def generate_admin_token(
             "example_curl": """curl -X POST https://conflict-zero-api.onrender.com/api/v1/admin/sanciones/update \\\n  -H "Authorization: Bearer {token}" \\\n  -H "Content-Type: application/x-www-form-urlencoded" \\\n  -d "ruc=20529400790" \\\n  -d "numero_resolucion=4162-2023-TCE-S4" \\\n  -d "nuevo_estado=VENCIDA" \\\n  -d "fecha_fin=2025-12-31"""
         }
     }
+# Redeploy force Mon Mar 30 09:11:26 AM CST 2026
