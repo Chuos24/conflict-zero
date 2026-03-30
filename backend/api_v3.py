@@ -3096,6 +3096,9 @@ async def sync_osce_tce(request: SyncOSCERequest, authorization: str = Header(No
         conn.close()
         result["components"]["database_setup"] = "ok - tabla truncada"
         
+        # Import execute_values aquí
+        from psycopg2.extras import execute_values
+        
         # 2. URLs de datos
         urls = {
             'sancionados': 'https://conosce.osce.gob.pe/buscador/assets/67ae6c4a/reportes/sancionados/sancionados.csv',
