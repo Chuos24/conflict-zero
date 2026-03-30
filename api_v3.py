@@ -2062,19 +2062,17 @@ async def register_web(request: RegisterWebRequest):
             cur.execute("SELECT id FROM users WHERE email = %s", (request.email,))
             if cur.fetchone():
                 return JSONResponse(
-                    status_code=400,
+                    status_code=409,
                     content={'success': False, 'error': 'EMAIL_EXISTS', 'message': 'El email ya está registrado'}
                 )
             
             # Hash de contraseña usando la función existente
-            from api_v3 import hash_password
             password_hash = hash_password(request.password)
             
             # Crear usuario - usando solo columnas que existen en el schema
-            password_hash = hash_password(request.password)
             cur.execute("""
                 INSERT INTO users (email, password_hash, ruc, company_name, plan, is_active, created_at)
-                VALUES (%s, %s, %s, %s, %s, TRUE, NOW())
+                VALUES (%s, %s, %s, %s, %s, FALSE, NOW())
                 RETURNING id
             """, (request.email, password_hash, request.ruc or '00000000000', 
                   request.company_name or '', 'professional'))
@@ -2084,8 +2082,9 @@ async def register_web(request: RegisterWebRequest):
             
             return {
                 'success': True,
-                'message': 'Usuario registrado exitosamente',
-                'user_id': result['id']
+                'message': 'Usuario registrado exitosamente - Pendiente de aprobación',
+                'user_id': result['id'],
+                'status': 'pending_review'
             }
     except Exception as e:
         print(f"[Register Web] Error: {e}")
@@ -2095,6 +2094,289 @@ async def register_web(request: RegisterWebRequest):
         )
     finally:
         conn.close()
+
+
+# ============ NOTIFICACIONES ADMIN ============
+
+class NotifyAdminRequest(BaseModel):
+    ruc: str
+    empresa: str
+    plan: str
+    email: str
+    phone: Optional[str] = None
+    nombre: Optional[str] = None
+    score: Optional[str] = None
+    timestamp: Optional[str] = None
+
+
+# Email del administrador (se puede configurar via env)
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'santi@czperu.com')
+
+
+@app.post("/api/v3/notify-admin")
+async def notify_admin(request: NotifyAdminRequest):
+    """
+    Notificar al administrador sobre nueva postulación
+    Envía email con los datos del solicitante
+    """
+    try:
+        # Importar smtplib para enviar email
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Configuración SMTP (usar variables de entorno en producción)
+        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
+        smtp_user = os.environ.get('SMTP_USER', '')
+        smtp_pass = os.environ.get('SMTP_PASS', '')
+        
+        # Crear mensaje
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"🚨 Nueva Postulación CZ: {request.empresa} - {request.plan}"
+        msg['From'] = smtp_user or 'noreply@czperu.com'
+        msg['To'] = ADMIN_EMAIL
+        
+        # Contenido HTML
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; background: #0A0A0F; color: #F5F5F0; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background: #141418; padding: 30px; border: 1px solid #C5A059; }}
+                h1 {{ color: #C5A059; font-size: 24px; }}
+                .field {{ margin: 15px 0; padding: 10px; background: #1A1A1E; }}
+                .label {{ color: #8A8A85; font-size: 12px; text-transform: uppercase; }}
+                .value {{ color: #F5F5F0; font-size: 16px; margin-top: 5px; }}
+                .cta {{ display: inline-block; margin-top: 20px; padding: 15px 30px; background: #C5A059; color: #0A0A0F; text-decoration: none; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🚨 Nueva Postulación Recibida</h1>
+                <p>Una nueva empresa ha solicitado acceso a Conflict Zero.</p>
+                
+                <div class="field">
+                    <div class="label">Empresa</div>
+                    <div class="value">{request.empresa}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">RUC</div>
+                    <div class="value">{request.ruc}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Plan Solicitado</div>
+                    <div class="value" style="color: #C5A059; font-weight: bold;">{request.plan}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Score Legal</div>
+                    <div class="value">{request.score or 'N/A'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Email de Contacto</div>
+                    <div class="value">{request.email}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Teléfono</div>
+                    <div class="value">{request.phone or 'No proporcionado'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Solicitante</div>
+                    <div class="value">{request.nombre or 'No proporcionado'}</div>
+                </div>
+                
+                <div class="field">
+                    <div class="label">Fecha de Solicitud</div>
+                    <div class="value">{request.timestamp or datetime.now().isoformat()}</div>
+                </div>
+                
+                <a href="https://www.czperu.com/admin-v3.html" class="cta">Ir al Panel de Administración</a>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        # Intentar enviar email si hay credenciales SMTP configuradas
+        if smtp_user and smtp_pass:
+            try:
+                server = smtplib.SMTP(smtp_host, smtp_port)
+                server.starttls()
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(msg['From'], [ADMIN_EMAIL], msg.as_string())
+                server.quit()
+                email_sent = True
+            except Exception as e:
+                print(f"[Notify Admin] Error enviando email: {e}")
+                email_sent = False
+        else:
+            email_sent = False
+            print("[Notify Admin] SMTP no configurado, email no enviado")
+        
+        # Guardar notificación en base de datos si está disponible
+        if PSYCOPG2_AVAILABLE:
+            conn = get_db_connection()
+            if conn:
+                try:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            CREATE TABLE IF NOT EXISTS admin_notifications (
+                                id SERIAL PRIMARY KEY,
+                                ruc VARCHAR(20),
+                                empresa VARCHAR(255),
+                                plan VARCHAR(50),
+                                email VARCHAR(255),
+                                phone VARCHAR(50),
+                                nombre VARCHAR(255),
+                                score VARCHAR(20),
+                                email_sent BOOLEAN DEFAULT FALSE,
+                                created_at TIMESTAMP DEFAULT NOW()
+                            )
+                        """)
+                        cur.execute("""
+                            INSERT INTO admin_notifications 
+                            (ruc, empresa, plan, email, phone, nombre, score, email_sent)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (request.ruc, request.empresa, request.plan, request.email,
+                              request.phone, request.nombre, request.score, email_sent))
+                        conn.commit()
+                except Exception as e:
+                    print(f"[Notify Admin] Error guardando en DB: {e}")
+                finally:
+                    conn.close()
+        
+        return {
+            'success': True,
+            'message': 'Notificación enviada al administrador',
+            'email_sent': email_sent,
+            'admin_email': ADMIN_EMAIL
+        }
+        
+    except Exception as e:
+        print(f"[Notify Admin] Error general: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'NOTIFICATION_ERROR', 'message': str(e)}
+        )
+
+
+@app.get("/api/v3/admin/pending-users")
+async def get_pending_users(authorization: str = Header(None)):
+    """
+    Obtener lista de usuarios pendientes de aprobación
+    Requiere token de administrador
+    """
+    # Verificar admin token
+    if not authorization or not authorization.startswith('Bearer '):
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    token = authorization.replace('Bearer ', '')
+    
+    # Verificar si es admin
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('type') != 'admin' and not payload.get('is_admin'):
+            if token != ADMIN_TOKEN:
+                return JSONResponse(
+                    status_code=403,
+                    content={'success': False, 'error': 'FORBIDDEN'}
+                )
+    except:
+        if token != ADMIN_TOKEN:
+            return JSONResponse(
+                status_code=401,
+                content={'success': False, 'error': 'INVALID_TOKEN'}
+            )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT id, email, ruc, company_name, plan, created_at, is_active
+                FROM users
+                WHERE is_active = FALSE
+                ORDER BY created_at DESC
+            """)
+            pending_users = cur.fetchall()
+            
+            return {
+                'success': True,
+                'pending': [dict(user) for user in pending_users],
+                'pending_count': len(pending_users)
+            }
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'DB_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+
+@app.post("/api/v3/admin/approve-user/{user_id}")
+async def approve_user(user_id: int, authorization: str = Header(None)):
+    """Aprobar un usuario pendiente"""
+    if not authorization or not authorization.startswith('Bearer '):
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+    
+    token = authorization.replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('type') != 'admin' and not payload.get('is_admin'):
+            if token != ADMIN_TOKEN:
+                return JSONResponse(status_code=403, content={'success': False, 'error': 'FORBIDDEN'})
+    except:
+        if token != ADMIN_TOKEN:
+            return JSONResponse(status_code=401, content={'success': False, 'error': 'INVALID_TOKEN'})
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_UNAVAILABLE'})
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
+    
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                UPDATE users SET is_active = TRUE WHERE id = %s
+                RETURNING id, email, ruc, company_name, plan
+            """, (user_id,))
+            result = cur.fetchone()
+            conn.commit()
+            
+            if not result:
+                return JSONResponse(status_code=404, content={'success': False, 'error': 'USER_NOT_FOUND'})
+            
+            return {'success': True, 'message': 'Usuario aprobado', 'user': dict(result)}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={'success': False, 'error': 'DB_ERROR', 'message': str(e)})
+    finally:
+        conn.close()
+
 
 @app.get("/api/v3/invitations/mis-invitados")
 async def get_invitados(authorization: str = Header(None)):
