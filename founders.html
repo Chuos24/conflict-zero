@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Programa Fundador — Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --gold: #C5A059;
+            --gold-dark: #8B6914;
+            --black: #0A0A0F;
+            --card: #141418;
+            --stone: #2A2A2E;
+            --bone: #F5F5F0;
+            --muted: #6B6B6E;
+        }
+        
+        body {
+            background: var(--black);
+            color: var(--bone);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            padding: 20px;
+            line-height: 1.7;
+        }
+        
+        .container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--gold);
+            padding: 60px 40px;
+            background: linear-gradient(135deg, #1A1A1F 0%, #0D0D12 100%);
+        }
+        
+        .seal {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--gold) 0%, var(--gold-dark) 100%);
+            border-radius: 50%;
+            margin: 0 auto 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            color: var(--black);
+            font-weight: 600;
+        }
+        
+        h1 {
+            color: var(--gold);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 400;
+        }
+        
+        .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            letter-spacing: 0.2em;
+            margin-bottom: 40px;
+        }
+        
+        .description {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            color: var(--bone);
+        }
+        
+        .description strong {
+            color: var(--gold);
+            font-weight: 500;
+        }
+        
+        .benefits {
+            font-size: 16px;
+            color: var(--muted);
+            margin-bottom: 40px;
+        }
+        
+        .btn-whatsapp {
+            background: var(--gold);
+            color: var(--black);
+            padding: 20px 40px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 16px;
+            display: inline-block;
+            border-radius: 4px;
+            letter-spacing: 0.05em;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(197, 160, 89, 0.3);
+        }
+        
+        .btn-whatsapp:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(197, 160, 89, 0.4);
+        }
+        
+        .footer {
+            margin-top: 30px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+        
+        .footer strong {
+            color: var(--bone);
+            font-weight: 500;
+        }
+        
+        .ref-number {
+            color: var(--gold);
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 40px 24px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .description {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="seal">CZ</div>
+        
+        <h1>Programa Fundador</h1>
+        <p class="subtitle">EDICIÓN LIMITADA 001/010</p>
+        
+        <p class="description">
+            Estamos seleccionando <strong>3 empresas líderes</strong> del sector construcción peruano (>S/ 50M anuales) para el programa fundador 2026.
+        </p>
+        
+        <p class="benefits">
+            3 meses Enterprise gratis • Acceso prioritario • Precio fundador bloqueado
+        </p>
+        
+        <a href="https://wa.me/31681902719?text=Hola%20Conflict%20Zero%2C%20quiero%20aplicar%20al%20Programa%20Fundador%202026.%0A%0A📋%20Datos%20de%20mi%20empresa%3A%0A•%20Razón%20Social%3A%20%5BNombre%20completo%5D%0A•%20RUC%3A%20%5B20100123091%5D%0A•%20Volumen%20anual%3A%20%5BS%2F%20XXX%5D%0A•%20N°%20aprox%20subcontratistas%3A%20%5BXX%5D%0A•%20Email%20corporativo%3A%20%5Bemail%40empresa.com%5D%0A%0APor%20favor%20confirmar%20recepción%20y%20siguientes%20pasos." class="btn-whatsapp">
+            APLICAR VÍA WHATSAPP →
+        </a>
+        
+        <p class="footer">
+            El Comité de Admisión revisará su solicitud en <strong>48 horas</strong>.<br>
+            Ref: <span class="ref-number" id="ref">CZ-2026-00X</span>
+        </p>
+    </div>
+    
+    <script>
+        document.getElementById('ref').innerText = 'CZ-2026-00' + (Math.floor(Math.random() * 9) + 1);
+    </script>
+</body>
+</html>
