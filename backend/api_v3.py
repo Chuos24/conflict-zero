@@ -860,17 +860,144 @@ def get_available_plans(score: float) -> List[Dict]:
 
 @app.get("/api/v3/health")
 async def health_check():
-    redis_status = await redis_cache.health_check()
-    return {
+    """
+    Health Check Completo - Estado de todos los componentes del sistema
+    """
+    health_data = {
         "status": "healthy",
         "version": "3.0.0",
-        "system": "Score/Plan Desacoplado + Factaliza #40648 + Redis Cache",
         "timestamp": datetime.now().isoformat(),
-        "cache": {
-            "redis": redis_status,
-            "postgresql": "active" if PSYCOPG2_AVAILABLE else "disabled"
+        "components": {}
+    }
+    
+    # 1. Redis Cache
+    try:
+        redis_status = await redis_cache.health_check()
+        health_data["components"]["redis"] = {
+            "status": "up" if redis_status else "down",
+            "available": redis_status
+        }
+    except Exception as e:
+        health_data["components"]["redis"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
+    # 2. PostgreSQL Database
+    db_health = {"status": "disabled"}
+    if PSYCOPG2_AVAILABLE and DATABASE_URL:
+        try:
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            cursor = conn.cursor()
+            
+            # Verificar conexión
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+            
+            # Contar registros en tablas principales
+            tables_info = {}
+            
+            # Validaciones
+            try:
+                cursor.execute("SELECT COUNT(*) FROM validaciones_ruc")
+                tables_info["validaciones_ruc"] = cursor.fetchone()[0]
+            except:
+                tables_info["validaciones_ruc"] = 0
+            
+            # Sanciones OSCE
+            try:
+                cursor.execute("SELECT COUNT(*) FROM osce_sanciones_detalle")
+                tables_info["osce_sanciones_detalle"] = cursor.fetchone()[0]
+            except:
+                tables_info["osce_sanciones_detalle"] = 0
+            
+            # Sanciones TCE
+            try:
+                cursor.execute("SELECT COUNT(*) FROM tce_sanciones")
+                tables_info["tce_sanciones"] = cursor.fetchone()[0]
+            except:
+                tables_info["tce_sanciones"] = 0
+            
+            # Usuarios
+            try:
+                cursor.execute("SELECT COUNT(*) FROM users")
+                tables_info["users"] = cursor.fetchone()[0]
+            except:
+                tables_info["users"] = 0
+            
+            conn.close()
+            
+            db_health = {
+                "status": "up",
+                "tables": tables_info
+            }
+        except Exception as e:
+            db_health = {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    health_data["components"]["postgresql"] = db_health
+    
+    # 3. Factaliza API
+    factaliza_health = {"status": "unknown"}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{FACTALIZA_BASE_URL}/health",
+                headers={'Authorization': f'Bearer {FACTALIZA_TOKEN}'}
+            )
+            factaliza_health = {
+                "status": "up" if response.status_code == 200 else "degraded",
+                "status_code": response.status_code
+            }
+    except Exception as e:
+        factaliza_health = {
+            "status": "down",
+            "error": str(e)[:100]
+        }
+    
+    health_data["components"]["factaliza_api"] = factaliza_health
+    
+    # 4. Scoring System
+    health_data["components"]["scoring"] = {
+        "status": "active",
+        "algorithm": "LegalBot V3.0",
+        "sources": ["Factaliza API", "BuscarUC API", "OSCE/TCE DB"],
+        "weights": {
+            "sanciones_osce_tce": "70%",
+            "datos_sunat": "30%"
         }
     }
+    
+    # 5. System Info
+    health_data["system"] = {
+        "name": "Conflict Zero API",
+        "environment": "production",
+        "consultor_id": "40648",
+        "features": [
+            "Score/Plan Desacoplado",
+            "Factaliza Integration",
+            "OSCE/TCE Scraping",
+            "Redis Cache",
+            "White Glove Auth"
+        ]
+    }
+    
+    # Determinar status general
+    component_statuses = [
+        health_data["components"]["redis"].get("status"),
+        health_data["components"]["postgresql"].get("status"),
+        health_data["components"]["factaliza_api"].get("status")
+    ]
+    
+    if any(s == "error" or s == "down" for s in component_statuses if s):
+        health_data["status"] = "degraded"
+    if all(s == "down" or s == "error" or s == "disabled" for s in component_statuses if s):
+        health_data["status"] = "unhealthy"
+    
+    return health_data
 
 @app.post("/api/v3/validate")
 async def validate_ruc(request: ValidateRequest):
