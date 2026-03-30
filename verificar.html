@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificación de Sello - Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0A0A0F;
+            color: #F5F5F0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            width: 100%;
+            padding: 24px 64px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid #2A2A2E;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border: 1px solid #C5A059;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-icon svg {
+            width: 26px;
+            height: 26px;
+            stroke: #C5A059;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .logo-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #F5F5F0;
+        }
+        
+        .nav-links {
+            display: flex;
+            gap: 32px;
+        }
+        
+        .nav-links a {
+            color: #8A8A85;
+            text-decoration: none;
+            font-size: 13px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+        
+        .nav-links a:hover {
+            color: #C5A059;
+        }
+        
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 80px 24px;
+            background: radial-gradient(ellipse at 50% 0%, rgba(197, 160, 89, 0.05) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 80%, rgba(27, 58, 47, 0.03) 0%, transparent 50%),
+                        #0A0A0F;
+        }
+        
+        .hero {
+            text-align: center;
+            max-width: 600px;
+            margin-bottom: 60px;
+        }
+        
+        .hero h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 42px;
+            font-weight: 300;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+            color: #F5F5F0;
+        }
+        
+        .hero p {
+            font-size: 16px;
+            color: #8A8A85;
+            line-height: 1.6;
+        }
+        
+        .search-container {
+            width: 100%;
+            max-width: 540px;
+            background: #0D0D12;
+            border: 1px solid #2A2A2E;
+            border-radius: 8px;
+            padding: 48px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        }
+        
+        .search-label {
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #8A8A85;
+            margin-bottom: 12px;
+            display: block;
+        }
+        
+        .search-input-wrapper {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        
+        .search-input {
+            flex: 1;
+            background: #0A0A0F;
+            border: 1px solid #2A2A2E;
+            border-radius: 4px;
+            padding: 16px 20px;
+            color: #F5F5F0;
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .search-input:focus {
+            border-color: #C5A059;
+        }
+        
+        .search-input::placeholder {
+            color: #4A4A4E;
+        }
+        
+        .search-btn {
+            background: transparent;
+            border: 1px solid #C5A059;
+            color: #C5A059;
+            padding: 16px 32px;
+            font-size: 12px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .search-btn:hover {
+            background: #C5A059;
+            color: #0A0A0F;
+        }
+        
+        .search-note {
+            font-size: 12px;
+            color: #6B6B6E;
+            font-style: italic;
+        }
+        
+        .result-container {
+            width: 100%;
+            max-width: 540px;
+            margin-top: 40px;
+            display: none;
+        }
+        
+        .result-container.active {
+            display: block;
+        }
+        
+        /* Resultado ENCONTRADO - Activo */
+        .result-found {
+            background: #0D0D12;
+            border: 1px solid #2A2A2E;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .result-found::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 1px solid #2A2A2E;
+            border-radius: 4px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .seal {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 24px;
+        }
+        
+        .seal svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .badge {
+            display: inline-block;
+            font-size: 10px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .badge.gold {
+            border: 1px solid #C5A059;
+            color: #C5A059;
+            background: rgba(197, 160, 89, 0.1);
+        }
+        
+        .badge.silver {
+            border: 1px solid #8A9BA8;
+            color: #8A9BA8;
+            background: rgba(138, 155, 168, 0.1);
+        }
+        
+        .badge.bronze {
+            border: 1px solid #B87333;
+            color: #B87333;
+            background: rgba(184, 115, 51, 0.1);
+        }
+        
+        .badge.GOLD {
+            border: 1px solid #C5A059;
+            color: #C5A059;
+            background: rgba(197, 160, 89, 0.1);
+        }
+        
+        .badge.SILVER {
+            border: 1px solid #8A9BA8;
+            color: #8A9BA8;
+            background: rgba(138, 155, 168, 0.1);
+        }
+        
+        .badge.BRONZE {
+            border: 1px solid #B87333;
+            color: #B87333;
+            background: rgba(184, 115, 51, 0.1);
+        }
+        
+        .badge.RECHAZADO {
+            border: 1px solid #DC2626;
+            color: #DC2626;
+            background: rgba(220, 38, 38, 0.1);
+        }
+        
+        .company-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 400;
+            color: #F5F5F0;
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+        
+        .ruc {
+            font-size: 13px;
+            color: #8A8A85;
+            letter-spacing: 0.1em;
+            margin-bottom: 24px;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+        
+        .status-badge.active {
+            background: rgba(27, 58, 47, 0.3);
+            color: #4ADE80;
+            border: 1px solid #4ADE80;
+        }
+        
+        .status-badge.expired {
+            background: rgba(220, 38, 38, 0.1);
+            color: #DC2626;
+            border: 1px solid #DC2626;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .verified-by {
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #8A8A85;
+            margin-bottom: 8px;
+        }
+        
+        .cz-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            color: #F5F5F0;
+            letter-spacing: 0.2em;
+            margin-bottom: 20px;
+        }
+        
+        .view-full-btn {
+            display: inline-block;
+            background: transparent;
+            border: 1px solid #C5A059;
+            color: #C5A059;
+            padding: 12px 24px;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        
+        .view-full-btn:hover {
+            background: #C5A059;
+            color: #0A0A0F;
+        }
+        
+        /* Resultado NO ENCONTRADO */
+        .result-not-found {
+            background: #0D0D12;
+            border: 1px solid #2A2A2E;
+            border-radius: 8px;
+            padding: 48px;
+            text-align: center;
+        }
+        
+        .not-found-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .not-found-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            color: #F5F5F0;
+            margin-bottom: 12px;
+        }
+        
+        .not-found-text {
+            font-size: 14px;
+            color: #8A8A85;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+        
+        .not-found-cta {
+            display: inline-block;
+            background: #C5A059;
+            color: #0A0A0F;
+            padding: 14px 28px;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: 500;
+            transition: opacity 0.3s;
+        }
+        
+        .not-found-cta:hover {
+            opacity: 0.9;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8A8A85;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #2A2A2E;
+            border-top-color: #C5A059;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        footer {
+            background: #0D0D12;
+            border-top: 1px solid #2A2A2E;
+            padding: 32px;
+            text-align: center;
+        }
+        
+        .footer-text {
+            font-size: 12px;
+            color: #6B6B6E;
+            letter-spacing: 0.1em;
+        }
+        
+        @media (max-width: 768px) {
+            header { padding: 20px 24px; }
+            .nav-links { display: none; }
+            .hero h1 { font-size: 28px; }
+            .search-container { padding: 32px 24px; }
+            .search-input-wrapper { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <span class="logo-text">Conflict Zero</span>
+        </a>
+        <nav class="nav-links">
+            <a href="/founders.html">Programa Fundador</a>
+        </nav>
+    </header>
+    
+    <main>
+        <div class="hero">
+            <h1>Verificación de Sello</h1>
+            <p>Consulta la validez de certificaciones empresariales en el registro oficial de Conflict Zero</p>
+        </div>
+        
+        <div class="search-container">
+            <label class="search-label">Ingrese RUC o Código de Verificación</label>
+            <div class="search-input-wrapper">
+                <input type="text" class="search-input" id="searchInput" placeholder="20100123091 o a3f9k2m8">
+                <button class="search-btn" onclick="verificar()">Verificar Empresa</button>
+            </div>
+            <p class="search-note">Consulta gratuita al registro OSCE/SUNAT en tiempo real</p>
+        </div>
+        
+        <div class="result-container" id="resultContainer">
+            <!-- Resultados se insertan aquí -->
+        </div>
+    </main>
+    
+    <footer>
+        <p class="footer-text">Conflict Zero © 2026 — Estándar de Verificación Institucional</p>
+    </footer>
+    
+    <script>
+        // Datos de ejemplo para demo
+        const empresasDemo = {
+            'a3f9k2m8': {
+                level: 'gold',
+                badge: 'Verificación Empresarial',
+                company: 'Constructora A*** SAC',
+                ruc: '20100123***',
+                status: 'active',
+                url: '/certificado-a3f9k2m8.html'
+            },
+            'demo-expired': {
+                level: 'expired',
+                badge: 'Verificación Vencida',
+                company: 'Constructora X*** SAC',
+                ruc: '20999999***',
+                status: 'expired',
+                url: '/certificado-demo-expired.html'
+            }
+        };
+        
+        // API Configuration
+        const API_BASE_URL = 'https://conflict-zero-api.onrender.com';
+        
+        async function verificar() {
+            const input = document.getElementById('searchInput').value.trim();
+            const container = document.getElementById('resultContainer');
+            
+            if (!input) {
+                alert('Por favor ingrese un RUC o código de verificación');
+                return;
+            }
+            
+            // Mostrar loading
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Consultando registros OSCE/SUNAT...</p>
+                </div>
+            `;
+            container.classList.add('active');
+            
+            // Si es código de certificado demo
+            const empresaDemo = empresasDemo[input.toLowerCase()];
+            if (empresaDemo && input.length < 11) {
+                setTimeout(() => mostrarResultadoDemo(empresaDemo), 500);
+                return;
+            }
+            
+            // Consultar API real
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/v3/validate/${input}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    mostrarResultadoAPI(data);
+                } else {
+                    mostrarNoEncontradoAPI(data);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                mostrarErrorConexion();
+            }
+        }
+        
+        function mostrarResultadoAPI(data) {
+            const container = document.getElementById('resultContainer');
+            
+            const tierColors = {
+                'GOLD': '#C5A059',
+                'SILVER': '#8A9BA8',
+                'BRONZE': '#B87333',
+                'RECHAZADO': '#DC2626'
+            };
+            
+            const tierLetters = {
+                'GOLD': 'G',
+                'SILVER': 'S',
+                'BRONZE': 'B',
+                'RECHAZADO': '!'
+            };
+            
+            const color = tierColors[data.tier?.name] || '#C5A059';
+            const letra = tierLetters[data.tier?.name] || 'G';
+            const tierName = data.tier?.name || 'GOLD';
+            
+            // Construir lista de sanciones
+            let sancionesHTML = '';
+            if (data.sanciones_detalle && data.sanciones_detalle.length > 0) {
+                sancionesHTML = `
+                    <div style="margin-top: 24px; padding: 20px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px;">
+                        <h3 style="color: #DC2626; font-size: 14px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.1em;">⚠️ Sanciones Detectadas</h3>
+                        ${data.sanciones_detalle.map(s => {
+                            const estadoClass = s.estado === 'VIGENTE' ? 'vigente' : 'vencida';
+                            const estadoColor = s.estado === 'VIGENTE' ? '#DC2626' : '#F59E0B';
+                            return `
+                            <div style="margin-bottom: 16px; padding: 16px; background: rgba(10,10,15,0.5); border-radius: 6px; border-left: 3px solid ${estadoColor};">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="color: #8A8A85; font-size: 12px;">${s.entidad}</span>
+                                    <span style="color: ${estadoColor}; font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 8px; background: rgba(220,38,38,0.2); border-radius: 4px;">${s.estado}</span>
+                                </div>
+                                <div style="color: #F5F5F0; font-size: 13px; margin-bottom: 4px;">${s.tipo}</div>
+                                <div style="color: #6B6B6E; font-size: 11px;">Resolución: ${s.resolucion}</div>
+                                <div style="color: #6B6B6E; font-size: 11px;">Inicio: ${s.fecha_inicio}</div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+            
+            // Construir HTML de planes disponibles
+            let planesHTML = '';
+            if (data.plans) {
+                const planRecomendado = data.plans.find(p => p.recommended);
+                if (planRecomendado) {
+                    planesHTML = `
+                        <div style="margin-top: 20px; padding: 16px; background: rgba(197, 160, 89, 0.1); border: 1px solid rgba(197, 160, 89, 0.3); border-radius: 8px;">
+                            <div style="color: #C5A059; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Plan Recomendado</div>
+                            <div style="color: #F5F5F0; font-size: 18px; font-weight: 500;">${planRecomendado.name}</div>
+                            <div style="color: #8A8A85; font-size: 14px;">${planRecomendado.price_formatted} / mes</div>
+                        </div>
+                    `;
+                }
+            }
+            
+            container.innerHTML = `
+                <div class="result-found">
+                    <div class="seal">
+                        <svg viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="46" fill="none" stroke="${color}" stroke-width="2"/>
+                            <circle cx="50" cy="50" r="38" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.5"/>
+                            <circle cx="50" cy="50" r="32" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.5"/>
+                            <path id="textPath" d="M 50,15 A 35,35 0 1,1 49.99,15" fill="none"/>
+                            <text fill="${color}" font-size="5" font-family="Cormorant Garamond" font-weight="400" letter-spacing="0.3em">
+                                <textPath href="#textPath" startOffset="50%" text-anchor="middle">CONFLICT ZERO • CERTIFICADO •</textPath>
+                            </text>
+                            <text x="50" y="52" text-anchor="middle" fill="${color}" font-family="Cormorant Garamond" font-size="20" font-weight="300" dominant-baseline="middle">${letra}</text>
+                        </svg>
+                    </div>
+                    
+                    <span class="badge ${tierName.toLowerCase()}">${data.tier?.description || 'Verificación Empresarial'}</span>
+                    
+                    <h2 class="company-name">${data.company_name}</h2>
+                    <p class="ruc">RUC: ${data.ruc}</p>
+                    
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin: 20px 0;">
+                        <div style="text-align: center;">
+                            <div style="color: ${color}; font-size: 32px; font-weight: 300; font-family: 'Cormorant Garamond', serif;">${data.score}</div>
+                            <div style="color: #6B6B6E; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;">Score Legal</div>
+                        </div>
+                        <div style="width: 1px; height: 40px; background: #2A2A2E;"></div>
+                        <div style="text-align: center;">
+                            <div style="color: ${color}; font-size: 24px; font-weight: 500; letter-spacing: 0.1em;">${tierName}</div>
+                            <div style="color: #6B6B6E; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;">Tier</div>
+                        </div>
+                    </div>
+                    
+                    ${sancionesHTML}
+                    ${planesHTML}
+                    
+                    <p class="verified-by" style="margin-top: 24px;">Verificado por</p>
+                    <p class="cz-name">CONFLICT ZERO</p>
+                    
+                    ${data.can_purchase ? `
+                    <a href="/select-plan.html?ruc=${data.ruc}&score=${data.score}&tier=${data.tier?.name || 'BRONZE'}" class="view-full-btn">Continuar con Certificación</a>
+                    ` : `
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(220, 38, 38, 0.1); border-radius: 6px; color: #DC2626; font-size: 12px;">
+                        Score insuficiente para certificación. Contacte al Comité de Admisión.
+                    </div>
+                    `}
+                </div>
+            `;
+        }
+        
+        function mostrarNoEncontradoAPI(data) {
+            const container = document.getElementById('resultContainer');
+            
+            container.innerHTML = `
+                <div class="result-not-found">
+                    <div class="not-found-icon">⚠️</div>
+                    <h2 class="not-found-title">${data.error === 'RUC_NOT_FOUND' ? 'RUC No Encontrado' : 'Verificación No Disponible'}</h2>
+                    <p class="not-found-text">
+                        ${data.message || 'Esta empresa no se encuentra en el registro de Conflict Zero.'}<br>
+                        <span style="color: #8A8A85; font-size: 13px; margin-top: 8px; display: block;">
+                            Fuente: ${data.fuente_datos || 'CONSULTA'}
+                        </span>
+                    </p>
+                    <a href="/founders.html" class="not-found-cta">Verificar mi empresa ahora</a>
+                </div>
+            `;
+        }
+        
+        function mostrarErrorConexion() {
+            const container = document.getElementById('resultContainer');
+            container.innerHTML = `
+                <div class="result-not-found">
+                    <div class="not-found-icon">📡</div>
+                    <h2 class="not-found-title">Error de Conexión</h2>
+                    <p class="not-found-text">
+                        No se pudo conectar con el servidor de verificación.<br>
+                        Por favor, intente nuevamente en unos momentos.
+                    </p>
+                </div>
+            `;
+        }
+        
+        function mostrarResultadoDemo(empresa) {
+            const container = document.getElementById('resultContainer');
+            const isExpired = empresa.status === 'expired';
+            
+            const colores = {
+                gold: '#C5A059',
+                silver: '#8A9BA8',
+                bronze: '#B87333',
+                expired: '#DC2626'
+            };
+            
+            const letras = {
+                gold: 'G',
+                silver: 'S',
+                bronze: 'B',
+                expired: '!'
+            };
+            
+            const color = colores[empresa.level];
+            const letra = letras[empresa.level];
+            
+            container.innerHTML = `
+                <div class="result-found">
+                    <div class="seal">
+                        <svg viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="46" fill="none" stroke="${color}" stroke-width="2"/>
+                            <circle cx="50" cy="50" r="38" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.5"/>
+                            <circle cx="50" cy="50" r="32" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.5"/>
+                            <path id="textPath" d="M 50,15 A 35,35 0 1,1 49.99,15" fill="none"/>
+                            <text fill="${color}" font-size="5" font-family="Cormorant Garamond" font-weight="400" letter-spacing="0.3em">
+                                <textPath href="#textPath" startOffset="50%" text-anchor="middle">CONFLICT ZERO • CERTIFICADO •</textPath>
+                            </text>
+                            <text x="50" y="52" text-anchor="middle" fill="${color}" font-family="Cormorant Garamond" font-size="20" font-weight="300" dominant-baseline="middle">${letra}</text>
+                        </svg>
+                    </div>
+                    
+                    <span class="badge ${empresa.level}">${empresa.badge}</span>
+                    
+                    <h2 class="company-name">${empresa.company}</h2>
+                    <p class="ruc">RUC: ${empresa.ruc}</p>
+                    
+                    <div class="status-badge ${empresa.status}">
+                        <span class="status-dot"></span>
+                        ${isExpired ? 'VENCIDO - RIESGO LEGAL' : 'SELLO ACTIVO'}
+                    </div>
+                    
+                    <p class="verified-by">Verificado por</p>
+                    <p class="cz-name">CONFLICT ZERO</p>
+                    
+                    <a href="${empresa.url}" class="view-full-btn">Ver Certificado Completo</a>
+                </div>
+            `;
+        }
+        
+        // Permitir búsqueda con Enter
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verificar();
+            }
+        });
+    </script>
+</body>
+</html>
