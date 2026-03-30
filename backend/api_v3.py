@@ -2,6 +2,7 @@
 Conflict Zero API V3.0 - Score/Plan Desacoplado + Factaliza Integration
 Backend para el sistema de validación legal con scoring multidimensional
 Consultor Factaliza #40648
+DEPLOY: 2026-03-30-01-35-FORCE
 """
 
 import os
@@ -2069,22 +2070,22 @@ async def register_web(request: RegisterWebRequest):
             from api_v3 import hash_password
             password_hash = hash_password(request.password)
             
-            # Crear usuario - usando password_hash (nombre correcto de columna)
-            user_id = str(uuid.uuid4())
+            # Crear usuario - usando solo columnas que existen en el schema
+            password_hash = hash_password(request.password)
             cur.execute("""
-                INSERT INTO users (id, email, password_hash, full_name, company_name, ruc, 
-                                   plan, is_active, created_at, monthly_requests)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, NOW(), 0)
+                INSERT INTO users (email, password_hash, ruc, company_name, plan, is_active, created_at)
+                VALUES (%s, %s, %s, %s, %s, TRUE, NOW())
                 RETURNING id
-            """, (user_id, request.email, password_hash, request.full_name, 
-                  request.company_name or '', request.ruc or '00000000000', 'professional'))
+            """, (request.email, password_hash, request.ruc or '00000000000', 
+                  request.company_name or '', 'professional'))
             
+            result = cur.fetchone()
             conn.commit()
             
             return {
                 'success': True,
                 'message': 'Usuario registrado exitosamente',
-                'user_id': user_id
+                'user_id': result['id']
             }
     except Exception as e:
         print(f"[Register Web] Error: {e}")
