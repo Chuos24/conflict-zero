@@ -1452,7 +1452,7 @@ async def verify_certificate(cert_slug: str):
         
         cursor.execute("""
             SELECT ruc, company_name, score, tier, plan_type, 
-                   cert_slug, created_at, factaliza_raw
+                   cert_slug, created_at
             FROM certificates_v3
             WHERE cert_slug = %s
         """, (cert_slug,))
