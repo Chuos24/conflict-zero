@@ -2805,8 +2805,9 @@ async def get_pending_users(authorization: str = Header(None)):
     """
     Obtener usuarios pendientes de aprobación
     """
-    # Verificar token admin
-    if not authorization or authorization.replace("Bearer ", "") != "cz2026":
+    # Verificar token admin (aceptar ADMIN_TOKEN o cz2026)
+    token = authorization.replace("Bearer ", "") if authorization else ""
+    if token != ADMIN_TOKEN and token != "cz2026":
         raise HTTPException(status_code=403, detail="Token inválido")
     
     try:
@@ -2853,8 +2854,9 @@ async def approve_user(user_id: int, request: ApproveUserRequest, authorization:
     """
     Aprobar o rechazar un usuario pendiente
     """
-    # Verificar token admin
-    if not authorization or authorization.replace("Bearer ", "") != "cz2026":
+    # Verificar token admin (aceptar ADMIN_TOKEN o cz2026)
+    token = authorization.replace("Bearer ", "") if authorization else ""
+    if token != ADMIN_TOKEN and token != "cz2026":
         raise HTTPException(status_code=403, detail="Token inválido")
     
     try:
