@@ -14,7 +14,7 @@ from datetime import datetime
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-router = APIRouter(prefix="/api/v3/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
 # Admin token from environment
 ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'cz2026')
