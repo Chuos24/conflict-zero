@@ -2065,17 +2065,18 @@ async def register_web(request: RegisterWebRequest):
                     content={'success': False, 'error': 'EMAIL_EXISTS', 'message': 'El email ya está registrado'}
                 )
             
-            # Hash de contraseña
-            hashed_pw = bcrypt.hashpw(request.password.encode(), bcrypt.gensalt()).decode()
+            # Hash de contraseña usando la función existente
+            from api_v3 import hash_password
+            password_hash = hash_password(request.password)
             
-            # Crear usuario
+            # Crear usuario - usando password_hash (nombre correcto de columna)
             user_id = str(uuid.uuid4())
             cur.execute("""
-                INSERT INTO users (id, email, hashed_password, full_name, company_name, ruc, 
-                                   plan_type, is_active, created_at, monthly_requests, monthly_limit)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, NOW(), 0, 5000)
+                INSERT INTO users (id, email, password_hash, full_name, company_name, ruc, 
+                                   plan, is_active, created_at, monthly_requests)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, TRUE, NOW(), 0)
                 RETURNING id
-            """, (user_id, request.email, hashed_pw, request.full_name, 
+            """, (user_id, request.email, password_hash, request.full_name, 
                   request.company_name or '', request.ruc or '00000000000', 'professional'))
             
             conn.commit()
