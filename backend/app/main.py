@@ -1,4 +1,5 @@
 # Conflict Zero API - Main Application
+# DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z - Full deploy con auth v3
 # Last updated: 2026-03-28 03:55 UTC - LegalBot V3.0 Deploy
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
@@ -16,7 +17,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router
 import uuid
 
 settings = get_settings()
@@ -128,7 +129,66 @@ app.include_router(consulta_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
-app.include_router(compare_router, prefix="/api/v1")  # Nuevo router de comparación
+app.include_router(compare_router, prefix="/api/v1")
+app.include_router(payments_router, prefix="/api/v1")
+
+# Routers v3 (para compatibilidad con frontend)
+app.include_router(auth_router, prefix="/api/v3")
+app.include_router(verification_router, prefix="/api/v3")
+app.include_router(admin_router, prefix="/api/v3")
+
+# Endpoint register-web directo (workaround para problema de caché en Render)
+from pydantic import BaseModel
+from typing import Optional
+
+class RegisterWebRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    company_name: Optional[str] = None
+    ruc: Optional[str] = None
+
+@app.post("/api/v3/auth/register-web")
+async def register_web_direct(request: RegisterWebRequest):
+    """
+    Registro desde formulario web - workaround para caché de Render
+    """
+    import uuid
+    from app.core.database import SessionLocal
+    from app.core.security import get_password_hash
+    from app.models import User
+    
+    db = SessionLocal()
+    try:
+        # Verificar si email ya existe
+        existing = db.query(User).filter(User.email == request.email).first()
+        if existing:
+            return {"success": True, "message": "Solicitud recibida"}  # No revelar si existe
+        
+        # Crear usuario
+        user = User(
+            id=str(uuid.uuid4()),
+            email=request.email,
+            hashed_password=get_password_hash(request.password),
+            full_name=request.full_name,
+            company_name=request.company_name or "",
+            ruc=request.ruc or "00000000000",
+            plan_type="professional",
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "Usuario registrado exitosamente",
+            "user_id": user.id
+        }
+    except Exception as e:
+        print(f"[Register Web] Error: {e}")
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
 
 # Manejo de excepciones
 @app.exception_handler(Exception)
