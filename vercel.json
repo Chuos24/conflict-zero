@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "*.html", "use": "@vercel/static" },
+    { "src": "verificar/*.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/certificado-([^/]+)\\.html", "dest": "/certificado-$1.html" },
+    { "src": "/verificar/([^/]+)", "dest": "/verificar/$1.html" },
+    { "src": "/(.*)", "dest": "/$1" }
+  ]
+}
