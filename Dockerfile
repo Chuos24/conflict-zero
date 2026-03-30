@@ -1,5 +1,9 @@
 FROM python:3.11-slim
 
+# Force rebuild timestamp: 2026-03-30-04-15-00
+ENV DEPLOY_TIMESTAMP="2026-03-30-04-15-00"
+ENV FORCE_REBUILD="1"
+
 WORKDIR /app
 
 # Instalar dependencias del sistema
