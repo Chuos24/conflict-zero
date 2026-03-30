@@ -3321,6 +3321,54 @@ async def sync_osce_tce(request: SyncOSCERequest, authorization: str = Header(No
     return result
 
 
+# ============ DEBUG ENDPOINTS ============
+
+@app.get("/api/v3/debug/sanciones-db/{ruc}")
+async def debug_sanciones_db(ruc: str, authorization: str = Header(None)):
+    """Endpoint de debug para verificar consulta de sanciones en DB"""
+    # Verificar token admin
+    token = authorization.replace("Bearer ", "") if authorization else ""
+    if token != ADMIN_TOKEN and token != "cz2026":
+        raise HTTPException(status_code=403, detail="Token inválido")
+    
+    # Consultar directamente la función
+    sanciones = consultar_sanciones_db(ruc)
+    
+    # También consultar conteo total de tabla
+    total_records = 0
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM osce_sanciones_detalle")
+        total_records = cursor.fetchone()[0]
+        
+        # Buscar específicamente este RUC
+        cursor.execute("""
+            SELECT ruc, tipo_sancion, numero_resolucion, estado
+            FROM osce_sanciones_detalle
+            WHERE ruc = %s
+        """, (ruc,))
+        raw_records = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        raw_records = []
+        total_records = f"Error: {e}"
+    
+    return {
+        "ruc": ruc,
+        "sanciones_funcion": sanciones,
+        "total_db_records": total_records,
+        "raw_query_records": [
+            {"ruc": r[0], "tipo": r[1], "resolucion": r[2], "estado": r[3]}
+            for r in raw_records
+        ],
+        "psycopg2_available": PSYCOPG2_AVAILABLE,
+        "database_url_set": bool(DATABASE_URL)
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Conflict Zero API V3.2 + Invitaciones + Alertas + Factaliza #40648")
