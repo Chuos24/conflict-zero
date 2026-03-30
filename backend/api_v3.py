@@ -637,14 +637,32 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     if ruc in DEMO_DATA:
         demo = DEMO_DATA[ruc]
         print(f"[DEMO] Usando datos demo para {ruc}")
+        
+        # Consultar sanciones frescas de DB y combinar con DEMO
+        sanciones_db = consultar_sanciones_db(ruc)
+        sanciones_demo = demo.get('sanciones', [])
+        
+        if sanciones_db:
+            # Combinar: usar sanciones de DB (más actualizadas) + sanciones demo si no están en DB
+            resoluciones_db = {s.get('resolucion') for s in sanciones_db}
+            for s in sanciones_demo:
+                if s.get('resolucion') not in resoluciones_db:
+                    sanciones_db.append(s)
+            sanciones_finales = sanciones_db
+            fuente = 'DEMO_DATA + DB_SANCIONES'
+            print(f"[DEMO] ✓ Combinadas {len(sanciones_db)} sanciones de DB con demo")
+        else:
+            sanciones_finales = sanciones_demo
+            fuente = 'MOCK_DEMO'
+        
         return {
             'ruc': ruc,
             'razon_social': demo['razon_social'],
             'sunat': demo['sunat'],
-            'sanciones': demo.get('sanciones', []),
-            'tiene_sanciones': len(demo.get('sanciones', [])) > 0,
-            'dias_desde_sancion': demo.get('sanciones', [{}])[0].get('dias_transcurridos', 0) if demo.get('sanciones') else 0,
-            'fuente': 'MOCK_DEMO',
+            'sanciones': sanciones_finales,
+            'tiene_sanciones': len(sanciones_finales) > 0,
+            'dias_desde_sancion': sanciones_finales[0].get('dias_transcurridos', 0) if sanciones_finales else 0,
+            'fuente': fuente,
             'consultor_id': '40648',
             'timestamp': datetime.now().isoformat()
         }
