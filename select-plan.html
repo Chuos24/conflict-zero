@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seleccione su Certificacion - Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0A0A0F;
+            color: #F5F5F0;
+            min-height: 100vh;
+        }
+        
+        header {
+            width: 100%;
+            padding: 24px 64px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid #2A2A2E;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            border: 1px solid #C5A059;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-icon svg {
+            width: 26px;
+            height: 26px;
+            stroke: #C5A059;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .logo-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: #F5F5F0;
+        }
+        
+        .back-link {
+            color: #8A8A85;
+            text-decoration: none;
+            font-size: 13px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+        
+        .back-link:hover {
+            color: #C5A059;
+        }
+        
+        main {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+        
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+        
+        .hero h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 42px;
+            font-weight: 300;
+            letter-spacing: 0.08em;
+            margin-bottom: 16px;
+            color: #F5F5F0;
+        }
+        
+        .hero .subtitle {
+            font-size: 18px;
+            color: #8A8A85;
+            margin-bottom: 8px;
+        }
+        
+        .company-info {
+            background: rgba(197, 160, 89, 0.1);
+            border: 1px solid rgba(197, 160, 89, 0.3);
+            padding: 20px 40px;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        
+        .company-info .ruc {
+            font-size: 14px;
+            color: #C5A059;
+            letter-spacing: 0.1em;
+        }
+        
+        .company-info .score {
+            font-size: 24px;
+            color: #F5F5F0;
+            font-family: 'Cormorant Garamond', serif;
+            margin-top: 8px;
+        }
+        
+        .plans-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 32px;
+            margin-top: 40px;
+        }
+        
+        .plan-card {
+            border: 1px solid;
+            padding: 40px 32px;
+            background: #12121A;
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        
+        .plan-card:hover {
+            transform: translateY(-4px);
+        }
+        
+        .plan-card.disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        
+        .plan-card.bronze {
+            border-color: #B87333;
+        }
+        
+        .plan-card.bronze:hover {
+            box-shadow: 0 8px 32px rgba(184, 115, 51, 0.2);
+        }
+        
+        .plan-card.silver {
+            border-color: #C0C0C0;
+        }
+        
+        .plan-card.silver:hover {
+            box-shadow: 0 8px 32px rgba(192, 192, 192, 0.2);
+        }
+        
+        .plan-card.gold {
+            border-color: #D4AF37;
+        }
+        
+        .plan-card.gold:hover {
+            box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3);
+        }
+        
+        .plan-badge {
+            display: inline-block;
+            font-size: 11px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            padding: 8px 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+        }
+        
+        .plan-card.bronze .plan-badge {
+            background: rgba(184, 115, 51, 0.2);
+            color: #B87333;
+            border: 1px solid #B87333;
+        }
+        
+        .plan-card.silver .plan-badge {
+            background: rgba(192, 192, 192, 0.2);
+            color: #C0C0C0;
+            border: 1px solid #C0C0C0;
+        }
+        
+        .plan-card.gold .plan-badge {
+            background: rgba(212, 175, 55, 0.2);
+            color: #D4AF37;
+            border: 1px solid #D4AF37;
+        }
+        
+        .plan-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+        
+        .plan-card.bronze .plan-title { color: #B87333; }
+        .plan-card.silver .plan-title { color: #C0C0C0; }
+        .plan-card.gold .plan-title { color: #D4AF37; }
+        
+        .plan-desc {
+            font-size: 14px;
+            color: #8A8A85;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+        
+        .plan-price {
+            font-size: 42px;
+            font-family: 'Cormorant Garamond', serif;
+            color: #C5A059;
+            margin-bottom: 8px;
+        }
+        
+        .plan-price-period {
+            font-size: 14px;
+            color: #6B6B6E;
+            margin-bottom: 32px;
+        }
+        
+        .plan-features {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+        
+        .plan-features li {
+            padding: 12px 0;
+            border-bottom: 1px solid #2A2A2E;
+            font-size: 14px;
+            color: #A0A0A0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .plan-features li:before {
+            content: "✓";
+            color: #C5A059;
+            font-weight: bold;
+        }
+        
+        .btn-select {
+            width: 100%;
+            padding: 16px;
+            font-size: 13px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            border: 1px solid;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .plan-card.bronze .btn-select {
+            border-color: #B87333;
+            color: #B87333;
+        }
+        
+        .plan-card.bronze .btn-select:hover {
+            background: #B87333;
+            color: #0A0A0F;
+        }
+        
+        .plan-card.silver .btn-select {
+            border-color: #C0C0C0;
+            color: #C0C0C0;
+        }
+        
+        .plan-card.silver .btn-select:hover {
+            background: #C0C0C0;
+            color: #0A0A0F;
+        }
+        
+        .plan-card.gold .btn-select {
+            border-color: #D4AF37;
+            color: #D4AF37;
+        }
+        
+        .plan-card.gold .btn-select:hover {
+            background: #D4AF37;
+            color: #0A0A0F;
+        }
+        
+        .plan-card.disabled .btn-select {
+            border-color: #4A4A4E;
+            color: #4A4A4E;
+            cursor: not-allowed;
+        }
+        
+        .not-eligible {
+            background: rgba(220, 38, 38, 0.1);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            padding: 12px 16px;
+            text-align: center;
+            font-size: 12px;
+            color: #DC2626;
+        }
+        
+        footer {
+            background: #0D0D12;
+            border-top: 1px solid #2A2A2E;
+            padding: 32px;
+            text-align: center;
+            margin-top: 80px;
+        }
+        
+        .footer-text {
+            font-size: 12px;
+            color: #6B6B6E;
+            letter-spacing: 0.1em;
+        }
+        
+        @media (max-width: 768px) {
+            header { padding: 20px 24px; }
+            .hero h1 { font-size: 28px; }
+            .plans-container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <a href="/" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <span class="logo-text">Conflict Zero</span>
+        </a>
+        <a href="/verificar.html" class="back-link">← Volver a Verificacion</a>
+    </header>
+    
+    <main>
+        <div class="hero">
+            <h1>Seleccione su Nivel de Certificacion</h1>
+            <p class="subtitle">Su empresa ha sido evaluada y califica para los siguientes sellos</p>
+            
+            <div class="company-info">
+                <div class="ruc" id="companyRuc">RUC: --</div>
+                <div class="score" id="companyScore">Score Legal: --</div>
+            </div>
+        </div>
+        
+        <div class="plans-container">
+            <!-- BRONZE -->
+            <div class="plan-card bronze" id="bronzeCard">
+                <span class="plan-badge">Score 30-69</span>
+                <h2 class="plan-title">Sello BRONZE</h2>
+                <p class="plan-desc">Para subcontratistas especializados con historial sólido de cumplimiento legal.</p>
+                
+                <div class="plan-price">$400</div>
+                <div class="plan-price-period">por año</div>
+                
+                <ul class="plan-features">
+                    <li>Certificado digital oficial CZ</li>
+                    <li>Verificación pública OSCE/SUNAT</li>
+                    <li>Dashboard básico de cumplimiento</li>
+                    <li>Sello físico para documentos</li>
+                    <li>Acceso al Comité de Admisión</li>
+                </ul>
+                
+                <button class="btn-select" onclick="selectPlan('bronze')">Seleccionar Bronze</button>
+            </div>
+            
+            <!-- SILVER -->
+            <div class="plan-card silver" id="silverCard">
+                <span class="plan-badge">Score 70-89</span>
+                <h2 class="plan-title">Sello SILVER</h2>
+                <p class="plan-desc">Para constructoras medianas con excelente reputación institucional.</p>
+                
+                <div class="plan-price">$800</div>
+                <div class="plan-price-period">por año</div>
+                
+                <ul class="plan-features">
+                    <li>Todo lo incluido en Bronze</li>
+                    <li>Reportes trimestrales de riesgo</li>
+                    <li>Alertas de cambios regulatorios</li>
+                    <li>Prioridad en verificaciones</li>
+                    <li>Soporte técnico dedicado</li>
+                </ul>
+                
+                <button class="btn-select" onclick="selectPlan('silver')">Seleccionar Silver</button>
+            </div>
+            
+            <!-- GOLD -->
+            <div class="plan-card gold" id="goldCard">
+                <span class="plan-badge">Score 90-100</span>
+                <h2 class="plan-title">Sello GOLD</h2>
+                <p class="plan-desc">Para consorcios líderes con trayectoria impecable. Acceso VIP.</p>
+                
+                <div class="plan-price">$2,500</div>
+                <div class="plan-price-period">por año</div>
+                
+                <ul class="plan-features">
+                    <li>Todo lo incluido en Silver</li>
+                    <li>Reportes mensuales ejecutivos</li>
+                    <li>API de verificación propia</li>
+                    <li>Asesoría legal preventiva</li>
+                    <li>Miembro del Consejo Consultivo</li>
+                </ul>
+                
+                <button class="btn-select" onclick="selectPlan('gold')">Seleccionar Gold</button>
+            </div>
+        </div>
+    </main>
+    
+    <footer>
+        <p class="footer-text">Conflict Zero © 2026 — Certificacion Empresarial de Excelencia</p>
+    </footer>
+    
+    <script>
+        // Obtener parámetros de URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const ruc = urlParams.get('ruc');
+        const score = parseInt(urlParams.get('score'));
+        const tier = urlParams.get('tier');
+        
+        // Actualizar info de empresa
+        if (ruc) {
+            document.getElementById('companyRuc').textContent = `RUC: ${ruc}`;
+        }
+        if (score) {
+            document.getElementById('companyScore').textContent = `Score Legal: ${score}/100`;
+        }
+        
+        // Deshabilitar planes según score
+        function updatePlanAvailability() {
+            const bronzeCard = document.getElementById('bronzeCard');
+            const silverCard = document.getElementById('silverCard');
+            const goldCard = document.getElementById('goldCard');
+            
+            // Deshabilitar Bronze si score < 30
+            if (score < 30) {
+                bronzeCard.classList.add('disabled');
+                bronzeCard.querySelector('.btn-select').outerHTML = '<div class="not-eligible">Score insuficiente para certificación</div>';
+            }
+            
+            // Deshabilitar Silver si score < 70
+            if (score < 70) {
+                silverCard.classList.add('disabled');
+                silverCard.querySelector('.btn-select').outerHTML = '<div class="not-eligible">Requiere Score 70+</div>';
+            }
+            
+            // Deshabilitar Gold si score < 90
+            if (score < 90) {
+                goldCard.classList.add('disabled');
+                goldCard.querySelector('.btn-select').outerHTML = '<div class="not-eligible">Requiere Score 90+</div>';
+            }
+        }
+        
+        // Ejecutar al cargar
+        if (score) {
+            updatePlanAvailability();
+        }
+        
+        function selectPlan(plan) {
+            // Guardar selección en sessionStorage
+            sessionStorage.setItem('selected_plan', plan);
+            sessionStorage.setItem('ruc_to_certify', ruc);
+            sessionStorage.setItem('certification_score', score);
+            
+            // Redirigir a login con parámetros
+            window.location.href = `/login.html?ruc=${ruc}&plan=${plan}&score=${score}`;
+        }
+    </script>
+</body>
+</html>
