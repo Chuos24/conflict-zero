@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Postulacion Recibida — Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --gold: #C5A059;
+            --gold-dark: #8B6914;
+            --black: #0A0A0F;
+            --card: #141418;
+            --stone: #2A2A2E;
+            --bone: #F5F5F0;
+            --muted: #8A8A85;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            background: var(--black);
+            color: var(--bone);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            line-height: 1.7;
+        }
+        
+        .container {
+            max-width: 600px;
+            padding: 60px 40px;
+            text-align: center;
+            border: 1px solid var(--stone);
+            background: var(--card);
+            margin: 20px;
+        }
+        
+        .seal {
+            width: 80px;
+            height: 80px;
+            border: 1px solid var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 32px;
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            color: var(--gold);
+        }
+        
+        h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 300;
+            color: var(--gold);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 24px;
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            color: var(--muted);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-bottom: 32px;
+        }
+        
+        .message {
+            color: var(--bone);
+            margin-bottom: 16px;
+            font-size: 15px;
+            line-height: 1.8;
+        }
+        
+        .reference {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 18px;
+            color: var(--gold);
+            letter-spacing: 0.1em;
+            margin: 32px 0;
+            padding: 16px;
+            border-top: 1px solid var(--stone);
+            border-bottom: 1px solid var(--stone);
+        }
+        
+        .timeline {
+            margin: 32px 0;
+            padding: 24px;
+            background: var(--black);
+            border-left: 2px solid var(--gold);
+            text-align: left;
+        }
+        
+        .timeline-item {
+            display: flex;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+        
+        .timeline-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .timeline-marker {
+            width: 24px;
+            color: var(--gold);
+            font-weight: 500;
+        }
+        
+        .timeline-text {
+            color: var(--muted);
+        }
+        
+        .contact-note {
+            margin-top: 32px;
+            padding: 20px;
+            background: rgba(197, 160, 89, 0.1);
+            border: 1px solid rgba(197, 160, 89, 0.3);
+            font-size: 13px;
+            color: var(--muted);
+        }
+        
+        .contact-note strong {
+            color: var(--gold);
+            font-weight: 500;
+        }
+        
+        footer {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--stone);
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.1em;
+        }
+        
+        /* No back button as requested */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="seal">◆</div>
+        
+        <p class="subtitle">Comite de Admision</p>
+        
+        <h1>Su postulacion ha sido recibida</h1>
+        
+        <p class="message">
+            Su solicitud ha sido enviada al Comite de Admision de Conflict Zero.
+        </p>
+        
+        <div class="reference" id="referenceBox">
+            REF: <span id="refNumber">CZ-2026-001</span>
+        </div>
+        
+        <div class="timeline">
+            <div class="timeline-item">
+                <span class="timeline-marker">01</span>
+                <span class="timeline-text">Revision de documentos (24-48h)</span>
+            </div>
+            <div class="timeline-item">
+                <span class="timeline-marker">02</span>
+                <span class="timeline-text">Validacion de antecedentes empresariales</span>
+            </div>
+            <div class="timeline-item">
+                <span class="timeline-marker">03</span>
+                <span class="timeline-text">Notificacion de decision final</span>
+            </div>
+        </div>
+        
+        <div class="contact-note">
+            <strong>Un asesor de Conflict Zero le contactara en 24-48 horas</strong> 
+            via email o WhatsApp para finalizar su admision y proporcionarle 
+            sus credenciales de acceso.
+        </div>
+        
+        <footer>
+            Conflict Zero — Estándar de Verificacion Institucional<br>
+            © 2026
+        </footer>
+    </div>
+    
+    <script>
+        // Generar numero de referencia
+        const urlParams = new URLSearchParams(window.location.search);
+        const ref = urlParams.get('ref');
+        const ruc = urlParams.get('ruc');
+        
+        if (ref) {
+            document.getElementById('refNumber').textContent = ref;
+        } else if (ruc) {
+            // Generar REF basado en RUC
+            document.getElementById('refNumber').textContent = 'CZ-' + ruc.slice(-6);
+        } else {
+            // Generar aleatorio
+            const random = Math.floor(Math.random() * 900) + 100;
+            document.getElementById('refNumber').textContent = 'CZ-2026-' + random;
+        }
+    </script>
+</body>
+</html>
