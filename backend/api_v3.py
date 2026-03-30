@@ -469,6 +469,87 @@ DEMO_DATA = {
     }
 }
 
+# ============ CONSULTA DE SANCIONES OSCE/TCE DESDE DB ============
+
+def consultar_sanciones_db(ruc: str) -> List[Dict]:
+    """
+    Consulta sanciones OSCE/TCE desde PostgreSQL.
+    Integra datos de scraping real con el sistema de scoring.
+    """
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
+        print(f"[DB-Sanciones] psycopg2 o DATABASE_URL no disponible")
+        return []
+    
+    conn = None
+    sanciones = []
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cursor = conn.cursor()
+        
+        # Consultar tabla OSCE
+        try:
+            cursor.execute("""
+                SELECT tipo_sancion, numero_resolucion, entidad, 
+                       fecha_inicio, fecha_fin, estado, motivo
+                FROM osce_sanciones_detalle
+                WHERE ruc = %s
+                ORDER BY fecha_inicio DESC
+            """, (ruc,))
+            
+            for row in cursor.fetchall():
+                sanciones.append({
+                    'tipo': row[0],
+                    'resolucion': row[1],
+                    'entidad': row[2] if row[2] else 'OSCE',
+                    'fecha_inicio': row[3].isoformat() if row[3] else None,
+                    'fecha_fin': row[4].isoformat() if row[4] else None,
+                    'estado': row[5] if row[5] else 'VIGENTE',
+                    'motivo': row[6],
+                    'fuente_db': 'OSCE'
+                })
+        except Exception as e:
+            print(f"[DB-Sanciones] Error consultando OSCE: {e}")
+        
+        # Consultar tabla TCE si existe
+        try:
+            cursor.execute("""
+                SELECT tipo_sancion, numero_resolucion, entidad,
+                       fecha_inicio, fecha_fin, estado, motivo
+                FROM tce_sanciones
+                WHERE ruc = %s
+                ORDER BY fecha_inicio DESC
+            """, (ruc,))
+            
+            for row in cursor.fetchall():
+                sanciones.append({
+                    'tipo': row[0],
+                    'resolucion': row[1],
+                    'entidad': row[2] if row[2] else 'TCE',
+                    'fecha_inicio': row[3].isoformat() if row[3] else None,
+                    'fecha_fin': row[4].isoformat() if row[4] else None,
+                    'estado': row[5] if row[5] else 'VIGENTE',
+                    'motivo': row[6],
+                    'fuente_db': 'TCE'
+                })
+        except Exception as e:
+            # Tabla TCE puede no existir aún
+            print(f"[DB-Sanciones] TCE no disponible: {e}")
+        
+        if sanciones:
+            print(f"[DB-Sanciones] ✓ {len(sanciones)} sanciones encontradas para {ruc}")
+        else:
+            print(f"[DB-Sanciones] No hay sanciones en DB para {ruc}")
+        
+        return sanciones
+        
+    except Exception as e:
+        print(f"[DB-Sanciones] Error conectando: {e}")
+        return []
+    finally:
+        if conn:
+            conn.close()
+
 # ============ SCORING CON FACTALIZA ============
 
 async def consultar_con_fallback(ruc: str) -> Dict:
@@ -481,6 +562,22 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         data = await consultar_factaliza(ruc)
         if data:
             print(f"[Factaliza] ✓ Datos recibidos para {ruc}")
+            
+            # Consultar sanciones en DB y combinar con datos de Factaliza
+            sanciones_db = consultar_sanciones_db(ruc)
+            if sanciones_db:
+                # Combinar sanciones de Factaliza (si tiene) con DB
+                sanciones_existentes = data.get('sanciones', [])
+                # Evitar duplicados por resolución
+                resoluciones_existentes = {s.get('resolucion') for s in sanciones_existentes}
+                for s in sanciones_db:
+                    if s.get('resolucion') not in resoluciones_existentes:
+                        sanciones_existentes.append(s)
+                data['sanciones'] = sanciones_existentes
+                data['tiene_sanciones'] = len(sanciones_existentes) > 0
+                data['fuente'] = 'FACTALIZA_API + DB_SANCIONES'
+                print(f"[Factaliza] ✓ Combinadas {len(sanciones_db)} sanciones de DB")
+            
             # Guardar en cache para futuro
             try:
                 save_validation_to_db(
@@ -507,6 +604,12 @@ async def consultar_con_fallback(ruc: str) -> Dict:
     buscaruc_data = await consultar_buscaruc(ruc)
     if buscaruc_data:
         print(f"[BuscarUC] ✓ Datos recibidos para {ruc}")
+        # Consultar sanciones en DB y combinar
+        sanciones_db = consultar_sanciones_db(ruc)
+        if sanciones_db:
+            buscaruc_data['sanciones'] = sanciones_db
+            buscaruc_data['tiene_sanciones'] = True
+            buscaruc_data['fuente'] = 'BUSCARUC_API + DB_SANCIONES'
         return buscaruc_data
     else:
         print(f"[BuscarUC] RUC {ruc} no encontrado")
@@ -517,13 +620,15 @@ async def consultar_con_fallback(ruc: str) -> Dict:
         cached = get_validation_from_db(ruc, max_age_hours=168)
         if cached and cached.get('fuente_datos') != 'MOCK_DEFAULT':
             print(f"[CACHE] ✓ Usando datos cacheados para {ruc}")
+            # Consultar sanciones frescas de DB
+            sanciones_db = consultar_sanciones_db(ruc)
             return {
                 'ruc': ruc,
                 'razon_social': cached['razon_social'],
                 'sunat': {'estado': 'ACTIVO', 'condicion': 'HABIDO'},
-                'sanciones': [],
-                'tiene_sanciones': cached['tier'] in ['BRONZE', 'RECHAZADO'],
-                'fuente': 'CACHE_INSTITUCIONAL',
+                'sanciones': sanciones_db if sanciones_db else [],
+                'tiene_sanciones': len(sanciones_db) > 0 if sanciones_db else cached['tier'] in ['BRONZE', 'RECHAZADO'],
+                'fuente': 'CACHE_INSTITUCIONAL + DB_SANCIONES' if sanciones_db else 'CACHE_INSTITUCIONAL',
                 'consultor_id': '40648',
                 'timestamp': str(cached['created_at'])
             }
