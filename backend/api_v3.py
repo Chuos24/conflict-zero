@@ -2707,11 +2707,10 @@ async def get_pending_users(authorization: str = Header(None)):
         cursor.execute("""
             SELECT 
                 id, ruc, company_name, email, plan, 
-                score_at_registration, status, created_at,
-                phone, contact_name
+                is_active, created_at, last_login
             FROM users 
-            WHERE status = 'pending_approval'
             ORDER BY created_at DESC
+            LIMIT 50
         """)
         
         users = cursor.fetchall()
@@ -2719,7 +2718,9 @@ async def get_pending_users(authorization: str = Header(None)):
         # Convertir datetime a string
         for user in users:
             if user['created_at']:
-                user['created_at'] = user['created_at'].isoformat()
+                user['created_at'] = user['created_at'].isoformat() if user['created_at'] else None
+            if user['last_login']:
+                user['last_login'] = user['last_login'].isoformat() if user['last_login'] else None
         
         cursor.close()
         conn.close()
