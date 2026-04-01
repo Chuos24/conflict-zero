@@ -973,19 +973,35 @@ async def health_check():
     
     health_data["components"]["postgresql"] = db_health
     
-    # 3. Factaliza API
+    # 3. Factiliza API - Usar un RUC conocido para health check
     factaliza_health = {"status": "unknown"}
     try:
         import httpx
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # Health check usando un RUC de prueba (BCP - siempre existe)
             response = await client.get(
-                f"{FACTALIZA_BASE_URL}/health",
+                f"{FACTALIZA_BASE_URL}/ruc/info/20100047218",
                 headers={'Authorization': f'Bearer {FACTALIZA_TOKEN}'}
             )
-            factaliza_health = {
-                "status": "up" if response.status_code == 200 else "degraded",
-                "status_code": response.status_code
-            }
+            
+            if response.status_code == 200:
+                factaliza_health = {
+                    "status": "up",
+                    "status_code": response.status_code,
+                    "message": "API respondiendo correctamente"
+                }
+            elif response.status_code == 429:
+                factaliza_health = {
+                    "status": "up",
+                    "status_code": response.status_code,
+                    "message": "Rate limit alcanzado (API funcional)"
+                }
+            else:
+                factaliza_health = {
+                    "status": "degraded",
+                    "status_code": response.status_code,
+                    "message": f"Respuesta inesperada: {response.status_code}"
+                }
     except Exception as e:
         factaliza_health = {
             "status": "down",
@@ -2458,7 +2474,7 @@ async def register_web(request: RegisterWebRequest):
         conn.close()
 
 
-# ============ NOTIFICACIONES ADMIN ============
+# ============ NOTIFICACIONES ADMIN v2 ============
 
 class NotifyAdminRequest(BaseModel):
     ruc: str
@@ -2469,6 +2485,7 @@ class NotifyAdminRequest(BaseModel):
     nombre: Optional[str] = None
     score: Optional[str] = None
     timestamp: Optional[str] = None
+    admin_email: Optional[str] = None  # Email alternativo para notificaciones
 
 
 # Email del administrador (se puede configurar via env)
@@ -2493,11 +2510,14 @@ async def notify_admin(request: NotifyAdminRequest):
         smtp_user = os.environ.get('SMTP_USER', '')
         smtp_pass = os.environ.get('SMTP_PASS', '')
         
+        # Email destino (prioridad: request.admin_email > ADMIN_EMAIL por defecto)
+        dest_email = request.admin_email or ADMIN_EMAIL
+        
         # Crear mensaje
         msg = MIMEMultipart('alternative')
         msg['Subject'] = f"🚨 Nueva Postulación CZ: {request.empresa} - {request.plan}"
         msg['From'] = smtp_user or 'noreply@czperu.com'
-        msg['To'] = ADMIN_EMAIL
+        msg['To'] = dest_email
         
         # Contenido HTML
         html_content = f"""
@@ -2573,7 +2593,7 @@ async def notify_admin(request: NotifyAdminRequest):
                 server = smtplib.SMTP(smtp_host, smtp_port)
                 server.starttls()
                 server.login(smtp_user, smtp_pass)
-                server.sendmail(msg['From'], [ADMIN_EMAIL], msg.as_string())
+                server.sendmail(msg['From'], [dest_email], msg.as_string())
                 server.quit()
                 email_sent = True
             except Exception as e:
@@ -2619,7 +2639,7 @@ async def notify_admin(request: NotifyAdminRequest):
             'success': True,
             'message': 'Notificación enviada al administrador',
             'email_sent': email_sent,
-            'admin_email': ADMIN_EMAIL
+            'admin_email': dest_email
         }
         
     except Exception as e:
