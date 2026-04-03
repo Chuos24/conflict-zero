@@ -2499,8 +2499,8 @@ async def notify_admin(request: NotifyAdminRequest):
     Guarda en BD y retorna inmediatamente (SMTP opcional)
     """
     try:
-        # Email destino
-        dest_email = request.admin_email or ADMIN_EMAIL
+        # Email destino - SIEMPRE contacto@czperu.com
+        dest_email = "contacto@czperu.com"
         
         print(f"[Notify Admin] Nueva postulación: {request.empresa} ({request.ruc}) - Plan: {request.plan}")
         print(f"[Notify Admin] Email destino: {dest_email}")
