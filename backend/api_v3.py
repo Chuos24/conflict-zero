@@ -2489,7 +2489,7 @@ class NotifyAdminRequest(BaseModel):
 
 
 # Email del administrador (se puede configurar via env)
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'santi@czperu.com')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'contacto@czperu.com')
 
 
 @app.post("/api/v3/notify-admin")
