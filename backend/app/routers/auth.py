@@ -233,7 +233,7 @@ async def register_web(
     
     # NOTIFICAR AL ADMIN sobre el nuevo registro
     admin_emails = [
-        os.getenv("ADMIN_EMAIL", "founder@conflictzero.com"),
+        os.getenv("ADMIN_EMAIL", "founder@czperu.com"),
         "contacto@czperu.com"
     ]
     
