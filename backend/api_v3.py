@@ -2496,112 +2496,14 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'contacto@czperu.com')
 async def notify_admin(request: NotifyAdminRequest):
     """
     Notificar al administrador sobre nueva postulación
-    Envía email con los datos del solicitante
+    Guarda en BD y retorna inmediatamente (SMTP opcional)
     """
     try:
-        # Importar smtplib para enviar email
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-        
-        # Configuración SMTP (usar variables de entorno en producción)
-        smtp_host = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', '587'))
-        smtp_user = os.environ.get('SMTP_USER', '')
-        smtp_pass = os.environ.get('SMTP_PASS', '')
-        
-        # Email destino (prioridad: request.admin_email > ADMIN_EMAIL por defecto)
+        # Email destino
         dest_email = request.admin_email or ADMIN_EMAIL
         
-        # Crear mensaje
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = f"🚨 Nueva Postulación CZ: {request.empresa} - {request.plan}"
-        msg['From'] = smtp_user or 'noreply@czperu.com'
-        msg['To'] = dest_email
-        
-        # Contenido HTML
-        html_content = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; background: #0A0A0F; color: #F5F5F0; padding: 20px; }}
-                .container {{ max-width: 600px; margin: 0 auto; background: #141418; padding: 30px; border: 1px solid #C5A059; }}
-                h1 {{ color: #C5A059; font-size: 24px; }}
-                .field {{ margin: 15px 0; padding: 10px; background: #1A1A1E; }}
-                .label {{ color: #8A8A85; font-size: 12px; text-transform: uppercase; }}
-                .value {{ color: #F5F5F0; font-size: 16px; margin-top: 5px; }}
-                .cta {{ display: inline-block; margin-top: 20px; padding: 15px 30px; background: #C5A059; color: #0A0A0F; text-decoration: none; font-weight: bold; }}
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🚨 Nueva Postulación Recibida</h1>
-                <p>Una nueva empresa ha solicitado acceso a Conflict Zero.</p>
-                
-                <div class="field">
-                    <div class="label">Empresa</div>
-                    <div class="value">{request.empresa}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">RUC</div>
-                    <div class="value">{request.ruc}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">Plan Solicitado</div>
-                    <div class="value" style="color: #C5A059; font-weight: bold;">{request.plan}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">Score Legal</div>
-                    <div class="value">{request.score or 'N/A'}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">Email de Contacto</div>
-                    <div class="value">{request.email}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">Teléfono</div>
-                    <div class="value">{request.phone or 'No proporcionado'}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">Solicitante</div>
-                    <div class="value">{request.nombre or 'No proporcionado'}</div>
-                </div>
-                
-                <div class="field">
-                    <div class="label">Fecha de Solicitud</div>
-                    <div class="value">{request.timestamp or datetime.now().isoformat()}</div>
-                </div>
-                
-                <a href="https://www.czperu.com/admin-v3.html" class="cta">Ir al Panel de Administración</a>
-            </div>
-        </body>
-        </html>
-        """
-        
-        msg.attach(MIMEText(html_content, 'html'))
-        
-        # Intentar enviar email si hay credenciales SMTP configuradas
-        if smtp_user and smtp_pass:
-            try:
-                server = smtplib.SMTP(smtp_host, smtp_port)
-                server.starttls()
-                server.login(smtp_user, smtp_pass)
-                server.sendmail(msg['From'], [dest_email], msg.as_string())
-                server.quit()
-                email_sent = True
-            except Exception as e:
-                print(f"[Notify Admin] Error enviando email: {e}")
-                email_sent = False
-        else:
-            email_sent = False
-            print("[Notify Admin] SMTP no configurado, email no enviado")
+        print(f"[Notify Admin] Nueva postulación: {request.empresa} ({request.ruc}) - Plan: {request.plan}")
+        print(f"[Notify Admin] Email destino: {dest_email}")
         
         # Guardar notificación en base de datos si está disponible
         if PSYCOPG2_AVAILABLE:
@@ -2619,17 +2521,17 @@ async def notify_admin(request: NotifyAdminRequest):
                                 phone VARCHAR(50),
                                 nombre VARCHAR(255),
                                 score VARCHAR(20),
-                                email_sent BOOLEAN DEFAULT FALSE,
                                 created_at TIMESTAMP DEFAULT NOW()
                             )
                         """)
                         cur.execute("""
                             INSERT INTO admin_notifications 
-                            (ruc, empresa, plan, email, phone, nombre, score, email_sent)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            (ruc, empresa, plan, email, phone, nombre, score)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """, (request.ruc, request.empresa, request.plan, request.email,
-                              request.phone, request.nombre, request.score, email_sent))
+                              request.phone, request.nombre, request.score))
                         conn.commit()
+                        print(f"[Notify Admin] Guardado en BD exitosamente")
                 except Exception as e:
                     print(f"[Notify Admin] Error guardando en DB: {e}")
                 finally:
@@ -2637,13 +2539,18 @@ async def notify_admin(request: NotifyAdminRequest):
         
         return {
             'success': True,
-            'message': 'Notificación enviada al administrador',
-            'email_sent': email_sent,
-            'admin_email': dest_email
+            'message': 'Notificación registrada',
+            'admin_email': dest_email,
+            'data': {
+                'ruc': request.ruc,
+                'empresa': request.empresa,
+                'plan': request.plan,
+                'email': request.email
+            }
         }
         
     except Exception as e:
-        print(f"[Notify Admin] Error general: {e}")
+        print(f"[Notify Admin] Error: {e}")
         return JSONResponse(
             status_code=500,
             content={'success': False, 'error': 'NOTIFICATION_ERROR', 'message': str(e)}
