@@ -2496,14 +2496,111 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'contacto@czperu.com')
 async def notify_admin(request: NotifyAdminRequest):
     """
     Notificar al administrador sobre nueva postulación
-    Guarda en BD y retorna inmediatamente (SMTP opcional)
+    Usa SendGrid para enviar email real
     """
+    import httpx
+    
     try:
         # Email destino - SIEMPRE contacto@czperu.com
         dest_email = "contacto@czperu.com"
         
         print(f"[Notify Admin] Nueva postulación: {request.empresa} ({request.ruc}) - Plan: {request.plan}")
         print(f"[Notify Admin] Email destino: {dest_email}")
+        
+        # SendGrid API Key
+        sendgrid_key = os.environ.get('SENDGRID_API_KEY', '')
+        from_email = os.environ.get('FROM_EMAIL', 'santi@czperu.com')
+        
+        email_sent = False
+        
+        # Enviar email via SendGrid si hay API key
+        if sendgrid_key:
+            try:
+                html_content = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <style>
+                        body {{ font-family: Arial, sans-serif; background: #0A0A0F; color: #F5F5F0; padding: 20px; }}
+                        .container {{ max-width: 600px; margin: 0 auto; background: #141418; padding: 30px; border: 1px solid #C5A059; }}
+                        h1 {{ color: #C5A059; font-size: 24px; }}
+                        .field {{ margin: 15px 0; padding: 10px; background: #1A1A1E; }}
+                        .label {{ color: #8A8A85; font-size: 12px; text-transform: uppercase; }}
+                        .value {{ color: #F5F5F0; font-size: 16px; margin-top: 5px; }}
+                        .cta {{ display: inline-block; margin-top: 20px; padding: 15px 30px; background: #C5A059; color: #0A0A0F; text-decoration: none; font-weight: bold; }}
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <h1>🚨 Nueva Postulación Recibida</h1>
+                        <p>Una nueva empresa ha solicitado acceso a Conflict Zero.</p>
+                        
+                        <div class="field">
+                            <div class="label">Empresa</div>
+                            <div class="value">{request.empresa}</div>
+                        </div>
+                        
+                        <div class="field">
+                            <div class="label">RUC</div>
+                            <div class="value">{request.ruc}</div>
+                        </div>
+                        
+                        <div class="field">
+                            <div class="label">Plan Solicitado</div>
+                            <div class="value" style="color: #C5A059; font-weight: bold;">{request.plan}</div>
+                        </div>
+                        
+                        <div class="field">
+                            <div class="label">Score Legal</div>
+                            <div class="value">{request.score or 'N/A'}</div>
+                        </div>
+                        
+                        <div class="field">
+                            <div class="label">Email de Contacto</div>
+                            <div class="value">{request.email}</div>
+                        </div>
+                        
+                        <div class="field">
+                            <div class="label">Teléfono</div>
+                            <div class="value">{request.phone or 'No proporcionado'}</div>
+                        </div>
+                        
+                        <div class="field">
+                            <div class="label">Solicitante</div>
+                            <div class="value">{request.nombre or 'No proporcionado'}</div>
+                        </div>
+                        
+                        <a href="https://www.czperu.com/admin-v3.html" class="cta">Ir al Panel de Administración</a>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.post(
+                        "https://api.sendgrid.com/v3/mail/send",
+                        headers={
+                            "Authorization": f"Bearer {sendgrid_key}",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "personalizations": [{"to": [{"email": dest_email}]}],
+                            "from": {"email": from_email, "name": "Conflict Zero"},
+                            "subject": f"🚨 Nueva Postulación: {request.empresa} - {request.plan}",
+                            "content": [{"type": "text/html", "value": html_content}]
+                        }
+                    )
+                    
+                    if response.status_code == 202:
+                        email_sent = True
+                        print(f"[Notify Admin] ✅ Email enviado via SendGrid a {dest_email}")
+                    else:
+                        print(f"[Notify Admin] ⚠️ SendGrid error: {response.status_code} - {response.text}")
+                        
+            except Exception as e:
+                print(f"[Notify Admin] Error enviando email: {e}")
+        else:
+            print(f"[Notify Admin] ⚠️ SENDGRID_API_KEY no configurado")
         
         # Guardar notificación en base de datos si está disponible
         if PSYCOPG2_AVAILABLE:
@@ -2521,15 +2618,16 @@ async def notify_admin(request: NotifyAdminRequest):
                                 phone VARCHAR(50),
                                 nombre VARCHAR(255),
                                 score VARCHAR(20),
+                                email_sent BOOLEAN DEFAULT FALSE,
                                 created_at TIMESTAMP DEFAULT NOW()
                             )
                         """)
                         cur.execute("""
                             INSERT INTO admin_notifications 
-                            (ruc, empresa, plan, email, phone, nombre, score)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            (ruc, empresa, plan, email, phone, nombre, score, email_sent)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """, (request.ruc, request.empresa, request.plan, request.email,
-                              request.phone, request.nombre, request.score))
+                              request.phone, request.nombre, request.score, email_sent))
                         conn.commit()
                         print(f"[Notify Admin] Guardado en BD exitosamente")
                 except Exception as e:
@@ -2539,7 +2637,8 @@ async def notify_admin(request: NotifyAdminRequest):
         
         return {
             'success': True,
-            'message': 'Notificación registrada',
+            'message': 'Notificación enviada' if email_sent else 'Notificación registrada (email no enviado)',
+            'email_sent': email_sent,
             'admin_email': dest_email,
             'data': {
                 'ruc': request.ruc,
