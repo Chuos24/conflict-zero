@@ -26,15 +26,16 @@ class FrontendRegisterRequest(BaseModel):
     lastName: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
     company: str = Field(..., min_length=1, max_length=255)
-    plan: str = Field(..., pattern=r"^(starter|essential|professional|enterprise)$")
+    plan: str = Field(..., pattern=r"^(red|starter|essential|professional|enterprise)$")
     phone: str = Field(default="", max_length=50)
     date: str = Field(default="", max_length=100)
 
-# Configuración de planes - UHNW: Solo planes pagos
+# Configuración de planes - UHNW: Red es gratuito, requiere aprobación
 PLAN_CONFIG = {
-    "essential": {"monthly_limit": 1000, "features": ["pdf_certs", "history_90d"]},
-    "professional": {"monthly_limit": 5000, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring"]},
-    "enterprise": {"monthly_limit": 100000, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring", "webhooks", "dedicated_manager"]}
+    "red": {"monthly_limit": 50, "features": ["basic_verification"], "requires_approval": True},
+    "essential": {"monthly_limit": 1000, "features": ["pdf_certs", "history_90d"], "requires_approval": False},
+    "professional": {"monthly_limit": 5000, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring"], "requires_approval": False},
+    "enterprise": {"monthly_limit": 100000, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring", "webhooks", "dedicated_manager"], "requires_approval": False}
 }
 
 @router.post(
@@ -117,11 +118,13 @@ async def register_web(
     import uuid
     import secrets
     import logging
+    import os
     
     logger = logging.getLogger(__name__)
     
-    # Mapear plan starter -> essential
+    # Mapear plan starter/red -> essential o mantener red
     plan_mapping = {
+        "red": "red",
         "starter": "essential",
         "essential": "essential",
         "professional": "professional", 
@@ -158,6 +161,9 @@ async def register_web(
     full_name = f"{data.firstName} {data.lastName}".strip()
     plan_config = PLAN_CONFIG[plan]
     
+    # Determinar si requiere aprobación (plan red siempre requiere aprobación)
+    requires_approval = plan_config.get("requires_approval", plan == "red")
+    
     db_user = User(
         id=str(uuid.uuid4()),
         email=data.email,
@@ -167,33 +173,93 @@ async def register_web(
         ruc="",  # Opcional en registro web
         plan_type=plan,
         monthly_limit=plan_config["monthly_limit"],
-        is_active=True
+        is_active=True,
+        is_approved=not requires_approval  # Si no requiere aprobación, está aprobado por defecto
     )
     
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
     
-    # Enviar email de bienvenida
+    # Enviar email de bienvenida solo si no requiere aprobación
     email_service = get_email_service()
-    email_sent = email_service.send_welcome_email(
-        email=data.email,
-        temp_password=temp_password,
-        full_name=full_name,
-        plan=plan
-    )
     
-    # Log del resultado
-    if email_sent:
-        logger.info(f"Email de bienvenida enviado a {data.email}")
+    if not requires_approval:
+        # Usuario aprobado automáticamente - enviar credenciales
+        email_sent = email_service.send_welcome_email(
+            email=data.email,
+            temp_password=temp_password,
+            full_name=full_name,
+            plan=plan
+        )
+        if email_sent:
+            logger.info(f"Email de bienvenida enviado a {data.email}")
+        else:
+            logger.warning(f"No se pudo enviar email a {data.email}. Proveedor: {email_service.provider}")
     else:
-        logger.warning(f"No se pudo enviar email a {data.email}. Proveedor: {email_service.provider}")
+        # Usuario pendiente de aprobación - enviar notificación de espera
+        email_sent = email_service.send_email(
+            to_email=data.email,
+            subject="Conflict Zero - Solicitud Recibida",
+            html_content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{ font-family: 'Inter', sans-serif; background: #0a0a0a; margin: 0; padding: 0; color: #f5f5f5; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 40px 20px; }}
+                    .card {{ background: #141414; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px; }}
+                    h1 {{ font-family: 'Cormorant Garamond', serif; color: #c9a961; }}
+                    p {{ color: #888; line-height: 1.6; }}
+                    .highlight {{ color: #c9a961; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="card">
+                        <h1>Solicitud Recibida</h1>
+                        <p>Hola <span class="highlight">{full_name}</span>,</p>
+                        <p>Hemos recibido tu solicitud para el plan <span class="highlight">{plan.upper()}</span>.</p>
+                        <p>Tu cuenta está siendo revisada por nuestro equipo. Recibirás un email con tus credenciales de acceso una vez que sea aprobada.</p>
+                        <p style="color: #666; margin-top: 30px;">Tiempo estimado de aprobación: 24-48 horas.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+            text_content=f"Hola {full_name}, tu solicitud para el plan {plan.upper()} ha sido recibida. Está en revisión y recibirás tus credenciales en 24-48 horas."
+        )
+    
+    # NOTIFICAR AL ADMIN sobre el nuevo registro
+    admin_emails = [
+        os.getenv("ADMIN_EMAIL", "founder@conflictzero.com"),
+        "contacto@czperu.com"
+    ]
+    
+    for admin_email in admin_emails:
+        try:
+            admin_notified = email_service.send_admin_registration_notification(
+                admin_email=admin_email,
+                user_email=data.email,
+                user_name=full_name,
+                user_company=data.company,
+                user_ruc=data.phone,  # Usamos phone como placeholder para RUC si no hay campo
+                plan=plan
+            )
+            if admin_notified:
+                logger.info(f"Notificación enviada al admin ({admin_email}) sobre registro de {data.email}")
+            else:
+                logger.warning(f"No se pudo notificar al admin ({admin_email}) sobre registro de {data.email}")
+        except Exception as e:
+            logger.error(f"Error notificando al admin ({admin_email}): {e}")
     
     return {
         "success": True,
         "message": "Solicitud enviada exitosamente. Nuestro equipo revisará tu información y recibirás tus credenciales por email.",
         "email_sent": email_sent,
-        "user_id": str(db_user.id)
+        "user_id": str(db_user.id),
+        "pending_approval": requires_approval
     }
 
 
@@ -353,6 +419,13 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Usuario inactivo. Contacte soporte."
+        )
+    
+    # Verificar que el usuario esté aprobado (excepto founder/admin)
+    if not user.is_approved and not user.is_admin and not is_founder:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cuenta pendiente de aprobación. Recibirás un email cuando sea activada."
         )
     
     # Crear token
@@ -906,3 +979,184 @@ async def approve_user_white_glove(
 # Redeploy force Mon Mar 30 09:11:26 AM CST 2026
 
 # FORCE CHANGE 1774834640
+
+# ============================================================================
+# NUEVOS ENDPOINTS DE APROBACIÓN (2026-04-02)
+# ============================================================================
+
+class UserApprovalRequest(BaseModel):
+    approved: bool = Field(..., description="True para aprobar, False para rechazar")
+    notes: Optional[str] = Field(None, description="Notas opcionales sobre la decisión")
+
+@router.get(
+    "/admin/v2/pending-users",
+    summary="[ADMIN] Usuarios Pendientes",
+    description="Lista todos los usuarios pendientes de aprobación."
+)
+async def get_pending_users_v2(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Obtiene la lista de usuarios pendientes de aprobación.
+    Requiere privilegios de administrador.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren privilegios de administrador"
+        )
+    
+    pending_users = db.query(User).filter(
+        User.is_approved == False,
+        User.is_active == True
+    ).order_by(User.created_at.desc()).all()
+    
+    return {
+        "count": len(pending_users),
+        "users": [
+            {
+                "id": str(u.id),
+                "email": u.email,
+                "full_name": u.full_name,
+                "company_name": u.company_name,
+                "ruc": u.ruc,
+                "plan_type": u.plan_type,
+                "created_at": u.created_at.isoformat() if u.created_at else None
+            }
+            for u in pending_users
+        ]
+    }
+
+
+@router.post(
+    "/admin/v2/approve-user/{user_id}",
+    summary="[ADMIN] Aprobar/Rechazar Usuario",
+    description="Aprueba o rechaza un usuario pendiente y envía notificación."
+)
+async def approve_user_v2(
+    user_id: str,
+    request: UserApprovalRequest,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Aprueba o rechaza un usuario pendiente.
+    Si se aprueba, genera y envía credenciales por email.
+    """
+    import random
+    import string
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requieren privilegios de administrador"
+        )
+    
+    # Buscar usuario
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado"
+        )
+    
+    if request.approved:
+        # Aprobar usuario
+        user.is_approved = True
+        
+        # Generar nueva contraseña temporal
+        alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+        temp_password = ''.join(random.choice(alphabet) for _ in range(12))
+        
+        # Guardar contraseña
+        PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+        try:
+            user.hashed_password = get_password_hash(temp_password)
+        except Exception:
+            user.hashed_password = f"temp:{temp_password}"
+        
+        db.commit()
+        
+        # Enviar email con credenciales
+        email_service = get_email_service()
+        email_sent = email_service.send_welcome_email(
+            email=user.email,
+            temp_password=temp_password,
+            full_name=user.full_name,
+            plan=user.plan_type
+        )
+        
+        logger.info(f"Usuario {user.email} aprobado por {current_user.email}")
+        
+        return {
+            "success": True,
+            "message": f"Usuario {user.email} aprobado exitosamente",
+            "email_sent": email_sent,
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "plan_type": user.plan_type
+            }
+        }
+    else:
+        # Rechazar usuario - desactivar cuenta
+        user.is_active = False
+        user.is_approved = False
+        db.commit()
+        
+        # Notificar al usuario del rechazo
+        email_service = get_email_service()
+        rejection_reason = request.notes or "No cumple con los requisitos establecidos."
+        
+        email_service.send_email(
+            to_email=user.email,
+            subject="Conflict Zero - Solicitud Revisada",
+            html_content=f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{ font-family: 'Inter', sans-serif; background: #0a0a0a; margin: 0; padding: 0; color: #f5f5f5; }}
+                    .container {{ max-width: 600px; margin: 0 auto; padding: 40px 20px; }}
+                    .card {{ background: #141414; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px; }}
+                    h1 {{ font-family: 'Cormorant Garamond', serif; color: #c9a961; }}
+                    p {{ color: #888; line-height: 1.6; }}
+                    .highlight {{ color: #c9a961; }}
+                    .reason {{ background: rgba(220, 53, 69, 0.1); border-left: 3px solid #dc3545; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="card">
+                        <h1>Actualización de Solicitud</h1>
+                        <p>Hola <span class="highlight">{user.full_name}</span>,</p>
+                        <p>Lamentamos informarte que tu solicitud para el plan <span class="highlight">{user.plan_type.upper()}</span> no ha sido aprobada en esta ocasión.</p>
+                        <div class="reason">
+                            <p style="margin: 0; color: #dc3545;"><strong>Motivo:</strong> {rejection_reason}</p>
+                        </div>
+                        <p>Si tienes alguna pregunta o deseas más información, puedes contactarnos respondiendo a este correo.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """,
+            text_content=f"Hola {user.full_name}, tu solicitud no ha sido aprobada. Motivo: {rejection_reason}"
+        )
+        
+        logger.info(f"Usuario {user.email} rechazado por {current_user.email}")
+        
+        return {
+            "success": True,
+            "message": f"Usuario {user.email} rechazado",
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "status": "rejected"
+            }
+        }
