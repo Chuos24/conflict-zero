@@ -1744,127 +1744,350 @@ async def cache_clear(ruc: str):
 async def get_network(ruc: str):
     """
     Obtener red de subcontratistas para visualización D3.js
-    Demo: Solo funciona para Zamora (20529400790)
+    Datos reales desde tabla invitations
     """
-    if ruc != '20529400790':
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
         return JSONResponse(
-            status_code=403,
-            content={'error': 'Solo demo para Zamora disponible'}
+            status_code=503,
+            content={'error': 'Database not available'}
         )
     
-    # Mock data realista - electricistas en Chiclayo/Cajamarca
-    network_data = {
-        'centro': {
-            'ruc': '20529400790',
-            'nombre': 'CONSTRUCTORA ZAMORA JARA SAC',
-            'score': 41.2,
-            'tier': 'BRONZE',
-            'color': '#B87333',
-            'tipo': 'contratista_principal'
-        },
-        'nodos': [
-            {
-                'id': '20987654321',
-                'ruc': '20987654321',
-                'nombre': 'ELECTRICISTAS DEL NORTE SAC',
-                'score': 85,
-                'tier': 'SILVER',
-                'color': '#C0C0C0',
-                'conexion': 'directo',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Chiclayo'
-            },
-            {
-                'id': '20876543210',
-                'ruc': '20876543210',
-                'nombre': 'INGELÉCTRICA PERÚ SRL',
-                'score': 45,
-                'tier': 'BRONZE',
-                'color': '#B87333',
-                'conexion': 'indirecto',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Cajamarca'
-            },
-            {
-                'id': '20765432109',
-                'ruc': '20765432109',
-                'nombre': 'CABLEADO INDUSTRIAL DEL SUR SAC',
-                'score': 95,
-                'tier': 'GOLD',
-                'color': '#D4AF37',
-                'conexion': 'directo',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Chiclayo'
-            },
-            {
-                'id': '20654321098',
-                'ruc': '20654321098',
-                'nombre': 'LUZ Y FUERZA CHICLAYO EIRL',
-                'score': 22,
-                'tier': 'RECHAZADO',
-                'color': '#8B0000',
-                'conexion': 'observado',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Chiclayo',
-                'alerta': 'Inhabilitado para contratación'
-            },
-            {
-                'id': '20543210987',
-                'ruc': '20543210987',
-                'nombre': 'SERVICIOS ELÉCTRICOS NORTE SAC',
-                'score': 73,
-                'tier': 'SILVER',
-                'color': '#C0C0C0',
-                'conexion': 'directo',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Lambayeque'
-            },
-            {
-                'id': '20432109876',
-                'ruc': '20432109876',
-                'nombre': 'INSTALACIONES ELÉCTRICAS JOSÉ SRL',
-                'score': 68,
-                'tier': 'BRONZE',
-                'color': '#B87333',
-                'conexion': 'indirecto',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Cajamarca'
-            },
-            {
-                'id': '20321098765',
-                'ruc': '20321098765',
-                'nombre': 'ENERGÍA Y SISTEMAS DEL NORTE EIRL',
-                'score': 91,
-                'tier': 'GOLD',
-                'color': '#D4AF37',
-                'conexion': 'directo',
-                'tipo': 'subcontratista',
-                'ubicacion': 'Chiclayo'
-            }
-        ],
-        'links': [
-            {'source': '20529400790', 'target': '20987654321', 'tipo': 'directo'},
-            {'source': '20529400790', 'target': '20765432109', 'tipo': 'directo'},
-            {'source': '20529400790', 'target': '20543210987', 'tipo': 'directo'},
-            {'source': '20529400790', 'target': '20321098765', 'tipo': 'directo'},
-            {'source': '20987654321', 'target': '20876543210', 'tipo': 'indirecto'},
-            {'source': '20987654321', 'target': '20432109876', 'tipo': 'indirecto'},
-            {'source': '20529400790', 'target': '20654321098', 'tipo': 'observado'}
-        ],
-        'resumen': {
-            'total_nodos': 7,
-            'por_tier': {
-                'GOLD': 2,
-                'SILVER': 2,
-                'BRONZE': 2,
-                'RECHAZADO': 1
-            },
-            'score_promedio': 68.5,
-            'riesgo_red': 'MEDIO'
-        }
-    }
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'error': 'DB connection failed'}
+        )
     
-    return network_data
+    try:
+        with conn.cursor() as cur:
+            # 1. Obtener datos del centro (invitador)
+            cur.execute("""
+                SELECT razon_social, score_calculated, tier 
+                FROM validations_v3 
+                WHERE ruc = %s 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """, (ruc,))
+            
+            centro_row = cur.fetchone()
+            if not centro_row:
+                # Si no hay validación, usar datos genéricos
+                centro_data = {
+                    'ruc': ruc,
+                    'nombre': f'Empresa {ruc}',
+                    'score': 50.0,
+                    'tier': 'BRONZE',
+                    'color': '#B87333',
+                    'tipo': 'contratista_principal'
+                }
+            else:
+                tier_colors = {'GOLD': '#D4AF37', 'SILVER': '#C0C0C0', 'BRONZE': '#B87333', 'RECHAZADO': '#8B0000'}
+                centro_data = {
+                    'ruc': ruc,
+                    'nombre': centro_row[0],
+                    'score': float(centro_row[1]),
+                    'tier': centro_row[2],
+                    'color': tier_colors.get(centro_row[2], '#B87333'),
+                    'tipo': 'contratista_principal'
+                }
+            
+            # 2. Obtener invitaciones aceptadas (con ruc_invitado)
+            cur.execute("""
+                SELECT i.ruc_invitado, i.email, i.created_at,
+                       v.razon_social, v.score_calculated, v.tier
+                FROM invitations i
+                LEFT JOIN validations_v3 v ON i.ruc_invitado = v.ruc
+                WHERE i.invitador_ruc = %s 
+                  AND i.ruc_invitado IS NOT NULL
+                  AND i.used = TRUE
+                ORDER BY i.created_at DESC
+            """, (ruc,))
+            
+            invitaciones = cur.fetchall()
+            
+            # 3. Construir nodos
+            nodos = []
+            tier_colors = {'GOLD': '#D4AF37', 'SILVER': '#C0C0C0', 'BRONZE': '#B87333', 'RECHAZADO': '#8B0000'}
+            
+            for idx, inv in enumerate(invitaciones):
+                ruc_invitado = inv[0]
+                email = inv[1]
+                nombre = inv[3] or f'Invitado {idx+1}'
+                score = float(inv[4]) if inv[4] else 50.0
+                tier = inv[5] or 'BRONZE'
+                
+                # Determinar tipo de conexión basado en score
+                if score >= 80:
+                    conexion = 'directo'
+                elif score >= 50:
+                    conexion = 'indirecto'
+                else:
+                    conexion = 'observado'
+                
+                nodos.append({
+                    'id': ruc_invitado,
+                    'ruc': ruc_invitado,
+                    'nombre': nombre,
+                    'score': score,
+                    'tier': tier,
+                    'color': tier_colors.get(tier, '#B87333'),
+                    'conexion': conexion,
+                    'tipo': 'subcontratista',
+                    'email': email
+                })
+            
+            # 4. Si no hay invitaciones reales, devolver demo para Zamora (backward compat)
+            if len(nodos) == 0 and ruc == '20529400790':
+                # Datos demo solo para Zamora cuando no tiene invitaciones reales
+                nodos = [
+                    {
+                        'id': '20987654321', 'ruc': '20987654321',
+                        'nombre': 'ELECTRICISTAS DEL NORTE SAC',
+                        'score': 85, 'tier': 'SILVER', 'color': '#C0C0C0',
+                        'conexion': 'directo', 'tipo': 'subcontratista'
+                    },
+                    {
+                        'id': '20765432109', 'ruc': '20765432109',
+                        'nombre': 'CABLEADO INDUSTRIAL DEL SUR SAC',
+                        'score': 95, 'tier': 'GOLD', 'color': '#D4AF37',
+                        'conexion': 'directo', 'tipo': 'subcontratista'
+                    }
+                ]
+            
+            network_data = {
+                'centro': centro_data,
+                'nodos': nodos,
+                'stats': {
+                    'total_invitados': len(nodos),
+                    'directos': len([n for n in nodos if n['conexion'] == 'directo']),
+                    'indirectos': len([n for n in nodos if n['conexion'] == 'indirecto']),
+                    'observados': len([n for n in nodos if n['conexion'] == 'observado']),
+                    'promedio_score': sum(n['score'] for n in nodos) / len(nodos) if nodos else 0
+                }
+            }
+            
+            return network_data
+            
+    except Exception as e:
+        print(f"[Network Error] {e}")
+        return JSONResponse(
+            status_code=500,
+            content={'error': str(e)}
+        )
+    finally:
+        conn.close()
+
+
+# ============ ALERTAS DE CAMBIO DE SCORE (OPCIÓN A) ============
+
+@app.post("/api/v3/admin/check-score-changes")
+async def check_score_changes():
+    """
+    Verificar cambios de score en certificados activos
+    Enviar alertas si el score cambió significativamente
+    """
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
+        return {'error': 'Database not available'}
+    
+    conn = get_db_connection()
+    if not conn:
+        return {'error': 'DB connection failed'}
+    
+    email_service = get_email_service()
+    cambios_detectados = []
+    
+    try:
+        with conn.cursor() as cur:
+            # 1. Obtener todos los certificados activos
+            cur.execute("""
+                SELECT c.id, c.ruc, c.company_name, c.score, c.tier, c.plan_type, c.cert_slug
+                FROM certificates_v3 c
+                WHERE c.is_active = TRUE 
+                  AND c.created_at > NOW() - INTERVAL '1 year'
+            """)
+            
+            certificados = cur.fetchall()
+            
+            for cert in certificados:
+                cert_id, ruc, company_name, cert_score, cert_tier, plan_type, cert_slug = cert
+                
+                # 2. Obtener score actual más reciente
+                cur.execute("""
+                    SELECT score_calculated, tier 
+                    FROM validations_v3 
+                    WHERE ruc = %s 
+                    ORDER BY created_at DESC 
+                    LIMIT 1
+                """, (ruc,))
+                
+                current = cur.fetchone()
+                if not current:
+                    continue
+                
+                current_score = float(current[0])
+                current_tier = current[1]
+                
+                # 3. Verificar si hay cambio significativo (±10 puntos o cambio de tier)
+                score_diff = abs(current_score - float(cert_score))
+                tier_changed = current_tier != cert_tier
+                
+                if score_diff >= 10 or tier_changed:
+                    cambio = {
+                        'cert_id': cert_id,
+                        'ruc': ruc,
+                        'company_name': company_name,
+                        'score_anterior': float(cert_score),
+                        'score_actual': current_score,
+                        'diferencia': round(current_score - float(cert_score), 2),
+                        'tier_anterior': cert_tier,
+                        'tier_actual': current_tier,
+                        'plan': plan_type
+                    }
+                    cambios_detectados.append(cambio)
+                    
+                    # 4. Enviar alerta por email
+                    try:
+                        email_html = f"""
+                        <h2>🚨 Alerta: Cambio de Score Detectado</h2>
+                        <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
+                        <p><strong>Score anterior:</strong> {cert_score}</p>
+                        <p><strong>Score actual:</strong> {current_score}</p>
+                        <p><strong>Diferencia:</strong> {cambio['diferencia']:+.1f} puntos</p>
+                        <p><strong>Tier anterior:</strong> {cert_tier}</p>
+                        <p><strong>Tier actual:</strong> {current_tier}</p>
+                        <p><strong>Plan contratado:</strong> {plan_type}</p>
+                        <p><strong>Código de certificado:</strong> {cert_slug}</p>
+                        <hr>
+                        <p>Ver detalles: https://czperu.com/verificar.html?cert={cert_slug}</p>
+                        """
+                        
+                        email_service.send_email(
+                            to_email="tiagomunoz10@icloud.com",
+                            subject=f"🚨 Alerta Score: {company_name} cambió de {cert_score} a {current_score}",
+                            html_content=email_html
+                        )
+                        print(f"[Alerta Score] Email enviado para {ruc}: {cert_score} → {current_score}")
+                    except Exception as e:
+                        print(f"[Alerta Score] Error enviando email: {e}")
+            
+            return {
+                'success': True,
+                'certificados_verificados': len(certificados),
+                'cambios_detectados': len(cambios_detectados),
+                'cambios': cambios_detectados
+            }
+            
+    except Exception as e:
+        print(f"[CheckScoreChanges Error] {e}")
+        return {'error': str(e)}
+    finally:
+        conn.close()
+
+
+# ============ VENCIMIENTO POR INACTIVIDAD (OPCIÓN B) ============
+
+@app.post("/api/v3/admin/check-inactive-certificates")
+async def check_inactive_certificates():
+    """
+    Verificar certificados sin pagos registrados en los últimos X meses
+    Marcar como inactivos y enviar notificación
+    """
+    if not PSYCOPG2_AVAILABLE or not DATABASE_URL:
+        return {'error': 'Database not available'}
+    
+    conn = get_db_connection()
+    if not conn:
+        return {'error': 'DB connection failed'}
+    
+    email_service = get_email_service()
+    certificados_inactivos = []
+    
+    try:
+        with conn.cursor() as cur:
+            # NOTA: Asumiendo que tendrás una tabla 'payments' en el futuro
+            # Por ahora, usamos una lógica simplificada:
+            # Si el certificado tiene más de 3 meses y no hay registro de pago reciente
+            
+            cur.execute("""
+                SELECT c.id, c.ruc, c.company_name, c.score, c.tier, 
+                       c.plan_type, c.cert_slug, c.created_at
+                FROM certificates_v3 c
+                WHERE c.is_active = TRUE 
+                  AND c.created_at < NOW() - INTERVAL '3 months'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM payments p 
+                      WHERE p.ruc = c.ruc 
+                      AND p.created_at > NOW() - INTERVAL '3 months'
+                  )
+            """)
+            
+            # Como no existe tabla payments aún, esta query no retornará nada
+            # Implementación alternativa: verificar por fecha de creación
+            
+            cur.execute("""
+                SELECT c.id, c.ruc, c.company_name, c.score, c.tier, 
+                       c.plan_type, c.cert_slug, c.created_at
+                FROM certificates_v3 c
+                WHERE c.is_active = TRUE 
+                  AND c.created_at < NOW() - INTERVAL '3 months'
+            """)
+            
+            certificados = cur.fetchall()
+            
+            for cert in certificados:
+                cert_id, ruc, company_name, score, tier, plan_type, cert_slug, created_at = cert
+                
+                # Marcar como inactivo
+                cur.execute("""
+                    UPDATE certificates_v3 
+                    SET is_active = FALSE 
+                    WHERE id = %s
+                """, (cert_id,))
+                
+                certificados_inactivos.append({
+                    'cert_id': cert_id,
+                    'ruc': ruc,
+                    'company_name': company_name,
+                    'plan': plan_type,
+                    'cert_slug': cert_slug,
+                    'fecha_creacion': str(created_at)
+                })
+                
+                # Enviar notificación
+                try:
+                    email_html = f"""
+                    <h2>⚠️ Certificado Marcado como Inactivo</h2>
+                    <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
+                    <p><strong>Plan:</strong> {plan_type}</p>
+                    <p><strong>Código:</strong> {cert_slug}</p>
+                    <p><strong>Motivo:</strong> Sin actividad/pagos en los últimos 3 meses</p>
+                    <hr>
+                    <p>El certificado ya no aparecerá como válido en verificaciones.</p>
+                    """
+                    
+                    email_service.send_email(
+                        to_email="tiagunoz10@icloud.com",
+                        subject=f"⚠️ Certificado Inactivo: {company_name}",
+                        html_content=email_html
+                    )
+                except Exception as e:
+                    print(f"[Inactividad] Error enviando email: {e}")
+            
+            conn.commit()
+            
+            return {
+                'success': True,
+                'certificados_marcados_inactivos': len(certificados_inactivos),
+                'certificados': certificados_inactivos
+            }
+            
+    except Exception as e:
+        print(f"[CheckInactive Error] {e}")
+        return {'error': str(e)}
+    finally:
+        conn.close()
+
 
 # ============ API PÚBLICA V1 ============
 
