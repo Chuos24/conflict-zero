@@ -2049,25 +2049,8 @@ async def check_inactive_certificates():
     
     try:
         with conn.cursor() as cur:
-            # NOTA: Asumiendo que tendrás una tabla 'payments' en el futuro
-            # Por ahora, usamos una lógica simplificada:
-            # Si el certificado tiene más de 3 meses y no hay registro de pago reciente
-            
-            cur.execute("""
-                SELECT c.id, c.ruc, c.company_name, c.score, c.tier, 
-                       c.plan_type, c.cert_slug, c.created_at
-                FROM certificates_v3 c
-                WHERE c.is_active = TRUE 
-                  AND c.created_at < NOW() - INTERVAL '3 months'
-                  AND NOT EXISTS (
-                      SELECT 1 FROM payments p 
-                      WHERE p.ruc = c.ruc 
-                      AND p.created_at > NOW() - INTERVAL '3 months'
-                  )
-            """)
-            
-            # Como no existe tabla payments aún, esta query no retornará nada
-            # Implementación alternativa: verificar por fecha de creación
+            # Verificar certificados con más de 3 meses sin actividad
+            # NOTA: En el futuro se puede agregar lógica de pagos cuando exista tabla payments
             
             cur.execute("""
                 SELECT c.id, c.ruc, c.company_name, c.score, c.tier, 
