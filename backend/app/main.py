@@ -210,7 +210,7 @@ async def register_web_direct(request: RegisterWebRequest):
             logger.error(f"❌ Error enviando email a usuario: {e}")
         
         # Notificar al admin sobre nuevo registro
-        admin_email = "santiagomunozzapata@gmail.com"
+        admin_email = "tiagomunoz10@icloud.com"
         
         admin_notifications_sent = 0
         try:
