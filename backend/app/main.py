@@ -152,25 +152,38 @@ class RegisterWebRequest(BaseModel):
 @app.post("/api/v3/auth/register-web")
 async def register_web_direct(request: RegisterWebRequest):
     """
-    Registro desde formulario web - workaround para caché de Render
+    Registro desde formulario web - con notificaciones por email
     """
     import uuid
+    import os
+    import random
+    import string
+    import logging
+    from datetime import datetime
     from app.core.database import SessionLocal
     from app.core.security import get_password_hash
     from app.models import User
+    from app.services.email import get_email_service
     
+    logger = logging.getLogger(__name__)
     db = SessionLocal()
+    email_service = get_email_service()
+    
     try:
         # Verificar si email ya existe
         existing = db.query(User).filter(User.email == request.email).first()
         if existing:
             return {"success": True, "message": "Solicitud recibida"}  # No revelar si existe
         
+        # Generar contraseña temporal segura
+        alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+        temp_password = ''.join(random.choice(alphabet) for _ in range(12))
+        
         # Crear usuario
         user = User(
             id=str(uuid.uuid4()),
             email=request.email,
-            hashed_password=get_password_hash(request.password),
+            hashed_password=f"temp:{temp_password}",  # Formato temporal para evitar problemas bcrypt
             full_name=request.full_name,
             company_name=request.company_name or "",
             ruc=request.ruc or "00000000000",
@@ -180,13 +193,55 @@ async def register_web_direct(request: RegisterWebRequest):
         db.add(user)
         db.commit()
         
+        # Enviar email de bienvenida al usuario
+        user_email_sent = False
+        try:
+            user_email_sent = email_service.send_welcome_email(
+                email=request.email,
+                temp_password=temp_password,
+                full_name=request.full_name,
+                plan="professional"
+            )
+            if user_email_sent:
+                logger.info(f"✅ Email de bienvenida enviado a {request.email}")
+            else:
+                logger.warning(f"⚠️ No se pudo enviar email a {request.email}. Proveedor: {email_service.provider}")
+        except Exception as e:
+            logger.error(f"❌ Error enviando email a usuario: {e}")
+        
+        # Notificar al admin sobre nuevo registro (solo a contacto@czperu.com)
+        admin_email = "contacto@czperu.com"
+        
+        admin_notifications_sent = 0
+        try:
+            admin_notified = email_service.send_admin_registration_notification(
+                admin_email=admin_email,
+                user_email=request.email,
+                user_name=request.full_name,
+                user_company=request.company_name or "No especificada",
+                user_ruc=request.ruc or "No especificado",
+                plan="professional"
+            )
+            if admin_notified:
+                admin_notifications_sent = 1
+                logger.info(f"✅ Admin notificado ({admin_email})")
+            else:
+                logger.warning(f"⚠️ No se pudo notificar a admin ({admin_email})")
+        except Exception as e:
+            logger.error(f"❌ Error notificando a admin ({admin_email}): {e}")
+        
+        logger.info(f"📝 Nuevo registro: {request.email} - {request.full_name}")
+        
         return {
             "success": True,
             "message": "Usuario registrado exitosamente",
-            "user_id": user.id
+            "user_id": user.id,
+            "email_sent": user_email_sent,
+            "admin_notifications": admin_notifications_sent,
+            "provider": email_service.provider
         }
     except Exception as e:
-        print(f"[Register Web] Error: {e}")
+        logger.error(f"[Register Web] Error: {e}")
         return {"success": False, "error": str(e)}
     finally:
         db.close()
