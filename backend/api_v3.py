@@ -42,6 +42,15 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app', 'services'))
 from redis_cache import redis_cache, validation_key, RateLimiter, JobQueue
 
+# Email Service Import
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app', 'services'))
+    from email import get_email_service
+    EMAIL_AVAILABLE = True
+except ImportError:
+    EMAIL_AVAILABLE = False
+    print("⚠️ Email service no disponible")
+
 # Configuración
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
@@ -1894,7 +1903,13 @@ async def check_score_changes():
     if not conn:
         return {'error': 'DB connection failed'}
     
-    email_service = get_email_service()
+    email_service = None
+    if EMAIL_AVAILABLE:
+        try:
+            email_service = get_email_service()
+        except Exception as e:
+            print(f"[Email] Error inicializando: {e}")
+    
     cambios_detectados = []
     
     try:
@@ -1947,7 +1962,8 @@ async def check_score_changes():
                     cambios_detectados.append(cambio)
                     
                     # 4. Enviar alerta por email
-                    try:
+                    if email_service:
+                        try:
                         email_html = f"""
                         <h2>🚨 Alerta: Cambio de Score Detectado</h2>
                         <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
@@ -1970,6 +1986,8 @@ async def check_score_changes():
                         print(f"[Alerta Score] Email enviado para {ruc}: {cert_score} → {current_score}")
                     except Exception as e:
                         print(f"[Alerta Score] Error enviando email: {e}")
+                else:
+                    print(f"[Alerta Score] Email service no disponible, cambio detectado pero no notificado")
             
             return {
                 'success': True,
@@ -2000,7 +2018,13 @@ async def check_inactive_certificates():
     if not conn:
         return {'error': 'DB connection failed'}
     
-    email_service = get_email_service()
+    email_service = None
+    if EMAIL_AVAILABLE:
+        try:
+            email_service = get_email_service()
+        except Exception as e:
+            print(f"[Email] Error inicializando: {e}")
+    
     certificados_inactivos = []
     
     try:
@@ -2055,24 +2079,27 @@ async def check_inactive_certificates():
                 })
                 
                 # Enviar notificación
-                try:
-                    email_html = f"""
-                    <h2>⚠️ Certificado Marcado como Inactivo</h2>
-                    <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
-                    <p><strong>Plan:</strong> {plan_type}</p>
-                    <p><strong>Código:</strong> {cert_slug}</p>
-                    <p><strong>Motivo:</strong> Sin actividad/pagos en los últimos 3 meses</p>
-                    <hr>
-                    <p>El certificado ya no aparecerá como válido en verificaciones.</p>
-                    """
-                    
-                    email_service.send_email(
-                        to_email="tiagunoz10@icloud.com",
-                        subject=f"⚠️ Certificado Inactivo: {company_name}",
-                        html_content=email_html
-                    )
-                except Exception as e:
-                    print(f"[Inactividad] Error enviando email: {e}")
+                if email_service:
+                    try:
+                        email_html = f"""
+                        <h2>⚠️ Certificado Marcado como Inactivo</h2>
+                        <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
+                        <p><strong>Plan:</strong> {plan_type}</p>
+                        <p><strong>Código:</strong> {cert_slug}</p>
+                        <p><strong>Motivo:</strong> Sin actividad/pagos en los últimos 3 meses</p>
+                        <hr>
+                        <p>El certificado ya no aparecerá como válido en verificaciones.</p>
+                        """
+                        
+                        email_service.send_email(
+                            to_email="tiagomunoz10@icloud.com",
+                            subject=f"⚠️ Certificado Inactivo: {company_name}",
+                            html_content=email_html
+                        )
+                    except Exception as e:
+                        print(f"[Inactividad] Error enviando email: {e}")
+                else:
+                    print(f"[Inactividad] Email service no disponible, certificado marcado pero no notificado")
             
             conn.commit()
             
