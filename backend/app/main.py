@@ -209,8 +209,8 @@ async def register_web_direct(request: RegisterWebRequest):
         except Exception as e:
             logger.error(f"❌ Error enviando email a usuario: {e}")
         
-        # Notificar al admin sobre nuevo registro (solo a contacto@czperu.com)
-        admin_email = "contacto@czperu.com"
+        # Notificar al admin sobre nuevo registro
+        admin_email = "santiagomunozzapata@gmail.com"
         
         admin_notifications_sent = 0
         try:
