@@ -349,6 +349,9 @@ class EmailService:
     
     def send_admin_notification(self, applicant_data: Dict[str, Any]) -> Dict[str, Any]:
         """Notificar al admin sobre nueva postulación"""
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[Send Admin Notification] ADMIN_EMAIL value: {ADMIN_EMAIL}")
         
         content = f"""
         <div class="title" style="color: #8B0000;">🚨 Nueva Postulación</div>
