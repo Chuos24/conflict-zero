@@ -337,8 +337,9 @@
     </footer>
     
     <script>
-        // API Endpoint v3 - Conflict Zero
+        // API Endpoint v3 - Conflict Zero (Cache bust: v3.2)
         const API_BASE = 'https://conflict-zero-api.onrender.com/api/v3';
+        const CACHE_BUST = Date.now();
         
         // Check if coming from certification flow
         const urlParams = new URLSearchParams(window.location.search);
