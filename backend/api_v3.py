@@ -1964,30 +1964,30 @@ async def check_score_changes():
                     # 4. Enviar alerta por email
                     if email_service:
                         try:
-                        email_html = f"""
-                        <h2>🚨 Alerta: Cambio de Score Detectado</h2>
-                        <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
-                        <p><strong>Score anterior:</strong> {cert_score}</p>
-                        <p><strong>Score actual:</strong> {current_score}</p>
-                        <p><strong>Diferencia:</strong> {cambio['diferencia']:+.1f} puntos</p>
-                        <p><strong>Tier anterior:</strong> {cert_tier}</p>
-                        <p><strong>Tier actual:</strong> {current_tier}</p>
-                        <p><strong>Plan contratado:</strong> {plan_type}</p>
-                        <p><strong>Código de certificado:</strong> {cert_slug}</p>
-                        <hr>
-                        <p>Ver detalles: https://czperu.com/verificar.html?cert={cert_slug}</p>
-                        """
-                        
-                        email_service.send_email(
-                            to_email="tiagomunoz10@icloud.com",
-                            subject=f"🚨 Alerta Score: {company_name} cambió de {cert_score} a {current_score}",
-                            html_content=email_html
-                        )
-                        print(f"[Alerta Score] Email enviado para {ruc}: {cert_score} → {current_score}")
-                    except Exception as e:
-                        print(f"[Alerta Score] Error enviando email: {e}")
-                else:
-                    print(f"[Alerta Score] Email service no disponible, cambio detectado pero no notificado")
+                            email_html = f"""
+                            <h2>🚨 Alerta: Cambio de Score Detectado</h2>
+                            <p><strong>Empresa:</strong> {company_name} (RUC: {ruc})</p>
+                            <p><strong>Score anterior:</strong> {cert_score}</p>
+                            <p><strong>Score actual:</strong> {current_score}</p>
+                            <p><strong>Diferencia:</strong> {cambio['diferencia']:+.1f} puntos</p>
+                            <p><strong>Tier anterior:</strong> {cert_tier}</p>
+                            <p><strong>Tier actual:</strong> {current_tier}</p>
+                            <p><strong>Plan contratado:</strong> {plan_type}</p>
+                            <p><strong>Código de certificado:</strong> {cert_slug}</p>
+                            <hr>
+                            <p>Ver detalles: https://czperu.com/verificar.html?cert={cert_slug}</p>
+                            """
+                            
+                            email_service.send_email(
+                                to_email="tiagomunoz10@icloud.com",
+                                subject=f"🚨 Alerta Score: {company_name} cambió de {cert_score} a {current_score}",
+                                html_content=email_html
+                            )
+                            print(f"[Alerta Score] Email enviado para {ruc}: {cert_score} → {current_score}")
+                        except Exception as e:
+                            print(f"[Alerta Score] Error enviando email: {e}")
+                    else:
+                        print(f"[Alerta Score] Email service no disponible, cambio detectado pero no notificado")
             
             return {
                 'success': True,
