@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invitar al Comité - Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0A0A0F;
+            --bg-card: #12121A;
+            --gold: #C5A059;
+            --gold-light: #D4AF37;
+            --text: #F5F5F0;
+            --text-muted: #A0A0A0;
+            --border: #2A2A2E;
+            --success: #1B3A2F;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            background-color: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        .header {
+            padding: 20px 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10, 10, 15, 0.95);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 36px; height: 36px;
+            border: 1px solid var(--gold);
+            display: flex; align-items: center; justify-content: center;
+        }
+        
+        .logo-icon svg { width: 20px; height: 20px; stroke: var(--gold); stroke-width: 1.5; fill: none; }
+        .logo-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 11px; font-weight: 400;
+            letter-spacing: 0.35em; text-transform: uppercase;
+            color: var(--gold);
+        }
+        
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+        .back-link:hover { color: var(--gold); }
+        
+        .main {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 60px 24px;
+        }
+        
+        .page-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 8px;
+        }
+        
+        .page-subtitle {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 300;
+            margin-bottom: 40px;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .form-group input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.1);
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 18px;
+            background: var(--gold);
+            border: none;
+            color: var(--bg-dark);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary:hover { background: var(--gold-light); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .error-message {
+            background: rgba(139, 0, 0, 0.2);
+            border: 1px solid #8B0000;
+            color: var(--text);
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .error-message.visible { display: block; }
+        
+        .success-message {
+            background: var(--success);
+            border: 1px solid #2D5A4A;
+            padding: 24px;
+            text-align: center;
+            display: none;
+        }
+        
+        .success-message.visible { display: block; }
+        
+        .success-message h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            color: var(--gold);
+            margin-bottom: 12px;
+        }
+        
+        .link-box {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 16px;
+            margin: 16px 0;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            color: var(--gold);
+        }
+        
+        .plan-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            font-size: 11px;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            border: 1px solid var(--gold);
+            margin-bottom: 24px;
+        }
+        
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid var(--bg-dark);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="logo-text">Conflict Zero</div>
+        </a>
+        <a href="/dashboard.html" class="back-link">← Volver al Dashboard</a>
+    </header>
+    
+    <main class="main">
+        <div class="page-title">Red de Cumplimiento</div>
+        <div class="page-subtitle">Invitar Subcontratista</div>
+        
+        <div class="card">
+            <div id="planBadge" class="plan-badge">Cargando...</div>
+            
+            <div class="error-message" id="errorMessage"></div>
+            
+            <div class="success-message" id="successMessage">
+                <h3>✓ Invitación Creada</h3>
+                <p>Comparte este link con tu subcontratista:</p>
+                <div class="link-box" id="invitationLink"></div>
+                <p style="font-size: 12px; color: var(--text-muted); margin-top: 16px;">El link expira en 24 horas</p>
+            </div>
+            
+            <form id="inviteForm" onsubmit="handleInvite(event)">
+                <div class="form-group">
+                    <label>Nombre del Subcontratista</label>
+                    <input type="text" id="name" placeholder="Ej: Constructora ABC" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Email de Contacto</label>
+                    <input type="email" id="email" placeholder="contacto@empresa.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>RUC (Opcional)</label>
+                    <input type="text" id="ruc" placeholder="20100123091" maxlength="11">
+                </div>
+                
+                <button type="submit" class="btn-primary" id="submitBtn">Generar Invitación</button>
+            </form>
+        </div>
+    </main>
+    
+    <script>
+        const API_BASE = 'https://conflict-zero-api.onrender.com/api/v3';
+        let token = localStorage.getItem('cz_token');
+        
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+        
+        // Load user data
+        async function loadUser() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (!response.ok) throw new Error('Auth failed');
+                
+                const user = await response.json();
+                document.getElementById('planBadge').textContent = `Plan ${user.plan_type?.toUpperCase() || 'Profesional'}`;
+                
+                // Check plan permissions
+                if (user.plan_type === 'starter') {
+                    document.getElementById('inviteForm').style.display = 'none';
+                    showError('Actualiza a Plan Pro o Enterprise para invitar subcontratistas');
+                }
+            } catch (err) {
+                console.error('Error loading user:', err);
+                window.location.href = '/login.html';
+            }
+        }
+        
+        loadUser();
+        
+        async function handleInvite(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const ruc = document.getElementById('ruc').value;
+            const btn = document.getElementById('submitBtn');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Generando...';
+            hideError();
+            
+            try {
+                const response = await fetch(`${API_BASE}/invitations`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        nombre_invitado: name,
+                        email_invitado: email,
+                        ruc_invitado: ruc || null
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Error al crear invitación');
+                }
+                
+                // Show success
+                document.getElementById('inviteForm').style.display = 'none';
+                document.getElementById('successMessage').classList.add('visible');
+                document.getElementById('invitationLink').textContent = data.link_invitacion || `${window.location.origin}/registro?token=${data.token}`;
+                
+            } catch (err) {
+                showError(err.message || 'Error de conexión');
+                btn.disabled = false;
+                btn.textContent = 'Generar Invitación';
+            }
+        }
+        
+        function showError(msg) {
+            const el = document.getElementById('errorMessage');
+            el.textContent = msg;
+            el.classList.add('visible');
+        }
+        
+        function hideError() {
+            document.getElementById('errorMessage').classList.remove('visible');
+        }
+    </script>
+</body>
+</html>
