@@ -16,7 +16,7 @@ except ImportError:
 
 # Configuración
 SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
-FROM_EMAIL = os.environ.get('FROM_EMAIL', 'santi@czperu.com')
+FROM_EMAIL = os.environ.get('FROM_EMAIL', 'contacto@czperu.com')
 FROM_NAME = os.environ.get('FROM_NAME', 'Conflict Zero')
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'contacto@czperu.com')
 

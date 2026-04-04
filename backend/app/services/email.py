@@ -37,7 +37,7 @@ class EmailService:
     
     def __init__(self):
         self.provider = self._detect_provider()
-        self.from_email = os.getenv("EMAIL_FROM", "noreply@czperu.com")
+        self.from_email = os.getenv("EMAIL_FROM", "contacto@czperu.com")
         self.from_name = os.getenv("EMAIL_FROM_NAME", "Conflict Zero")
         
     def _detect_provider(self) -> str:
