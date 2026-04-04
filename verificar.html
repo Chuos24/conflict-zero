@@ -662,13 +662,7 @@
                     <p class="verified-by" style="margin-top: 24px;">Verificado por</p>
                     <p class="cz-name">CONFLICT ZERO</p>
                     
-                    ${data.can_purchase ? `
-                    <a href="/select-plan.html?ruc=${data.ruc}&score=${data.score}&tier=${data.tier?.name || 'BRONZE'}" class="view-full-btn">Continuar con Certificación</a>
-                    ` : `
-                    <div style="margin-top: 16px; padding: 12px; background: rgba(220, 38, 38, 0.1); border-radius: 6px; color: #DC2626; font-size: 12px;">
-                        Score insuficiente para certificación. Contacte al Comité de Admisión.
-                    </div>
-                    `}
+                    <a href="/select-plan.html?ruc=${data.ruc}&score=${data.score}&tier=${data.tier?.name || 'BRONZE'}" class="view-full-btn">Ver Planes y Membresías</a>
                 </div>
             `;
         }
