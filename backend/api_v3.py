@@ -3403,6 +3403,120 @@ async def export_validations_csv(
 
 
 # ============================================================================
+# DASHBOARD STATS ENDPOINT
+# ============================================================================
+
+@app.get("/api/v3/dashboard/stats")
+async def get_dashboard_stats(authorization: str = Header(None)):
+    """
+    Obtener estadísticas para el dashboard del usuario
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            # 1. Validaciones por mes (últimos 6 meses)
+            cur.execute("""
+                SELECT 
+                    DATE_TRUNC('month', created_at) as mes,
+                    COUNT(*) as total
+                FROM validations_v3
+                WHERE created_at >= NOW() - INTERVAL '6 months'
+                GROUP BY DATE_TRUNC('month', created_at)
+                ORDER BY mes DESC
+                LIMIT 6
+            """)
+            monthly_data = cur.fetchall()
+            
+            monthly_validations = [
+                {
+                    'mes': row[0].strftime('%Y-%m'),
+                    'total': row[1]
+                }
+                for row in monthly_data
+            ]
+            
+            # 2. Total de validaciones del usuario (aproximado por fecha de registro)
+            cur.execute("""
+                SELECT COUNT(*) as total_validaciones,
+                       COUNT(DISTINCT ruc) as rucs_unicos
+                FROM validations_v3
+                WHERE created_at >= NOW() - INTERVAL '30 days'
+            """)
+            totals = cur.fetchone()
+            
+            # 3. Últimas validaciones
+            cur.execute("""
+                SELECT ruc, razon_social, score_calculated, tier, created_at
+                FROM validations_v3
+                ORDER BY created_at DESC
+                LIMIT 10
+            """)
+            recent = cur.fetchall()
+            
+            recent_validations = [
+                {
+                    'ruc': row[0],
+                    'razon_social': row[1][:50] + '...' if row[1] and len(row[1]) > 50 else row[1],
+                    'score': float(row[2]) if row[2] else 0,
+                    'tier': row[3],
+                    'fecha': row[4].strftime('%d/%m/%Y %H:%M') if row[4] else 'N/A'
+                }
+                for row in recent
+            ]
+            
+            # 4. Distribución por tier
+            cur.execute("""
+                SELECT tier, COUNT(*) as total
+                FROM validations_v3
+                WHERE created_at >= NOW() - INTERVAL '30 days'
+                GROUP BY tier
+            """)
+            tier_data = cur.fetchall()
+            
+            tier_distribution = {
+                row[0]: row[1] 
+                for row in tier_data
+            }
+            
+            return {
+                'success': True,
+                'monthly_validations': monthly_validations,
+                'total_last_30d': totals[0] or 0,
+                'unique_rucs_30d': totals[1] or 0,
+                'recent_validations': recent_validations,
+                'tier_distribution': tier_distribution
+            }
+            
+    except Exception as e:
+        print(f"[Dashboard Stats Error] {e}")
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'STATS_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+
+# ============================================================================
 # WHITE GLOVE FLOW ENDPOINTS
 # ============================================================================
 
