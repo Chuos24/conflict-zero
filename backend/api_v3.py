@@ -2489,7 +2489,7 @@ class NotifyAdminRequest(BaseModel):
 
 
 # Email del administrador (se puede configurar via env)
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'contacto@czperu.com')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'tiagomunoz10@icloud.com')
 
 
 @app.post("/api/v3/notify-admin")
@@ -2501,8 +2501,8 @@ async def notify_admin(request: NotifyAdminRequest):
     import httpx
     
     try:
-        # Email destino - SIEMPRE contacto@czperu.com
-        dest_email = "contacto@czperu.com"
+        # Email destino
+        dest_email = "tiagomunoz10@icloud.com"
         
         print(f"[Notify Admin] Nueva postulación: {request.empresa} ({request.ruc}) - Plan: {request.plan}")
         print(f"[Notify Admin] Email destino: {dest_email}")
