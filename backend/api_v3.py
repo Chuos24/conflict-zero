@@ -3293,6 +3293,115 @@ def check_and_trigger_alerts(ruc: str, new_score: float, old_data: Optional[dict
     finally:
         conn.close()
 
+
+# ============================================================================
+# EXPORTACIÓN DE DATOS (CSV)
+# ============================================================================
+
+@app.get("/api/v3/export/validations")
+async def export_validations_csv(
+    authorization: str = Header(None),
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """
+    Exportar historial de validaciones del usuario a CSV
+    """
+    user = get_current_user(authorization)
+    if not user:
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'UNAUTHORIZED'}
+        )
+    
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_UNAVAILABLE'}
+        )
+    
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'error': 'DB_ERROR'}
+        )
+    
+    try:
+        with conn.cursor() as cur:
+            # Query base con filtros de fecha opcionales
+            query = """
+                SELECT ruc, razon_social, score_calculated, tier, 
+                       factaliza_raw->>'estado' as estado_sunat,
+                       factaliza_raw->>'condicion' as condicion,
+                       created_at
+                FROM validations_v3
+                WHERE 1=1
+            """
+            params = []
+            
+            if start_date:
+                query += " AND created_at >= %s"
+                params.append(start_date)
+            if end_date:
+                query += " AND created_at <= %s"
+                params.append(end_date)
+            
+            query += " ORDER BY created_at DESC"
+            
+            cur.execute(query, params)
+            validations = cur.fetchall()
+            
+            # Generar CSV
+            import csv
+            import io
+            from datetime import datetime
+            
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Headers
+            writer.writerow([
+                'RUC', 'Razón Social', 'Score', 'Tier', 
+                'Estado SUNAT', 'Condición', 'Fecha Validación'
+            ])
+            
+            # Data
+            for row in validations:
+                writer.writerow([
+                    row[0],  # ruc
+                    row[1],  # razon_social
+                    row[2],  # score_calculated
+                    row[3],  # tier
+                    row[4] or 'N/A',  # estado_sunat
+                    row[5] or 'N/A',  # condicion
+                    row[6].strftime('%Y-%m-%d %H:%M:%S') if row[6] else 'N/A'
+                ])
+            
+            csv_content = output.getvalue()
+            output.close()
+            
+            # Retornar como archivo descargable
+            from fastapi.responses import StreamingResponse
+            
+            return StreamingResponse(
+                io.StringIO(csv_content),
+                media_type="text/csv",
+                headers={
+                    "Content-Disposition": f"attachment; filename=validaciones_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                }
+            )
+            
+    except Exception as e:
+        print(f"[Export Error] {e}")
+        return JSONResponse(
+            status_code=500,
+            content={'success': False, 'error': 'EXPORT_ERROR', 'message': str(e)}
+        )
+    finally:
+        conn.close()
+
+
 # ============================================================================
 # WHITE GLOVE FLOW ENDPOINTS
 # ============================================================================
