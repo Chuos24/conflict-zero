@@ -198,6 +198,7 @@ def init_database():
                     tier VARCHAR(20),
                     plan_type VARCHAR(20),
                     cert_slug VARCHAR(50) UNIQUE,
+                    is_active BOOLEAN DEFAULT TRUE,
                     created_at TIMESTAMP DEFAULT NOW(),
                     expires_at TIMESTAMP DEFAULT (NOW() + INTERVAL '1 year')
                 )
@@ -1677,13 +1678,32 @@ async def migrate_tables(secret: str = Header(None)):
                 cur.execute("CREATE INDEX idx_invitations_invitador ON invitations(invitador_ruc)")
                 created_tables.append('invitations')
             
+            # Migración: Agregar columna is_active a certificates_v3 si no existe
+            cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.columns 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'certificates_v3' 
+                    AND column_name = 'is_active'
+                )
+            """)
+            is_active_exists = cur.fetchone()[0]
+            
+            if not is_active_exists:
+                cur.execute("""
+                    ALTER TABLE certificates_v3 
+                    ADD COLUMN is_active BOOLEAN DEFAULT TRUE
+                """)
+                created_tables.append('certificates_v3.is_active')
+            
             conn.commit()
             
             return {
                 'success': True,
                 'message': 'Migración completada',
                 'tables_created': created_tables,
-                'invitations_existed': invitations_exists
+                'invitations_existed': invitations_exists,
+                'is_active_exists': is_active_exists
             }
     except Exception as e:
         conn.rollback()
