@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Seleccione su Plan - Conflict Zero</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -34,18 +34,14 @@
         }
         
         .logo-icon {
-            width: 44px;
-            height: 44px;
+            width: 44px; height: 44px;
             border: 1px solid #C5A059;
             border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
         }
         
         .logo-icon svg {
-            width: 26px;
-            height: 26px;
+            width: 26px; height: 26px;
             stroke: #C5A059;
             stroke-width: 1.5;
             fill: none;
@@ -68,9 +64,7 @@
             transition: color 0.3s;
         }
         
-        .back-link:hover {
-            color: #C5A059;
-        }
+        .back-link:hover { color: #C5A059; }
         
         main {
             max-width: 1200px;
@@ -78,10 +72,9 @@
             padding: 60px 24px;
         }
         
-        /* Hero con mensaje Sello ≠ Plan */
         .hero {
             text-align: center;
-            margin-bottom: 40px;
+            margin-bottom: 48px;
         }
         
         .hero h1 {
@@ -89,310 +82,343 @@
             font-size: 42px;
             font-weight: 300;
             letter-spacing: 0.08em;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
             color: #F5F5F0;
         }
         
-        .not-equal-box {
-            background: linear-gradient(135deg, rgba(197, 160, 89, 0.1) 0%, rgba(197, 160, 89, 0.05) 100%);
-            border: 1px solid rgba(197, 160, 89, 0.3);
-            border-radius: 8px;
-            padding: 32px 40px;
-            max-width: 700px;
-            margin: 0 auto 40px;
+        /* Concept Box - Elegant Sello vs Plan */
+        .concept-section {
+            max-width: 900px;
+            margin: 0 auto 48px;
+            text-align: center;
         }
         
-        .not-equal-title {
+        .concept-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 32px;
+            margin-bottom: 40px;
+        }
+        
+        .concept-divider::before,
+        .concept-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #2A2A2E, transparent);
+            max-width: 200px;
+        }
+        
+        .concept-title {
             font-family: 'Cormorant Garamond', serif;
-            font-size: 28px;
+            font-size: 32px;
+            font-weight: 300;
             color: #C5A059;
-            margin-bottom: 16px;
-            letter-spacing: 0.1em;
+            letter-spacing: 0.15em;
         }
         
-        .not-equal-text {
-            font-size: 15px;
-            color: #A0A0A0;
-            line-height: 1.7;
-            margin-bottom: 20px;
-        }
-        
-        .not-equal-highlight {
-            color: #F5F5F0;
-            font-weight: 500;
+        .concept-subtitle {
+            font-size: 14px;
+            color: #6B6B6E;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            margin-bottom: 32px;
         }
         
         .concept-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 0;
+            align-items: stretch;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .concept-item {
+            padding: 32px;
             text-align: left;
-            margin-top: 24px;
         }
         
-        .concept-box {
-            background: rgba(10, 10, 15, 0.5);
-            border: 1px solid #2A2A2E;
-            padding: 24px;
-            border-radius: 6px;
+        .concept-item.left {
+            border-right: 1px solid #2A2A2E;
         }
         
-        .concept-box h3 {
+        .concept-divider-vertical {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 60px;
+        }
+        
+        .not-equal-symbol {
             font-family: 'Cormorant Garamond', serif;
-            font-size: 18px;
+            font-size: 48px;
+            font-weight: 300;
             color: #C5A059;
-            margin-bottom: 12px;
-            letter-spacing: 0.05em;
+            opacity: 0.6;
         }
         
-        .concept-box p {
-            font-size: 13px;
-            color: #8A8A85;
-            line-height: 1.6;
-        }
-        
-        .company-info {
-            background: rgba(197, 160, 89, 0.1);
-            border: 1px solid rgba(197, 160, 89, 0.3);
-            padding: 20px 40px;
-            display: inline-block;
-            margin-top: 20px;
-        }
-        
-        .company-info .ruc {
-            font-size: 14px;
-            color: #C5A059;
+        .concept-label {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            font-weight: 400;
+            color: #F5F5F0;
+            margin-bottom: 16px;
             letter-spacing: 0.1em;
         }
         
-        .company-info .score {
-            font-size: 24px;
-            color: #F5F5F0;
-            font-family: 'Cormorant Garamond', serif;
-            margin-top: 8px;
+        .concept-label.sello { color: #D4AF37; }
+        .concept-label.plan { color: #C0C0C0; }
+        
+        .concept-desc {
+            font-size: 14px;
+            color: #8A8A85;
+            line-height: 1.8;
+            margin-bottom: 20px;
         }
         
-        .section-title {
+        .concept-highlight {
+            display: block;
+            font-size: 12px;
+            color: #C5A059;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #2A2A2E;
+        }
+        
+        .concept-example {
+            max-width: 600px;
+            margin: 40px auto 0;
+            padding: 20px 32px;
+            border-left: 2px solid #C5A059;
+            background: rgba(197, 160, 89, 0.03);
+            text-align: left;
+        }
+        
+        .concept-example p {
+            font-size: 14px;
+            color: #A0A0A0;
+            font-style: italic;
+            line-height: 1.6;
+        }
+        
+        .concept-example strong {
+            color: #F5F5F0;
+            font-weight: 500;
+            font-style: normal;
+        }
+        
+        /* Company Info */
+        .company-info {
+            background: rgba(197, 160, 89, 0.05);
+            border: 1px solid rgba(197, 160, 89, 0.2);
+            padding: 24px 48px;
+            display: inline-flex;
+            gap: 48px;
+            margin-bottom: 48px;
+            align-items: center;
+        }
+        
+        .company-info-item {
+            text-align: left;
+        }
+        
+        .company-info-label {
+            font-size: 10px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #6B6B6E;
+            margin-bottom: 8px;
+        }
+        
+        .company-info-value {
             font-family: 'Cormorant Garamond', serif;
-            font-size: 24px;
-            font-weight: 300;
-            text-align: center;
-            margin: 60px 0 40px;
+            font-size: 20px;
             color: #F5F5F0;
             letter-spacing: 0.05em;
         }
         
+        .company-info-value.gold { color: #D4AF37; }
+        .company-info-value.silver { color: #C0C0C0; }
+        .company-info-value.bronze { color: #B87333; }
+        
+        /* Section Title */
+        .section-title {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-weight: 400;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #6B6B6E;
+            text-align: center;
+            margin-bottom: 48px;
+        }
+        
+        /* Plans */
         .plans-container {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 24px;
-            margin-top: 40px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        
+        @media (max-width: 992px) {
+            .plans-container { grid-template-columns: 1fr; max-width: 400px; }
+            .concept-grid { grid-template-columns: 1fr; }
+            .concept-item.left { border-right: none; border-bottom: 1px solid #2A2A2E; }
+            .concept-divider-vertical { display: none; }
         }
         
         .plan-card {
-            border: 1px solid;
-            padding: 32px 28px;
-            background: #12121A;
+            background: #0D0D12;
+            border: 1px solid #2A2A2E;
+            padding: 0;
             position: relative;
-            transition: transform 0.3s, box-shadow 0.3s;
-            border-radius: 8px;
+            transition: all 0.3s ease;
         }
         
         .plan-card:hover {
-            transform: translateY(-4px);
+            border-color: #3A3A3E;
+            transform: translateY(-2px);
         }
         
-        .plan-card.disabled {
-            opacity: 0.5;
-            pointer-events: none;
+        .plan-card.featured {
+            border-color: #C5A059;
+            background: linear-gradient(180deg, rgba(197, 160, 89, 0.05) 0%, transparent 100%);
         }
         
-        .plan-card.starter {
-            border-color: #B87333;
-        }
-        
-        .plan-card.starter:hover {
-            box-shadow: 0 8px 32px rgba(184, 115, 51, 0.2);
-        }
-        
-        .plan-card.professional {
-            border-color: #C0C0C0;
-        }
-        
-        .plan-card.professional:hover {
-            box-shadow: 0 8px 32px rgba(192, 192, 192, 0.2);
-        }
-        
-        .plan-card.enterprise {
-            border-color: #D4AF37;
-            position: relative;
-        }
-        
-        .plan-card.enterprise::before {
+        .plan-card.featured::before {
             content: 'RECOMENDADO';
             position: absolute;
-            top: -1px;
-            right: 20px;
-            background: #D4AF37;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #C5A059;
             color: #0A0A0F;
             font-size: 9px;
             font-weight: 600;
-            letter-spacing: 0.15em;
-            padding: 6px 12px;
+            letter-spacing: 0.2em;
+            text-align: center;
+            padding: 8px;
+            text-transform: uppercase;
         }
         
-        .plan-card.enterprise:hover {
-            box-shadow: 0 8px 32px rgba(212, 175, 55, 0.3);
+        .plan-card.featured .plan-header {
+            padding-top: 48px;
         }
         
-        .plan-badge {
-            display: inline-block;
+        .plan-header {
+            padding: 32px;
+            border-bottom: 1px solid #2A2A2E;
+            text-align: center;
+        }
+        
+        .plan-tier {
             font-size: 11px;
             letter-spacing: 0.25em;
             text-transform: uppercase;
-            padding: 8px 16px;
-            border-radius: 4px;
-            margin-bottom: 20px;
+            color: #6B6B6E;
+            margin-bottom: 12px;
         }
         
-        .plan-card.starter .plan-badge {
-            background: rgba(184, 115, 51, 0.2);
-            color: #B87333;
-            border: 1px solid #B87333;
-        }
-        
-        .plan-card.professional .plan-badge {
-            background: rgba(192, 192, 192, 0.2);
-            color: #C0C0C0;
-            border: 1px solid #C0C0C0;
-        }
-        
-        .plan-card.enterprise .plan-badge {
-            background: rgba(212, 175, 55, 0.2);
-            color: #D4AF37;
-            border: 1px solid #D4AF37;
-        }
-        
-        .plan-title {
+        .plan-name {
             font-family: 'Cormorant Garamond', serif;
             font-size: 28px;
             font-weight: 400;
+            color: #F5F5F0;
+            letter-spacing: 0.1em;
             margin-bottom: 8px;
         }
         
-        .plan-card.starter .plan-title { color: #B87333; }
-        .plan-card.professional .plan-title { color: #C0C0C0; }
-        .plan-card.enterprise .plan-title { color: #D4AF37; }
+        .plan-price {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 42px;
+            font-weight: 300;
+            color: #C5A059;
+        }
+        
+        .plan-price span {
+            font-size: 14px;
+            color: #6B6B6E;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .plan-body {
+            padding: 32px;
+        }
         
         .plan-desc {
             font-size: 13px;
             color: #8A8A85;
-            margin-bottom: 20px;
-            line-height: 1.5;
-            min-height: 40px;
-        }
-        
-        .plan-price {
-            font-size: 36px;
-            font-family: 'Cormorant Garamond', serif;
-            color: #C5A059;
-            margin-bottom: 4px;
-        }
-        
-        .plan-price-period {
-            font-size: 13px;
-            color: #6B6B6E;
+            line-height: 1.7;
             margin-bottom: 24px;
+            text-align: center;
         }
         
         .plan-features {
             list-style: none;
-            margin-bottom: 24px;
+            margin-bottom: 32px;
         }
         
         .plan-features li {
-            padding: 10px 0;
-            border-bottom: 1px solid #2A2A2E;
+            padding: 12px 0;
             font-size: 13px;
             color: #A0A0A0;
+            border-bottom: 1px solid #1A1A1E;
             display: flex;
             align-items: center;
-            gap: 12px;
         }
         
-        .plan-features li:before {
-            content: "✓";
-            color: #C5A059;
-            font-weight: bold;
+        .plan-features li:last-child { border-bottom: none; }
+        
+        .plan-features li::before {
+            content: '';
+            width: 4px;
+            height: 4px;
+            background: #C5A059;
+            border-radius: 50%;
+            margin-right: 12px;
         }
         
         .plan-features li.disabled {
             color: #4A4A4E;
         }
         
-        .plan-features li.disabled:before {
-            content: "—";
-            color: #4A4A4E;
+        .plan-features li.disabled::before {
+            background: #4A4A4E;
         }
         
         .btn-select {
             width: 100%;
             padding: 16px;
-            font-size: 12px;
-            letter-spacing: 0.15em;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
             text-transform: uppercase;
-            border: 1px solid;
+            border: 1px solid #C5A059;
             background: transparent;
+            color: #C5A059;
             cursor: pointer;
             transition: all 0.3s;
             font-family: 'Inter', sans-serif;
-            border-radius: 4px;
         }
         
-        .plan-card.starter .btn-select {
-            border-color: #B87333;
-            color: #B87333;
-        }
-        
-        .plan-card.starter .btn-select:hover {
-            background: #B87333;
+        .btn-select:hover {
+            background: #C5A059;
             color: #0A0A0F;
         }
         
-        .plan-card.professional .btn-select {
-            border-color: #C0C0C0;
-            color: #C0C0C0;
-        }
-        
-        .plan-card.professional .btn-select:hover {
-            background: #C0C0C0;
+        .plan-card.featured .btn-select {
+            background: #C5A059;
             color: #0A0A0F;
         }
         
-        .plan-card.enterprise .btn-select {
-            border-color: #D4AF37;
-            color: #D4AF37;
-        }
-        
-        .plan-card.enterprise .btn-select:hover {
+        .plan-card.featured .btn-select:hover {
             background: #D4AF37;
-            color: #0A0A0F;
-        }
-        
-        .plan-card.disabled .btn-select {
-            border-color: #4A4A4E;
-            color: #4A4A4E;
-            cursor: not-allowed;
-        }
-        
-        .not-eligible {
-            background: rgba(220, 38, 38, 0.1);
-            border: 1px solid rgba(220, 38, 38, 0.3);
-            padding: 12px 16px;
-            text-align: center;
-            font-size: 12px;
-            color: #DC2626;
-            border-radius: 4px;
         }
         
         footer {
@@ -405,16 +431,17 @@
         
         .footer-text {
             font-size: 12px;
-            color: #6B6B6E;
+            color: #4A4A4E;
             letter-spacing: 0.1em;
         }
         
         @media (max-width: 768px) {
             header { padding: 20px 24px; }
             .hero h1 { font-size: 28px; }
-            .not-equal-title { font-size: 22px; }
-            .concept-grid { grid-template-columns: 1fr; }
-            .plans-container { grid-template-columns: 1fr; }
+            .concept-title { font-size: 24px; }
+            .company-info { flex-direction: column; gap: 16px; }
+            .plan-name { font-size: 24px; }
+            .plan-price { font-size: 36px; }
         }
     </style>
 </head>
@@ -432,104 +459,135 @@
     <main>
         <div class="hero">
             <h1>Seleccione su Membresía</h1>
+        </div>
+        
+        <!-- Concept Sello ≠ Plan -->
+        <div class="concept-section">
+            <div class="concept-divider"></div>
+            <div class="concept-title">Sello  Plan</div>
+            <div class="concept-subtitle">Comprenda la diferencia</div>
             
-            <!-- Mensaje Sello ≠ Plan -->
-            <div class="not-equal-box">
-                <div class="not-equal-title">Sello ≠ Plan</div>
-                <p class="not-equal-text">
-                    Entienda la diferencia antes de continuar:
-                </p>
-                
-                <div class="concept-grid">
-                    <div class="concept-box">
-                        <h3>🎖️ El Sello</h3>
-                        <p>Es su <span class="not-equal-highlight">reputación legal</span> basada en su Score. Se gana, no se compra. Una empresa con Score 99 puede tener un Sello Gold sin pagar nada.</p>
-                    </div>
-                    <div class="concept-box">
-                        <h3>⚙️ El Plan</h3>
-                        <p>Son las <span class="not-equal-highlight">herramientas y servicios</span> que contrata para gestionar su cumplimiento legal: dashboards, alertas, API, reportes.</p>
-                    </div>
+            <div class="concept-grid">
+                <div class="concept-item left">
+                    <div class="concept-label sello">El Sello</div>
+                    <p class="concept-desc">
+                        Su reputación legal basada exclusivamente en su Score. Se gana mediante un historial impecable de cumplimiento, no se adquiere con dinero.
+                    </p>
+                    <span class="concept-highlight">Una empresa con Score 99 tiene Sello Gold sin pagar</span>
                 </div>
                 
-                <p class="not-equal-text" style="margin-top: 24px; font-style: italic;">
-                    Ejemplo: Una empresa con Score 99 puede tener Plan Standard ($400/mes) + Sello Gold
-                </p>
+                <div class="concept-divider-vertical">
+                    <span class="not-equal-symbol">≠</span>
+                </div>
+                
+                <div class="concept-item">
+                    <div class="concept-label plan">El Plan</div>
+                    <p class="concept-desc"
+                        Las herramientas profesionales que contrata para gestionar su cumplimiento: dashboards en tiempo real, alertas regulatorias, API de integración y reportes ejecutivos.
+                    </p>
+                    <span class="concept-highlight">Standard, Professional o Enterprise</span>
+                </div>
             </div>
             
+            <div class="concept-example">
+                <p>
+                    <strong>Ejemplo práctico:</strong> Una constructora con Score 99 puede mantener un Plan Standard ($400/mes) mientras ostenta un Sello Gold — porque el sello refleja su reputación, no su inversión en herramientas.
+                </p>
+            </div>
+        </div>
+        
+        <!-- Company Info -->
+        <div style="text-align: center;">
             <div class="company-info">
-                <div class="ruc" id="companyRuc">RUC: --</div>
-                <div class="score" id="companyScore">Score Legal: --</div>
-                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(197,160,89,0.3);">
-                    <span style="font-size: 12px; color: #C5A059;">Sello Asignado: </span>
-                    <span id="assignedTier" style="font-size: 14px; color: #F5F5F0; font-weight: 500;">--</span>
+                <div class="company-info-item">
+                    <div class="company-info-label">RUC Consultado</div>
+                    <div class="company-info-value" id="companyRuc">--</div>
+                </div>
+                <div class="company-info-item">
+                    <div class="company-info-label">Score Legal</div>
+                    <div class="company-info-value" id="companyScore">--</div>
+                </div>
+                
+                <div class="company-info-item">
+                    <div class="company-info-label">Sello Asignado</div>
+                    <div class="company-info-value" id="assignedTier">--</div>
                 </div>
             </div>
         </div>
         
-        <div class="section-title">Elija su Plan de Membresía</div>
+        <div class="section-title">Planes de Membresía Disponibles</div>
         
         <div class="plans-container">
-            <!-- STARTER -->
-            <div class="plan-card starter" id="starterCard">
-                <span class="plan-badge">Plan Standard</span>
-                <h2 class="plan-title">$400/mes</h2>
-                <p class="plan-desc">Para subcontratistas especializados que gestionan hasta 10 RUCs.</p>
+            <!-- STANDARD -->
+            <div class="plan-card" id="standardCard">
+                <div class="plan-header">
+                    <div class="plan-tier">Membresía</div>
+                    <div class="plan-name">Standard</div>
+                    <div class="plan-price">$400<span>/mes</span></div>
+                </div>
                 
-                <div class="plan-price">$400</div>
-                <div class="plan-price-period">por mes</div>
-                
-                <ul class="plan-features">
-                    <li>Dashboard de cumplimiento</li>
-                    <li>Verificación de hasta 10 RUCs</li>
-                    <li>Reportes básicos</li>
-                    <li>Soporte por email</li>
-                    <li class="disabled">Alertas en tiempo real</li>
-                    <li class="disabled">Invitaciones a red</li>
-                </ul>
-                
-                <button class="btn-select" onclick="selectPlan('starter')">Seleccionar Standard</button>
+                <div class="plan-body">
+                    <p class="plan-desc">Para subcontratistas especializados que gestionan hasta 10 RUCs de contrapartes.</p>
+                    
+                    <ul class="plan-features">
+                        <li>Dashboard de cumplimiento</li>
+                        <li>Verificación hasta 10 RUCs</li>
+                        <li>Reportes mensuales</li>
+                        <li>Soporte por email</li>
+                        <li class="disabled">Alertas en tiempo real</li>
+                        <li class="disabled">Red de subcontratistas</li>
+                    </ul>
+                    
+                    <button class="btn-select" onclick="selectPlan('starter')">Seleccionar Standard</button>
+                </div>
             </div>
             
             <!-- PROFESSIONAL -->
-            <div class="plan-card professional" id="professionalCard">
-                <span class="plan-badge">Plan Professional</span>
-                <h2 class="plan-title">$800/mes</h2>
-                <p class="plan-desc">Para constructoras medianas que gestionan hasta 50 RUCs.</p>
+            <div class="plan-card featured" id="professionalCard">
+                <div class="plan-header">
+                    <div class="plan-tier">Membresía</div>
+                    <div class="plan-name">Professional</div>
+                    <div class="plan-price">$800<span>/mes</span></div>
+                </div>
                 
-                <div class="plan-price">$800</div>
-                <div class="plan-price-period">por mes</div>
-                
-                <ul class="plan-features">
-                    <li>Dashboard avanzado</li>
-                    <li>Verificación de hasta 50 RUCs</li>
-                    <li>Reportes ejecutivos</li>
-                    <li>Soporte prioritario</li>
-                    <li>Alertas en tiempo real</li>
-                    <li>Invitaciones a red</li>
-                </ul>
-                
-                <button class="btn-select" onclick="selectPlan('professional')">Seleccionar Professional</button>
+                <div class="plan-body">
+                    <p class="plan-desc">Para constructoras medianas que gestionan hasta 50 RUCs y necesitan alertas.</p>
+                    
+                    <ul class="plan-features">
+                        <li>Dashboard avanzado</li>
+                        <li>Verificación hasta 50 RUCs</li>
+                        <li>Reportes ejecutivos</li>
+                        <li>Soporte prioritario</li>
+                        <li>Alertas regulatorias</li>
+                        <li>Red de subcontratistas</li>
+                    </ul>
+                    
+                    <button class="btn-select" onclick="selectPlan('professional')">Seleccionar Professional</button>
+                </div>
             </div>
             
             <!-- ENTERPRISE -->
-            <div class="plan-card enterprise" id="enterpriseCard">
-                <span class="plan-badge">Plan Enterprise</span>
-                <h2 class="plan-title">$2,500/mes</h2>
-                <p class="plan-desc">Para consorcios líderes con verificación ilimitada y API.</p>
+            <div class="plan-card" id="enterpriseCard">
+                <div class="plan-header">
+                    <div class="plan-tier">Membresía</div>
+                    <div class="plan-name">Enterprise</div>
+                    <div class="plan-price">$2,500<span>/mes</span></div>
+                </div>
                 
-                <div class="plan-price">$2,500</div>
-                <div class="plan-price-period">por mes</div>
-                
-                <ul class="plan-features">
-                    <li>Dashboard Enterprise</li>
-                    <li>Verificación ilimitada</li>
-                    <li>Reportes personalizados</li>
-                    <li>Soporte dedicado 24/7</li>
-                    <li>Alertas avanzadas</li>
-                    <li>API de integración</li>
-                </ul>
-                
-                <button class="btn-select" onclick="selectPlan('enterprise')">Seleccionar Enterprise</button>
+                <div class="plan-body">
+                    <p class="plan-desc">Para consorcios líderes con verificación ilimitada y necesidades de API.</p>
+                    
+                    <ul class="plan-features">
+                        <li>Dashboard Enterprise</li>
+                        <li>Verificación ilimitada</li>
+                        <li>Reportes personalizados</li>
+                        <li>Soporte dedicado 24/7</li>
+                        <li>Alertas avanzadas</li>
+                        <li>API de integración</li>
+                    </ul>
+                    
+                    <button class="btn-select" onclick="selectPlan('enterprise')">Seleccionar Enterprise</button>
+                </div>
             </div>
         </div>
     </main>
@@ -539,37 +597,25 @@
     </footer>
     
     <script>
-        // Obtener parámetros de URL
         const urlParams = new URLSearchParams(window.location.search);
         const ruc = urlParams.get('ruc');
         const score = parseInt(urlParams.get('score'));
         const tier = urlParams.get('tier');
         
-        // Actualizar info de empresa
-        if (ruc) {
-            document.getElementById('companyRuc').textContent = `RUC: ${ruc}`;
-        }
-        if (score) {
-            document.getElementById('companyScore').textContent = `Score Legal: ${score}/100`;
-        }
+        if (ruc) document.getElementById('companyRuc').textContent = ruc;
+        if (score) document.getElementById('companyScore').textContent = score + '/100';
         if (tier) {
-            document.getElementById('assignedTier').textContent = tier;
-            // Color según tier
             const tierEl = document.getElementById('assignedTier');
-            if (tier === 'GOLD') tierEl.style.color = '#D4AF37';
-            else if (tier === 'SILVER') tierEl.style.color = '#C0C0C0';
-            else if (tier === 'BRONZE') tierEl.style.color = '#B87333';
+            tierEl.textContent = tier;
+            tierEl.className = 'company-info-value ' + tier.toLowerCase();
         }
         
         function selectPlan(plan) {
-            // Guardar selección y redirigir a registro
             sessionStorage.setItem('selected_plan', plan);
             sessionStorage.setItem('ruc_to_certify', ruc);
             sessionStorage.setItem('certification_score', score);
             sessionStorage.setItem('assigned_tier', tier);
-            
-            // Redirigir a página de registro (notifica admin)
-            window.location.href = `/registro-new.html?ruc=${ruc}&plan=${plan}&score=${score}&tier=${tier}`;
+            window.location.href = `/registro.html?ruc=${ruc}&plan=${plan}&score=${score}&tier=${tier}`;
         }
     </script>
 </body>
