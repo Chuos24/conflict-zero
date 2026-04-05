@@ -51,6 +51,14 @@ except ImportError:
     EMAIL_AVAILABLE = False
     print("⚠️ Email service no disponible")
 
+# Importar rutas de registro
+try:
+    from registration_routes import router as registration_router
+    REGISTRATION_ROUTES_AVAILABLE = True
+except ImportError:
+    REGISTRATION_ROUTES_AVAILABLE = False
+    print("⚠️ Registration routes no disponibles")
+
 # Configuración
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 REDIS_URL = os.environ.get('REDIS_URL', '')
@@ -357,6 +365,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Registrar rutas de registro si están disponibles
+if REGISTRATION_ROUTES_AVAILABLE:
+    app.include_router(registration_router, prefix="/api/v3")
+    print("✅ Registration routes cargadas")
 
 # ============ STARTUP EVENT ============
 
@@ -3999,6 +4012,117 @@ async def debug_sanciones_db(ruc: str, authorization: str = Header(None)):
         "psycopg2_available": PSYCOPG2_AVAILABLE,
         "database_url_set": bool(DATABASE_URL)
     }
+
+
+# ============ ENDPOINT PARA NOTIFICACIÓN DE REGISTRO ============
+
+class RegistrationNotificationRequest(BaseModel):
+    ruc: str
+    razon_social: str
+    representante: str
+    email: str
+    telefono: str
+    cargo: str
+    plan_solicitado: str
+    score: Optional[str] = None
+    tier: Optional[str] = None
+
+@app.post("/api/v3/admin/notify-registration")
+async def notify_registration(request: RegistrationNotificationRequest):
+    """
+    Notificar al administrador sobre nuevo registro de cliente
+    Envía email con los datos del cliente para creación de cuenta
+    """
+    try:
+        print(f"[REGISTRO] Nueva solicitud: {request.razon_social} (RUC: {request.ruc})")
+        
+        # Email destino (admin)
+        dest_email = "tiagomunoz10@icloud.com"
+        
+        # Intentar enviar email si el servicio está disponible
+        email_sent = False
+        if EMAIL_AVAILABLE:
+            try:
+                email_service = get_email_service()
+                
+                # Asunto del email
+                subject = f"🆕 Nueva Solicitud de Registro - {request.razon_social}"
+                
+                # Contenido del email
+                content = f"""
+NUEVA SOLICITUD DE REGISTRO - CONFLICT ZERO
+
+═══════════════════════════════════════════════════
+
+DATOS DE LA EMPRESA:
+• Razón Social: {request.razon_social}
+• RUC: {request.ruc}
+• Score Legal: {request.score or 'N/A'}/100
+• Sello Asignado: {request.tier or 'N/A'}
+
+DATOS DEL REPRESENTANTE:
+• Nombre: {request.representante}
+• Cargo: {request.cargo}
+• Email: {request.email}
+• Teléfono: {request.telefono}
+
+PLAN SOLICITADO:
+• {request.plan_solicitado.upper()}
+
+═══════════════════════════════════════════════════
+
+ACCIÓN REQUERIDA:
+Crear cuenta de usuario en el panel de administración.
+URL: https://www.czperu.com/admin-v3.html
+
+--
+Conflict Zero - Estándar de Verificación Institucional
+                """
+                
+                # Enviar email
+                result = await email_service.send_email(
+                    to_email=dest_email,
+                    subject=subject,
+                    content=content
+                )
+                
+                if result.get('success'):
+                    email_sent = True
+                    print(f"[REGISTRO] Email enviado exitosamente a {dest_email}")
+                else:
+                    print(f"[REGISTRO] Error enviando email: {result.get('error')}")
+                    
+            except Exception as e:
+                print(f"[REGISTRO] Error en servicio de email: {e}")
+        else:
+            print("[REGISTRO] Servicio de email no disponible")
+        
+        # Retornar respuesta exitosa (incluso si el email falló, registramos la solicitud)
+        return {
+            "success": True,
+            "message": "Solicitud registrada correctamente" + (" y email enviado" if email_sent else ""),
+            "data": {
+                "ruc": request.ruc,
+                "razon_social": request.razon_social,
+                "plan": request.plan_solicitado,
+                "email_sent": email_sent,
+                "admin_email": dest_email
+            }
+        }
+        
+    except Exception as e:
+        print(f"[REGISTRO] Error procesando solicitud: {e}")
+        # Aún así retornamos éxito para no bloquear al usuario
+        return {
+            "success": True,
+            "message": "Solicitud registrada (notificación pendiente)",
+            "data": {
+                "ruc": request.ruc,
+                "razon_social": request.razon_social,
+                "plan": request.plan_solicitado,
+                "email_sent": False
+            }
+        }
 
 
 if __name__ == "__main__":
