@@ -452,7 +452,7 @@
                 </div>
                 
                 <p class="not-equal-text" style="margin-top: 24px; font-style: italic;">
-                    Ejemplo: Una empresa con Score 99 puede tener Plan Starter ($400/mes) + Sello Gold
+                    Ejemplo: Una empresa con Score 99 puede tener Plan Standard ($400/mes) + Sello Gold
                 </p>
             </div>
             
@@ -471,7 +471,7 @@
         <div class="plans-container">
             <!-- STARTER -->
             <div class="plan-card starter" id="starterCard">
-                <span class="plan-badge">Plan Starter</span>
+                <span class="plan-badge">Plan Standard</span>
                 <h2 class="plan-title">$400/mes</h2>
                 <p class="plan-desc">Para subcontratistas especializados que gestionan hasta 10 RUCs.</p>
                 
@@ -487,12 +487,12 @@
                     <li class="disabled">Invitaciones a red</li>
                 </ul>
                 
-                <button class="btn-select" onclick="selectPlan('starter')">Seleccionar Starter</button>
+                <button class="btn-select" onclick="selectPlan('starter')">Seleccionar Standard</button>
             </div>
             
             <!-- PROFESSIONAL -->
             <div class="plan-card professional" id="professionalCard">
-                <span class="plan-badge">Plan Pro</span>
+                <span class="plan-badge">Plan Professional</span>
                 <h2 class="plan-title">$800/mes</h2>
                 <p class="plan-desc">Para constructoras medianas que gestionan hasta 50 RUCs.</p>
                 
@@ -508,7 +508,7 @@
                     <li>Invitaciones a red</li>
                 </ul>
                 
-                <button class="btn-select" onclick="selectPlan('professional')">Seleccionar Pro</button>
+                <button class="btn-select" onclick="selectPlan('professional')">Seleccionar Professional</button>
             </div>
             
             <!-- ENTERPRISE -->
@@ -569,7 +569,7 @@
             sessionStorage.setItem('assigned_tier', tier);
             
             // Redirigir a página de registro (notifica admin)
-            window.location.href = `/registro.html?ruc=${ruc}&plan=${plan}&score=${score}&tier=${tier}`;
+            window.location.href = `/registro-new.html?ruc=${ruc}&plan=${plan}&score=${score}&tier=${tier}`;
         }
     </script>
 </body>
