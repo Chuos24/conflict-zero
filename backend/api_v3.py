@@ -2245,8 +2245,8 @@ async def consulta_completa(ruc: str):
         )
     
     try:
-        # Consultar Factiliza
-        sunat_data = await consultar_factiliza(ruc)
+        # Consultar Factaliza
+        sunat_data = await consultar_factaliza(ruc)
         
         if not sunat_data:
             return JSONResponse(
