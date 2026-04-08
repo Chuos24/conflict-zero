@@ -1,5 +1,6 @@
 # Conflict Zero API - Main Application
-# Last updated: 2026-03-28 03:55 UTC - LegalBot V3.0 Deploy
+# DEPLOY_TIMESTAMP: 2026-04-08T17-30-00Z - Force redeploy con consulta router
+# Last updated: 2026-04-08 17:30 UTC - Fixed UserProfileUpdate import
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
 # NEW: LegalBot V3.0 - Scoring Multidimensional
@@ -16,12 +17,12 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, consulta_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router
 import uuid
 
 settings = get_settings()
 
-print("🚀 Starting Conflict Zero API - LegalBot V3.0")
+print("🚀 Starting Conflict Zero API - LegalBot V3.0 - Deploy Fix")
 
 # Crear tablas en la base de datos (con manejo de errores para no bloquear startup)
 def init_database():
@@ -122,11 +123,128 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 # Routers
+app.include_router(health_router, prefix="/api/v1")
+app.include_router(debug_router, prefix="/api/v1")
 app.include_router(consulta_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(verification_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
+app.include_router(compare_router, prefix="/api/v1")
+app.include_router(payments_router, prefix="/api/v1")
 
 # Routers v3 (para compatibilidad con frontend)
 app.include_router(auth_router, prefix="/api/v3")
+app.include_router(verification_router, prefix="/api/v3")
+app.include_router(admin_router, prefix="/api/v3")
+app.include_router(notifications_router, prefix="/api/v3")
+
+# Endpoint register-web directo (workaround para problema de caché en Render)
+from pydantic import BaseModel
+from typing import Optional
+
+class RegisterWebRequest(BaseModel):
+    email: str
+    password: str
+    full_name: str
+    company_name: Optional[str] = None
+    ruc: Optional[str] = None
+
+@app.post("/api/v3/auth/register-web")
+async def register_web_direct(request: RegisterWebRequest):
+    """
+    Registro desde formulario web - con notificaciones por email
+    """
+    import uuid
+    import os
+    import random
+    import string
+    import logging
+    from datetime import datetime
+    from app.core.database import SessionLocal
+    from app.core.security import get_password_hash
+    from app.models import User
+    from app.services.email import get_email_service
+    
+    logger = logging.getLogger(__name__)
+    db = SessionLocal()
+    email_service = get_email_service()
+    
+    try:
+        # Verificar si email ya existe
+        existing = db.query(User).filter(User.email == request.email).first()
+        if existing:
+            return {"success": True, "message": "Solicitud recibida"}  # No revelar si existe
+        
+        # Generar contraseña temporal segura
+        alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
+        temp_password = ''.join(random.choice(alphabet) for _ in range(12))
+        
+        # Crear usuario
+        user = User(
+            id=str(uuid.uuid4()),
+            email=request.email,
+            hashed_password=f"temp:{temp_password}",  # Formato temporal para evitar problemas bcrypt
+            full_name=request.full_name,
+            company_name=request.company_name or "",
+            ruc=request.ruc or "00000000000",
+            plan_type="professional",
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        
+        # Enviar email de bienvenida al usuario
+        user_email_sent = False
+        try:
+            user_email_sent = email_service.send_welcome_email(
+                email=request.email,
+                temp_password=temp_password,
+                full_name=request.full_name,
+                plan="professional"
+            )
+            if user_email_sent:
+                logger.info(f"✅ Email de bienvenida enviado a {request.email}")
+            else:
+                logger.warning(f"⚠️ No se pudo enviar email a {request.email}. Proveedor: {email_service.provider}")
+        except Exception as e:
+            logger.error(f"❌ Error enviando email a usuario: {e}")
+        
+        # Notificar al admin sobre nuevo registro
+        admin_email = "tiagomunoz10@icloud.com"
+        
+        admin_notifications_sent = 0
+        try:
+            admin_notified = email_service.send_admin_registration_notification(
+                admin_email=admin_email,
+                user_email=request.email,
+                user_name=request.full_name,
+                user_company=request.company_name or "No especificada",
+                user_ruc=request.ruc or "No especificado",
+                plan="professional"
+            )
+            if admin_notified:
+                admin_notifications_sent = 1
+                logger.info(f"✅ Admin notificado ({admin_email})")
+            else:
+                logger.warning(f"⚠️ No se pudo notificar a admin ({admin_email})")
+        except Exception as e:
+            logger.error(f"❌ Error notificando a admin ({admin_email}): {e}")
+        
+        logger.info(f"📝 Nuevo registro: {request.email} - {request.full_name}")
+        
+        return {
+            "success": True,
+            "message": "Usuario registrado exitosamente",
+            "user_id": user.id,
+            "email_sent": user_email_sent,
+            "admin_notifications": admin_notifications_sent,
+            "provider": email_service.provider
+        }
+    except Exception as e:
+        logger.error(f"[Register Web] Error: {e}")
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
 
 # Manejo de excepciones
 @app.exception_handler(Exception)
