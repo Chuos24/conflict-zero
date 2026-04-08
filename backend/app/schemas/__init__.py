@@ -151,6 +151,10 @@ class ApiKeyListItem(BaseModel):
     class Config:
         orm_mode = True
 
+class ApiKeyRegenerateResponse(BaseModel):
+    api_key: str
+    message: str
+
 # ============== Dashboard Schemas ==============
 
 class DashboardStats(BaseModel):
