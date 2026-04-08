@@ -13,7 +13,7 @@ from app.core.security import (
     verify_password, create_access_token, get_password_hash, get_current_active_user
 )
 from app.models import User
-from app.schemas import Token, UserCreate, UserResponse, LoginRequest, UserProfileUpdate, ApiKeyRegenerateResponse
+from app.schemas import Token, UserCreate, UserResponse, LoginRequest, UserUpdate, ApiKeyRegenerateResponse
 from app.services.email import get_email_service
 from pydantic import BaseModel, EmailStr, Field
 
@@ -662,7 +662,7 @@ async def reset_user_password(email: str, db: Session = Depends(get_db)):
     description="Actualiza los datos del perfil del usuario autenticado."
 )
 async def update_profile(
-    update_data: UserProfileUpdate,
+    update_data: UserUpdate,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
