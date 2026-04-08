@@ -1244,47 +1244,80 @@
             }
         }
         
-        // ========== CREAR USUARIO PARA CERTIFICADO ==========
+        // ========== CREAR USUARIO REAL EN BASE DE DATOS ==========
         async function createUserForCert(ruc, companyName, tier) {
-            if (!confirm(`¿Crear usuario para ${companyName}?\n\nSe generará una contraseña temporal y se mostrarán las credenciales.`)) {
+            if (!confirm(`¿Crear usuario REAL para ${companyName}?\n\nSe creará en la base de datos y podrá hacer login en czperu.com/login.html`)) {
                 return;
             }
+            
+            // Mostrar spinner o estado
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '⏳ Creando...';
+            btn.disabled = true;
             
             // Generar email y contraseña
             const email = generateEmail(companyName, ruc);
             const password = generatePassword();
             
-            // Guardar usuario en localStorage (simulado)
-            const users = JSON.parse(localStorage.getItem('cz_usuarios') || '[]');
-            
-            // Verificar si ya existe
-            const existingIndex = users.findIndex(u => u.ruc === ruc);
-            
-            const newUser = {
-                ruc,
-                email,
-                password,
-                company_name: companyName,
-                tier,
-                created_at: new Date().toISOString()
-            };
-            
-            if (existingIndex >= 0) {
-                users[existingIndex] = newUser;
-            } else {
-                users.push(newUser);
+            try {
+                // Llamar al endpoint REAL de la API
+                const response = await fetch(`${API_BASE_URL}/api/v3/admin/create-user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': 'CZ2026ADM'
+                    },
+                    body: JSON.stringify({
+                        ruc: ruc,
+                        email: email,
+                        password: password,
+                        plan: tier.toLowerCase() === 'gold' ? 'enterprise' : 
+                              tier.toLowerCase() === 'silver' ? 'professional' : 'starter'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Guardar en localStorage también (para referencia local)
+                    const users = JSON.parse(localStorage.getItem('cz_usuarios') || '[]');
+                    const existingIndex = users.findIndex(u => u.ruc === ruc);
+                    const newUser = {
+                        ruc,
+                        email,
+                        password,
+                        company_name: companyName,
+                        tier,
+                        api_id: data.user.id,
+                        created_at: new Date().toISOString()
+                    };
+                    
+                    if (existingIndex >= 0) {
+                        users[existingIndex] = newUser;
+                    } else {
+                        users.push(newUser);
+                    }
+                    localStorage.setItem('cz_usuarios', JSON.stringify(users));
+                    
+                    // Mostrar credenciales
+                    showCredentials(email, password);
+                    
+                    // Recargar lista
+                    loadCertificados();
+                    
+                    alert('✅ Usuario creado exitosamente en la base de datos');
+                } else {
+                    alert(`❌ Error: ${data.message || 'No se pudo crear el usuario'}`);
+                }
+                
+            } catch (error) {
+                console.error('Error creando usuario:', error);
+                alert('❌ Error de conexión. Intente nuevamente.');
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
             }
-            
-            localStorage.setItem('cz_usuarios', JSON.stringify(users));
-            
-            // Mostrar credenciales
-            showCredentials(email, password);
-            
-            // Recargar lista
-            loadCertificados();
-            
-            // Nota: En producción, aquí llamarías al endpoint real:
-            // POST /api/v1/auth/register con los datos del usuario
         }
         
         function generateEmail(companyName, ruc) {
@@ -1336,26 +1369,56 @@
             });
         }
         
-        // ========== RESET PASSWORD ==========
+        // ========== RESET PASSWORD (API REAL) ==========
         async function resetPassword(ruc) {
-            if (!confirm('¿Generar nueva contraseña para este usuario?')) {
+            if (!confirm('¿Generar nueva contraseña para este usuario? Se actualizará en la base de datos.')) {
                 return;
             }
             
             const users = JSON.parse(localStorage.getItem('cz_usuarios') || '[]');
-            const userIndex = users.findIndex(u => u.ruc === ruc);
+            const user = users.find(u => u.ruc === ruc);
             
-            if (userIndex < 0) {
+            if (!user) {
                 alert('❌ Usuario no encontrado');
                 return;
             }
             
             const newPassword = generatePassword();
-            users[userIndex].password = newPassword;
-            localStorage.setItem('cz_usuarios', JSON.stringify(users));
             
-            showCredentials(users[userIndex].email, newPassword);
-            alert('✅ Contraseña actualizada');
+            try {
+                // Llamar al endpoint para actualizar (mismo endpoint hace upsert)
+                const response = await fetch(`${API_BASE_URL}/api/v3/admin/create-user`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Admin-Token': 'CZ2026ADM'
+                    },
+                    body: JSON.stringify({
+                        ruc: user.ruc,
+                        email: user.email,
+                        password: newPassword,
+                        plan: user.tier.toLowerCase() === 'gold' ? 'enterprise' : 
+                              user.tier.toLowerCase() === 'silver' ? 'professional' : 'starter'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Actualizar en localStorage
+                    user.password = newPassword;
+                    localStorage.setItem('cz_usuarios', JSON.stringify(users));
+                    
+                    showCredentials(user.email, newPassword);
+                    alert('✅ Contraseña actualizada en la base de datos');
+                } else {
+                    alert(`❌ Error: ${data.message || 'No se pudo actualizar'}`);
+                }
+                
+            } catch (error) {
+                console.error('Error reseteando password:', error);
+                alert('❌ Error de conexión. Intente nuevamente.');
+            }
         }
         
         // ========== GUARDAR CERTIFICADO AL GENERAR ==========
