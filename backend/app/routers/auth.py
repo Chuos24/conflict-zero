@@ -3,7 +3,7 @@ Autenticación y gestión de usuarios - Conflict Zero API
 DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z
 """
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, Header
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
