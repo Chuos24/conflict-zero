@@ -18,6 +18,8 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = Field(None, min_length=2, max_length=255)
     company_name: Optional[str] = None
     ruc: Optional[str] = Field(None, min_length=11, max_length=11)
+    current_password: Optional[str] = Field(None, min_length=8)
+    new_password: Optional[str] = Field(None, min_length=8)
 
 class UserResponse(UserBase):
     id: UUID
