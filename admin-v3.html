@@ -459,7 +459,206 @@
         
         .message.show { display: block; }
         
-        /* Cert Result */
+        /* Credentials Modal */
+        .credentials-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .credentials-modal.show {
+            display: flex;
+        }
+        
+        .credentials-box {
+            background: var(--bg-card);
+            border: 2px solid var(--gold);
+            padding: 40px;
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .credentials-box h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 24px;
+            margin-bottom: 24px;
+            color: var(--gold);
+        }
+        
+        .cred-field {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            padding: 16px;
+            margin: 12px 0;
+            text-align: left;
+        }
+        
+        .cred-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+        }
+        
+        .cred-value {
+            font-family: monospace;
+            font-size: 16px;
+            color: var(--text);
+            word-break: break-all;
+        }
+        
+        .btn-copy {
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 8px 16px;
+            font-size: 11px;
+            margin-top: 8px;
+            cursor: pointer;
+        }
+        
+        .btn-close {
+            background: var(--gold);
+            color: var(--bg-dark);
+            border: none;
+            padding: 12px 32px;
+            font-size: 12px;
+            margin-top: 20px;
+            cursor: pointer;
+        }
+        
+        /* Certificados Section */
+        .certs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .cert-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 24px;
+            transition: all 0.3s;
+        }
+        
+        .cert-card:hover {
+            border-color: rgba(197, 160, 89, 0.3);
+        }
+        
+        .cert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+        
+        .cert-tier {
+            font-size: 11px;
+            padding: 4px 12px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .cert-tier.gold { background: rgba(197, 160, 89, 0.2); color: var(--gold); }
+        .cert-tier.silver { background: rgba(192, 192, 192, 0.2); color: var(--silver); }
+        .cert-tier.bronze { background: rgba(184, 115, 51, 0.2); color: var(--bronze); }
+        
+        .cert-score {
+            font-size: 24px;
+            font-weight: 300;
+            color: var(--text);
+        }
+        
+        .cert-company {
+            font-size: 16px;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        
+        .cert-ruc {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-family: monospace;
+            margin-bottom: 16px;
+        }
+        
+        .cert-code {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+            padding: 8px;
+            background: var(--bg-dark);
+            font-family: monospace;
+        }
+        
+        .cert-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .cert-actions button {
+            flex: 1;
+            min-width: 100px;
+            padding: 10px;
+            font-size: 11px;
+        }
+        
+        .btn-create-user {
+            background: var(--gold);
+            color: var(--bg-dark);
+        }
+        
+        .btn-view-user {
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+        }
+        
+        .btn-reset-pass {
+            background: transparent;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+        }
+        
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+        
+        .user-badge.active {
+            background: rgba(45, 74, 62, 0.3);
+            color: #7fb069;
+        }
+        
+        .user-badge.none {
+            background: rgba(139, 0, 0, 0.2);
+            color: #ff6b6b;
+        }
+        
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        
+        .user-badge.active .dot { background: #7fb069; }
+        .user-badge.none .dot { background: #ff6b6b; }
         .cert-result {
             display: none;
             background: var(--bg-card);
@@ -565,7 +764,56 @@
             </div>
         </div>
         
-        <!-- Solicitudes Pendientes -->
+        <!-- Certificados Generados -->
+        <div class="pending-section" id="certificadosSection" style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border);">
+            <div class="plans-header">
+                <h2>🏆 Certificados Generados</h2>
+                <p>Gestiona certificados y crea usuarios para tus clientes</p>
+            </div>
+            
+            <div style="margin-bottom: 20px; display: flex; gap: 12px;">
+                <input type="text" id="searchCertInput" placeholder="Buscar por RUC o empresa..." style="flex: 1; max-width: 300px;">
+                <button onclick="loadCertificados()" style="background: transparent; border: 1px solid var(--gold); color: var(--gold);">
+                    🔄 Actualizar
+                </button>
+            </div>
+            
+            <div id="certificadosList" class="certs-grid">
+                <div style="text-align: center; color: var(--text-muted); padding: 40px; grid-column: 1/-1;">
+                    Cargando certificados...
+                </div>
+            </div>
+        </div>
+        
+        <!-- Credentials Modal -->
+        <div class="credentials-modal" id="credentialsModal">
+            <div class="credentials-box">
+                <h3>🔑 Credenciales de Acceso</h3>
+                <p style="color: var(--text-muted); margin-bottom: 24px; font-size: 13px;">
+                    Comparte estos datos con tu cliente
+                </p>
+                
+                <div class="cred-field">
+                    <div class="cred-label">Email / Usuario</div>
+                    <div class="cred-value" id="credEmail">--</div>
+                    <button class="btn-copy" onclick="copyToClipboard('credEmail')">Copiar</button>
+                </div>
+                
+                <div class="cred-field">
+                    <div class="cred-label">Contraseña</div>
+                    <div class="cred-value" id="credPassword">--</div>
+                    <button class="btn-copy" onclick="copyToClipboard('credPassword')">Copiar</button>
+                </div>
+                
+                <div class="cred-field">
+                    <div class="cred-label">URL de Login</div>
+                    <div class="cred-value">https://czperu.com/login.html</div>
+                    <button class="btn-copy" onclick="copyText('https://czperu.com/login.html')">Copiar</button>
+                </div>
+                
+                <button class="btn-close" onclick="closeCredentialsModal()">Cerrar</button>
+            </div>
+        </div>
         <div class="pending-section" id="pendingSection" style="margin-top: 60px; padding-top: 40px; border-top: 1px solid var(--border);">
             <div class="plans-header">
                 <h2>📋 Solicitudes Pendientes</h2>
@@ -893,10 +1141,297 @@
             }
         }
         
-        // Cargar pendientes al iniciar
+        // Cargar pendientes y certificados al iniciar
         if (localStorage.getItem('cz_admin_v3_logged') === 'true') {
             loadPendingUsers();
+            loadCertificados();
         }
+        
+        // ========== CERTIFICADOS GENERADOS ==========
+        async function loadCertificados() {
+            const container = document.getElementById('certificadosList');
+            const searchTerm = document.getElementById('searchCertInput')?.value?.toLowerCase() || '';
+            
+            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px; grid-column: 1/-1;">Cargando certificados...</div>';
+            
+            try {
+                // Obtener certificados del localStorage (simulado) o del backend
+                // Por ahora usamos localStorage como "base de datos" temporal
+                const certs = JSON.parse(localStorage.getItem('cz_certificados') || '[]');
+                
+                // También obtener usuarios creados
+                const users = JSON.parse(localStorage.getItem('cz_usuarios') || '[]');
+                
+                if (certs.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: var(--text-muted); padding: 60px; grid-column: 1/-1;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
+                            <p>No hay certificados generados aún</p>
+                            <p style="font-size: 13px; margin-top: 8px;">Los certificados aparecerán aquí después de generarlos</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Filtrar si hay búsqueda
+                const filteredCerts = searchTerm 
+                    ? certs.filter(c => 
+                        c.ruc?.toLowerCase().includes(searchTerm) || 
+                        c.company_name?.toLowerCase().includes(searchTerm)
+                      )
+                    : certs;
+                
+                if (filteredCerts.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: var(--text-muted); padding: 40px; grid-column: 1/-1;">
+                            No se encontraron certificados con "${searchTerm}"
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Renderizar certificados
+                container.innerHTML = filteredCerts.map(cert => {
+                    const user = users.find(u => u.ruc === cert.ruc);
+                    const hasUser = !!user;
+                    const tierClass = cert.tier?.toLowerCase() || 'bronze';
+                    
+                    return `
+                        <div class="cert-card">
+                            <div class="cert-header">
+                                <span class="cert-tier ${tierClass}">${cert.tier || 'BRONZE'}</span>
+                                <span class="cert-score">${cert.score || '--'}/100</span>
+                            </div>
+                            
+                            <div class="user-badge ${hasUser ? 'active' : 'none'}">
+                                <span class="dot"></span>
+                                ${hasUser ? '✓ Usuario activo' : '✗ Sin usuario'}
+                            </div>
+                            
+                            <div class="cert-company">${cert.company_name || 'Empresa'}</div>
+                            <div class="cert-ruc">RUC: ${cert.ruc}</div>
+                            <div class="cert-code">Código: ${cert.code || cert.ruc}</div>
+                            
+                            <div class="cert-actions">
+                                ${!hasUser ? `
+                                    <button class="btn-create-user" onclick="createUserForCert('${cert.ruc}', '${cert.company_name}', '${cert.tier || 'BRONZE'}')">
+                                        ➕ Crear Usuario
+                                    </button>
+                                ` : `
+                                    <button class="btn-view-user" onclick="showCredentials('${user.email}', '${user.password}')">
+                                        👁️ Ver Credenciales
+                                    </button>
+                                    <button class="btn-reset-pass" onclick="resetPassword('${cert.ruc}')">
+                                        🔄 Reset Pass
+                                    </button>
+                                `}
+                                <button style="background: transparent; border: 1px solid var(--border); color: var(--text-muted);"
+                                        onclick="window.open('/certificado-${cert.code || cert.ruc}.html', '_blank')">
+                                    📄 Ver Cert
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (error) {
+                console.error('Error loading certificados:', error);
+                container.innerHTML = `
+                    <div style="text-align: center; color: #ff6b6b; padding: 40px; grid-column: 1/-1;">
+                        Error cargando certificados. Intente nuevamente.
+                    </div>
+                `;
+            }
+        }
+        
+        // ========== CREAR USUARIO PARA CERTIFICADO ==========
+        async function createUserForCert(ruc, companyName, tier) {
+            if (!confirm(`¿Crear usuario para ${companyName}?\n\nSe generará una contraseña temporal y se mostrarán las credenciales.`)) {
+                return;
+            }
+            
+            // Generar email y contraseña
+            const email = generateEmail(companyName, ruc);
+            const password = generatePassword();
+            
+            // Guardar usuario en localStorage (simulado)
+            const users = JSON.parse(localStorage.getItem('cz_usuarios') || '[]');
+            
+            // Verificar si ya existe
+            const existingIndex = users.findIndex(u => u.ruc === ruc);
+            
+            const newUser = {
+                ruc,
+                email,
+                password,
+                company_name: companyName,
+                tier,
+                created_at: new Date().toISOString()
+            };
+            
+            if (existingIndex >= 0) {
+                users[existingIndex] = newUser;
+            } else {
+                users.push(newUser);
+            }
+            
+            localStorage.setItem('cz_usuarios', JSON.stringify(users));
+            
+            // Mostrar credenciales
+            showCredentials(email, password);
+            
+            // Recargar lista
+            loadCertificados();
+            
+            // Nota: En producción, aquí llamarías al endpoint real:
+            // POST /api/v1/auth/register con los datos del usuario
+        }
+        
+        function generateEmail(companyName, ruc) {
+            // Limpiar nombre de empresa para email
+            const cleanName = companyName
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .substring(0, 15);
+            return `${cleanName}@${ruc.slice(-4)}.cz.client`;
+        }
+        
+        function generatePassword() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+            let pass = '';
+            for (let i = 0; i < 12; i++) {
+                pass += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return pass;
+        }
+        
+        // ========== MOSTRAR CREDENCIALES ==========
+        function showCredentials(email, password) {
+            document.getElementById('credEmail').textContent = email;
+            document.getElementById('credPassword').textContent = password;
+            document.getElementById('credentialsModal').classList.add('show');
+        }
+        
+        function closeCredentialsModal() {
+            document.getElementById('credentialsModal').classList.remove('show');
+        }
+        
+        function copyToClipboard(elementId) {
+            const text = document.getElementById(elementId).textContent;
+            copyText(text);
+        }
+        
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ Copiado al portapapeles');
+            }).catch(() => {
+                // Fallback
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ Copiado al portapapeles');
+            });
+        }
+        
+        // ========== RESET PASSWORD ==========
+        async function resetPassword(ruc) {
+            if (!confirm('¿Generar nueva contraseña para este usuario?')) {
+                return;
+            }
+            
+            const users = JSON.parse(localStorage.getItem('cz_usuarios') || '[]');
+            const userIndex = users.findIndex(u => u.ruc === ruc);
+            
+            if (userIndex < 0) {
+                alert('❌ Usuario no encontrado');
+                return;
+            }
+            
+            const newPassword = generatePassword();
+            users[userIndex].password = newPassword;
+            localStorage.setItem('cz_usuarios', JSON.stringify(users));
+            
+            showCredentials(users[userIndex].email, newPassword);
+            alert('✅ Contraseña actualizada');
+        }
+        
+        // ========== GUARDAR CERTIFICADO AL GENERAR ==========
+        // Sobrescribir la función generateCert original para guardar en localStorage
+        const originalGenerateCert = generateCert;
+        generateCert = async function() {
+            if (!selectedPlan || !currentData) {
+                alert('Seleccione un plan primero');
+                return;
+            }
+            
+            const btn = document.getElementById('btnGenerate');
+            btn.disabled = true;
+            btn.textContent = 'Generando...';
+            
+            try {
+                const response = await fetch(`${API_URL}/generate-cert`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ruc: currentData.ruc,
+                        plan: selectedPlan,
+                        company_name: currentData.company_name
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail?.error || 'Error generando certificado');
+                }
+                
+                // GUARDAR EN LOCALSTORAGE
+                const certs = JSON.parse(localStorage.getItem('cz_certificados') || '[]');
+                certs.push({
+                    ruc: currentData.ruc,
+                    company_name: currentData.company_name,
+                    score: currentData.score,
+                    tier: currentData.tier?.name || 'BRONZE',
+                    code: result.code || currentData.ruc,
+                    url: result.urls?.view || '',
+                    created_at: new Date().toISOString()
+                });
+                localStorage.setItem('cz_certificados', JSON.stringify(certs));
+                
+                // Mostrar resultado
+                document.getElementById('certUrl').textContent = result.urls.view;
+                document.getElementById('certQr').innerHTML = `<img src="${result.urls.qr}" alt="QR" style="width: 150px; height: 150px;">`;
+                document.getElementById('certResult').classList.add('show');
+                
+                // Scroll al resultado
+                document.getElementById('certResult').scrollIntoView({ behavior: 'smooth' });
+                
+                // Recargar lista de certificados
+                loadCertificados();
+                
+            } catch (err) {
+                alert('Error: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generar Certificado';
+            }
+        };
+        
+        // Cerrar modal al hacer click fuera
+        document.getElementById('credentialsModal')?.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeCredentialsModal();
+            }
+        });
+        
+        // Buscar al escribir
+        document.getElementById('searchCertInput')?.addEventListener('input', function() {
+            loadCertificados();
+        });
+    </script>
     </script>
 </body>
 </html>
