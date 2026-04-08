@@ -2225,6 +2225,81 @@ async def api_v1_docs():
         'contact': 'api@czperu.com'
     }
 
+# ============ CONSULTA COMPLETA ENDPOINT ============
+
+@app.get("/api/v1/consulta-completa/{ruc}")
+async def consulta_completa(ruc: str):
+    """
+    Consulta completa de RUC - Versión para verificar.html
+    Retorna datos de SUNAT, score, sanciones y tier
+    """
+    ruc = ruc.strip()
+    
+    if len(ruc) != 11 or not ruc.isdigit():
+        return JSONResponse(
+            status_code=400,
+            content={
+                'error': True,
+                'message': 'RUC debe tener 11 dígitos numéricos'
+            }
+        )
+    
+    try:
+        # Consultar Factiliza
+        sunat_data = await consultar_factiliza(ruc)
+        
+        if not sunat_data:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    'error': True,
+                    'message': 'RUC no encontrado en SUNAT'
+                }
+            )
+        
+        # Calcular score
+        score_result = await calculate_score_v3(ruc)
+        
+        # Obtener sanciones
+        sanciones = []
+        try:
+            sanciones = await get_sanciones_osce(ruc)
+        except:
+            pass
+        
+        # Mapear tier a risk_level
+        tier_to_risk = {
+            'GOLD': 'LOW',
+            'SILVER': 'MEDIUM', 
+            'BRONZE': 'HIGH',
+            'RECHAZADO': 'CRITICAL'
+        }
+        
+        return {
+            'ruc': ruc,
+            'razon_social': sunat_data.get('razon_social', 'No disponible'),
+            'nombre_comercial': sunat_data.get('nombre_comercial', ''),
+            'estado': sunat_data.get('estado', 'ACTIVO'),
+            'condicion': sunat_data.get('condicion', 'HABIDO'),
+            'direccion': sunat_data.get('direccion', ''),
+            'score': score_result.get('score', 0),
+            'risk_level': tier_to_risk.get(score_result.get('tier', 'BRONZE'), 'HIGH'),
+            'tier': score_result.get('tier', 'BRONZE'),
+            'sanciones': sanciones,
+            'total_registros': len(sanciones),
+            'fuente_datos': 'factiliza_api'
+        }
+        
+    except Exception as e:
+        print(f"[Consulta Completa] Error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                'error': True,
+                'message': f'Error interno: {str(e)}'
+            }
+        )
+
 # ============ AUTH ENDPOINTS (White Glove) ============
 
 def hash_password(password: str) -> str:
