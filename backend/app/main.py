@@ -1,6 +1,6 @@
 # Conflict Zero API - Main Application
-# DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z - Full deploy con auth v3
-# Last updated: 2026-03-28 03:55 UTC - LegalBot V3.0 Deploy
+# DEPLOY_TIMESTAMP: 2026-04-08T17-30-00Z - Force redeploy con consulta router
+# Last updated: 2026-04-08 17:30 UTC - Fixed UserProfileUpdate import
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
 # NEW: LegalBot V3.0 - Scoring Multidimensional
@@ -22,7 +22,7 @@ import uuid
 
 settings = get_settings()
 
-print("🚀 Starting Conflict Zero API - LegalBot V3.0")
+print("🚀 Starting Conflict Zero API - LegalBot V3.0 - Deploy Fix")
 
 # Crear tablas en la base de datos (con manejo de errores para no bloquear startup)
 def init_database():
