@@ -129,6 +129,7 @@ app.include_router(consulta_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
+app.include_router(consulta_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
 
