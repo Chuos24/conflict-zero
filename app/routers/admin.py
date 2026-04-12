@@ -244,14 +244,19 @@ async def pending_activations(authorization: str = Header(None), db: Session = D
         from sqlalchemy import text
         
         # Usuarios con pago registrado pero sin plan activado (plan = 'free')
+        # Query compatible con SQLite (no usa DISTINCT ON)
         query_unactivated = """
-            SELECT DISTINCT ON (u.id)
-                u.id, u.email, u.company_name, u.plan,
-                pm.amount, pm.currency, pm.method, pm.reference, pm.payment_date, pm.created_at as payment_registered_at
+            SELECT u.id, u.email, u.company_name, u.plan,
+                   pm.amount, pm.currency, pm.method, pm.reference, pm.payment_date, pm.created_at as payment_registered_at
             FROM users u
-            JOIN payments_manual pm ON pm.user_id = u.id
+            JOIN (
+                SELECT user_id, MAX(created_at) as max_created_at
+                FROM payments_manual
+                GROUP BY user_id
+            ) latest ON latest.user_id = u.id
+            JOIN payments_manual pm ON pm.user_id = u.id AND pm.created_at = latest.max_created_at
             WHERE u.plan = 'free'
-            ORDER BY u.id, pm.created_at DESC
+            ORDER BY pm.created_at DESC
         """
         result = db.execute(text(query_unactivated))
         unactivated = [dict(row._mapping) for row in result]
