@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso al Comite - Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-dark: #0A0A0F;
+            --bg-card: #12121A;
+            --bg-hover: #1A1A22;
+            --gold: #C5A059;
+            --gold-light: #D4AF37;
+            --gold-dark: #8B6914;
+            --text: #F5F5F0;
+            --text-muted: #A0A0A0;
+            --text-secondary: #6B6B6E;
+            --border: #2A2A2E;
+            --border-gold: rgba(197, 160, 89, 0.3);
+            --danger: #8B0000;
+            --danger-bg: #1A0A0A;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            background-color: var(--bg-dark);
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header UHNW */
+        .header {
+            padding: 24px 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            background: rgba(10, 10, 15, 0.95);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            border: 1px solid var(--gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke: var(--gold);
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .logo-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.35em;
+            text-transform: uppercase;
+            color: var(--gold);
+        }
+        
+        .back-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: color 0.2s;
+        }
+        
+        .back-link:hover {
+            color: var(--gold);
+        }
+        
+        /* Main */
+        .main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 48px;
+        }
+        
+        /* Login Card UHNW */
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 48px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .login-header h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 14px;
+            font-weight: 300;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--gold);
+            margin-bottom: 12px;
+        }
+        
+        .login-header p {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 28px;
+            font-weight: 300;
+            letter-spacing: 0.05em;
+            color: var(--text);
+        }
+        
+        /* Form */
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 16px 20px;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 15px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .form-group input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(197, 160, 89, 0.1);
+        }
+        
+        .form-group input::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        /* Error Message UHNW */
+        .error-message {
+            background: var(--danger-bg);
+            border: 1px solid var(--danger);
+            color: var(--text);
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 13px;
+            display: none;
+        }
+        
+        .error-message.visible {
+            display: block;
+        }
+        
+        /* Button UHNW */
+        .btn-submit {
+            width: 100%;
+            padding: 18px;
+            background: var(--gold);
+            border: none;
+            color: var(--bg-dark);
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .btn-submit:hover:not(:disabled) {
+            background: var(--gold-light);
+        }
+        
+        .btn-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--bg-dark);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Footer */
+        .login-footer {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .login-footer p {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        
+        .login-footer a {
+            color: var(--gold);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .login-footer a:hover {
+            color: var(--gold-light);
+        }
+        
+        /* Page Footer */
+        .footer {
+            padding: 24px 48px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            letter-spacing: 0.05em;
+        }
+        
+        @media (max-width: 640px) {
+            .header {
+                padding: 16px 24px;
+            }
+            
+            .main {
+                padding: 24px;
+            }
+            
+            .login-card {
+                padding: 32px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </div>
+            <div class="logo-text">Conflict Zero</div>
+        </a>
+        
+        <a href="/" class="back-link">← Volver</a>
+    </header>
+    
+    <main class="main">
+        <div class="login-card">
+            <div class="login-header">
+                <h1 id="loginTitle">Acceso al Comite</h1>
+                <p id="loginSubtitle">Panel de Control Institucional</p>
+                <div id="certificationBanner" style="display: none; margin-top: 20px; padding: 16px; background: rgba(197, 160, 89, 0.1); border: 1px solid rgba(197, 160, 89, 0.3); border-radius: 4px;">
+                    <div style="font-size: 11px; color: #C5A059; text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 4px;">Finalizando Certificacion</div>
+                    <div id="certificationInfo" style="font-size: 14px; color: #F5F5F0;">RUC: -- | Plan: --</div>
+                </div>
+            </div>
+            
+            <div class="error-message" id="errorMessage"></div>
+            
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Correo Electronico</label>
+                    <input 
+                        type="email" 
+                        id="email" 
+                        placeholder="usuario@empresa.com"
+                        required
+                        autocomplete="email"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label>Contrasena</label>
+                    <input 
+                        type="password" 
+                        id="password" 
+                        placeholder="••••••••"
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+                
+                <button type="submit" class="btn-submit" id="submitBtn">
+                    Acceder
+                </button>
+            </form>
+            
+            <div class="login-footer">
+                <p>¿No tiene cuenta? <a href="/register">Solicitar acceso</a></p>
+            </div>
+        </div>
+    </main>
+    
+    <footer class="footer">
+        <p>© 2026 Conflict Zero. Todos los derechos reservados.</p>
+    </footer>
+    
+    <script>
+        // API Endpoint v3 - Conflict Zero
+        const API_BASE = 'https://conflict-zero-api.onrender.com/api/v3';
+        
+        // Check if coming from certification flow
+        const urlParams = new URLSearchParams(window.location.search);
+        const certRuc = urlParams.get('ruc');
+        const certPlan = urlParams.get('plan');
+        const certScore = urlParams.get('score');
+        
+        if (certRuc && certPlan) {
+            // Show certification banner
+            document.getElementById('certificationBanner').style.display = 'block';
+            document.getElementById('certificationInfo').textContent = `RUC: ${certRuc} | Sello: ${certPlan.toUpperCase()}`;
+            document.getElementById('loginTitle').textContent = 'Acceso al Comite de Admision';
+            document.getElementById('loginSubtitle').textContent = 'Complete su certificacion empresarial';
+            
+            // Store in sessionStorage for after login
+            sessionStorage.setItem('pending_certification', JSON.stringify({
+                ruc: certRuc,
+                plan: certPlan,
+                score: certScore
+            }));
+        }
+        
+        // Check if already logged in
+        const token = localStorage.getItem('cz_token');
+        if (token) {
+            fetch(`${API_BASE}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(r => {
+                if (r.ok) {
+                    // If coming from certification, go to checkout
+                    if (sessionStorage.getItem('pending_certification')) {
+                        window.location.href = '/checkout.html';
+                    } else {
+                        window.location.href = '/dashboard.html';
+                    }
+                }
+            }).catch(() => {});
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('submitBtn');
+            const error = document.getElementById('errorMessage');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
+            error.classList.remove('visible');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Credenciales incorrectas');
+                }
+                
+                // Guardar token
+                localStorage.setItem('cz_token', data.token || data.access_token);
+                localStorage.setItem('cz_user', JSON.stringify({
+                    email: email,
+                    loginTime: new Date().toISOString(),
+                    token: data.token || data.access_token
+                }));
+                
+                // Redirigir - si viene de certificacion, ir a checkout
+                if (sessionStorage.getItem('pending_certification')) {
+                    window.location.href = '/checkout.html';
+                } else {
+                    window.location.href = '/dashboard.html';
+                }
+                
+            } catch (err) {
+                error.textContent = err.message || 'Error al iniciar sesion. Intente nuevamente.';
+                error.classList.add('visible');
+                btn.disabled = false;
+                btn.textContent = 'Acceder';
+            }
+        }
+    </script>
+</body>
+</html>

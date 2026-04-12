@@ -545,7 +545,7 @@
             
             // Consultar API real
             try {
-                const response = await fetch(`${API_BASE_URL}/api/v3/validate/${input}`, {
+                const response = await fetch(`${API_BASE_URL}/api/v1/consulta-completa/${input}`, {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -566,62 +566,42 @@
         function mostrarResultadoAPI(data) {
             const container = document.getElementById('resultContainer');
             
-            const tierColors = {
-                'GOLD': '#C5A059',
-                'SILVER': '#8A9BA8',
-                'BRONZE': '#B87333',
-                'RECHAZADO': '#DC2626'
+            // Mapear risk_level a tier
+            const riskToTier = {
+                'LOW': { name: 'GOLD', description: 'Verificación Gold', color: '#C5A059', letter: 'G' },
+                'MEDIUM': { name: 'SILVER', description: 'Verificación Silver', color: '#8A9BA8', letter: 'S' },
+                'HIGH': { name: 'BRONZE', description: 'Verificación Bronze', color: '#B87333', letter: 'B' },
+                'CRITICAL': { name: 'RECHAZADO', description: 'No Certificable', color: '#DC2626', letter: '!' }
             };
             
-            const tierLetters = {
-                'GOLD': 'G',
-                'SILVER': 'S',
-                'BRONZE': 'B',
-                'RECHAZADO': '!'
-            };
-            
-            const color = tierColors[data.tier?.name] || '#C5A059';
-            const letra = tierLetters[data.tier?.name] || 'G';
-            const tierName = data.tier?.name || 'GOLD';
+            const tier = riskToTier[data.risk_level] || riskToTier['LOW'];
+            const color = tier.color;
+            const letra = tier.letter;
+            const tierName = tier.name;
             
             // Construir lista de sanciones
             let sancionesHTML = '';
-            if (data.sanciones_detalle && data.sanciones_detalle.length > 0) {
+            if (data.sanciones && data.sanciones.length > 0) {
                 sancionesHTML = `
                     <div style="margin-top: 24px; padding: 20px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px;">
                         <h3 style="color: #DC2626; font-size: 14px; margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.1em;">⚠️ Sanciones Detectadas</h3>
-                        ${data.sanciones_detalle.map(s => {
-                            const estadoClass = s.estado === 'VIGENTE' ? 'vigente' : 'vencida';
-                            const estadoColor = s.estado === 'VIGENTE' ? '#DC2626' : '#F59E0B';
+                        ${data.sanciones.slice(0, 3).map(s => {
+                            const estado = s.estado || 'VIGENTE';
+                            const estadoColor = estado === 'VIGENTE' ? '#DC2626' : '#F59E0B';
                             return `
                             <div style="margin-bottom: 16px; padding: 16px; background: rgba(10,10,15,0.5); border-radius: 6px; border-left: 3px solid ${estadoColor};">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                                    <span style="color: #8A8A85; font-size: 12px;">${s.entidad}</span>
-                                    <span style="color: ${estadoColor}; font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 8px; background: rgba(220,38,38,0.2); border-radius: 4px;">${s.estado}</span>
+                                    <span style="color: #8A8A85; font-size: 12px;">${s.entity || s.entidad || 'OSCE/TCE'}</span>
+                                    <span style="color: ${estadoColor}; font-size: 11px; font-weight: 600; text-transform: uppercase; padding: 2px 8px; background: rgba(220,38,38,0.2); border-radius: 4px;">${estado}</span>
                                 </div>
-                                <div style="color: #F5F5F0; font-size: 13px; margin-bottom: 4px;">${s.tipo}</div>
-                                <div style="color: #6B6B6E; font-size: 11px;">Resolución: ${s.resolucion}</div>
-                                <div style="color: #6B6B6E; font-size: 11px;">Inicio: ${s.fecha_inicio}</div>
+                                <div style="color: #F5F5F0; font-size: 13px; margin-bottom: 4px;">${s.description || s.tipo_sancion || s.motivo || 'Sanción registrada'}</div>
+                                <div style="color: #6B6B6E; font-size: 11px;">Resolución: ${s.sanction_id || s.numero_resolucion || 'N/A'}</div>
                             </div>
                             `;
                         }).join('')}
+                        ${data.sanciones.length > 3 ? `<div style="text-align: center; color: #6B6B6E; font-size: 12px; margin-top: 12px;">... y ${data.sanciones.length - 3} sanciones más</div>` : ''}
                     </div>
                 `;
-            }
-            
-            // Construir HTML de planes disponibles
-            let planesHTML = '';
-            if (data.plans) {
-                const planRecomendado = data.plans.find(p => p.recommended);
-                if (planRecomendado) {
-                    planesHTML = `
-                        <div style="margin-top: 20px; padding: 16px; background: rgba(197, 160, 89, 0.1); border: 1px solid rgba(197, 160, 89, 0.3); border-radius: 8px;">
-                            <div style="color: #C5A059; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Plan Recomendado</div>
-                            <div style="color: #F5F5F0; font-size: 18px; font-weight: 500;">${planRecomendado.name}</div>
-                            <div style="color: #8A8A85; font-size: 14px;">${planRecomendado.price_formatted} / mes</div>
-                        </div>
-                    `;
-                }
             }
             
             container.innerHTML = `
@@ -639,9 +619,9 @@
                         </svg>
                     </div>
                     
-                    <span class="badge ${tierName.toLowerCase()}">${data.tier?.description || 'Verificación Empresarial'}</span>
+                    <span class="badge ${tierName.toLowerCase()}">${tier.description}</span>
                     
-                    <h2 class="company-name">${data.company_name}</h2>
+                    <h2 class="company-name">${data.razon_social || 'Empresa'}</h2>
                     <p class="ruc">RUC: ${data.ruc}</p>
                     
                     <div style="display: flex; align-items: center; justify-content: center; gap: 16px; margin: 20px 0;">
@@ -657,12 +637,11 @@
                     </div>
                     
                     ${sancionesHTML}
-                    ${planesHTML}
                     
                     <p class="verified-by" style="margin-top: 24px;">Verificado por</p>
                     <p class="cz-name">CONFLICT ZERO</p>
                     
-                    <a href="/select-plan.html?ruc=${data.ruc}&score=${data.score}&tier=${data.tier?.name || 'BRONZE'}" class="view-full-btn">Ver Planes y Membresías</a>
+                    <a href="/select-plan.html?ruc=${data.ruc}&score=${data.score}&tier=${tierName}&company=${encodeURIComponent(data.razon_social || 'Su Empresa')}" class="view-full-btn">Ver Planes y Membresías</a>
                 </div>
             `;
         }
