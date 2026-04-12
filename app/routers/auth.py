@@ -31,15 +31,15 @@ class FrontendRegisterRequest(BaseModel):
     lastName: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
     company: str = Field(..., min_length=1, max_length=255)
-    plan: str = Field(..., pattern=r"^(starter|essential|professional|enterprise)$")
+    plan: str = Field(..., pattern=r"^(essential|professional|enterprise)$")
     phone: str = Field(default="", max_length=50)
     date: str = Field(default="", max_length=100)
 
-# Configuración de planes - UHNW: Solo planes pagos
+# Fuente de verdad única para planes — precios en Soles (PEN)
 PLAN_CONFIG = {
-    "essential": {"monthly_limit": 1000, "features": ["pdf_certs", "history_90d"]},
-    "professional": {"monthly_limit": 5000, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring"]},
-    "enterprise": {"monthly_limit": 100000, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring", "webhooks", "dedicated_manager"]}
+    "essential":     {"price": 400,   "monthly_limit": 1000,   "max_history_days": 90,  "max_compare_rucs": 2,  "features": ["pdf_certs", "history_90d"]},
+    "professional":  {"price": 800,   "monthly_limit": 5000,   "max_history_days": -1,  "max_compare_rucs": 5,  "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring"]},
+    "enterprise":    {"price": 2500,  "monthly_limit": 100000, "max_history_days": -1,  "max_compare_rucs": 10, "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring", "webhooks", "dedicated_manager"]},
 }
 
 @router.post(
@@ -125,14 +125,8 @@ async def register_web(
     
     logger = logging.getLogger(__name__)
     
-    # Mapear plan starter -> essential
-    plan_mapping = {
-        "starter": "essential",
-        "essential": "essential",
-        "professional": "professional", 
-        "enterprise": "enterprise"
-    }
-    plan = plan_mapping.get(data.plan, "essential")
+    # Normalizar plan (el validator ya garantiza valores válidos; essential es el default seguro)
+    plan = data.plan if data.plan in PLAN_CONFIG else "essential"
     
     # Verificar si el email ya existe
     existing_user = db.query(User).filter(User.email == data.email).first()
@@ -249,39 +243,15 @@ async def upgrade_plan(
 @router.get(
     "/plans",
     summary="Ver Planes Disponibles",
-    description="Retorna la lista de planes disponibles con sus características."
+    description="Retorna la lista de planes disponibles con sus características y precios en Soles."
 )
 async def get_plans():
-    """Retorna todos los planes disponibles."""
+    """Retorna todos los planes disponibles. Fuente: PLAN_CONFIG (única fuente de verdad)."""
     return {
+        "currency": "PEN",
         "plans": [
-            {
-                "id": "essential",
-                "name": "Essential",
-                "price": 400,
-                "monthly_limit": 1000,
-                "max_history_days": 90,
-                "max_compare_rucs": 2,
-                "features": ["pdf_certs", "history_90d"]
-            },
-            {
-                "id": "professional",
-                "name": "Professional",
-                "price": 800,
-                "monthly_limit": 5000,
-                "max_history_days": -1,
-                "max_compare_rucs": 5,
-                "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring"]
-            },
-            {
-                "id": "enterprise",
-                "name": "Enterprise",
-                "price": 2500,
-                "monthly_limit": 100000,
-                "max_history_days": -1,
-                "max_compare_rucs": 10,
-                "features": ["pdf_certs", "history_unlimited", "api_access", "bulk_upload", "priority_support", "custom_scoring", "webhooks", "dedicated_manager"]
-            }
+            {"id": plan_id, "name": plan_id.capitalize(), **cfg}
+            for plan_id, cfg in PLAN_CONFIG.items()
         ]
     }
 
