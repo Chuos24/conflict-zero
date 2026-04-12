@@ -26,7 +26,7 @@ JWT_SECRET = os.environ.get('JWT_SECRET', 'conflict-zero-secret-key-2024')
 # ============ PYDANTIC MODELS ============
 
 class RecordPaymentRequest(BaseModel):
-    user_id: int
+    user_id: str  # UUID string, e.g. "550e8400-e29b-41d4-a716-446655440000"
     amount: float
     currency: str = "PEN"
     method: str = "transferencia"  # transferencia, deposito, yape, plin, efectivo
@@ -36,7 +36,7 @@ class RecordPaymentRequest(BaseModel):
 
 
 class ActivatePlanRequest(BaseModel):
-    user_id: int
+    user_id: str  # UUID string
     plan_type: str  # starter | professional | enterprise
     months: int  # 1-24
 
@@ -136,7 +136,7 @@ async def record_payment(request: RecordPaymentRequest, authorization: str = Hea
         return JSONResponse(status_code=400, content={'success': False, 'error': 'INVALID_AMOUNT'})
 
     # Verificar que el usuario existe
-    user = db.query(User).filter(User.id == request.user_id).first()
+    user = db.query(User).filter(User.id == str(request.user_id)).first()
     if not user:
         return JSONResponse(status_code=404, content={'success': False, 'error': 'USER_NOT_FOUND'})
 
@@ -195,15 +195,24 @@ async def activate_plan(request: ActivatePlanRequest, authorization: str = Heade
     if request.months < 1 or request.months > 24:
         return JSONResponse(status_code=400, content={'success': False, 'error': 'INVALID_MONTHS', 'valid': '1-24'})
 
-    user = db.query(User).filter(User.id == request.user_id).first()
+    user = db.query(User).filter(User.id == str(request.user_id)).first()
     if not user:
         return JSONResponse(status_code=404, content={'success': False, 'error': 'USER_NOT_FOUND'})
 
+    # Límites mensuales por plan
+    PLAN_LIMITS = {
+        'starter': 1000,
+        'professional': 5000,
+        'enterprise': 100000,
+    }
+
     try:
         previous_plan = user.plan
-        
-        # Actualizar plan
+
+        # Actualizar AMBAS columnas de plan para que todo el sistema vea el cambio
         user.plan = request.plan_type
+        user.plan_type = request.plan_type
+        user.monthly_limit = PLAN_LIMITS.get(request.plan_type, 1000)
         user.plan_activated_at = datetime.utcnow()
         user.plan_expires_at = datetime.utcnow() + timedelta(days=30 * request.months)
         user.is_active = True

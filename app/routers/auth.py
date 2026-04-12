@@ -3,9 +3,12 @@ Autenticación y gestión de usuarios - Conflict Zero API
 DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z
 """
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+import os
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Header
+from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -19,6 +22,8 @@ from pydantic import BaseModel, EmailStr, Field
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
 
 # Schema para registro desde el frontend web
 class FrontendRegisterRequest(BaseModel):
@@ -199,19 +204,27 @@ async def register_web(
 
 @router.post(
     "/upgrade-plan",
-    summary="Cambiar Plan",
-    description="Permite al usuario cambiar su plan actual."
+    summary="Cambiar Plan [Admin]",
+    description="Cambia el plan de un usuario. Requiere ADMIN_TOKEN."
 )
 async def upgrade_plan(
     new_plan: str,
+    authorization: Optional[str] = Header(None),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """
-    Cambia el plan del usuario.
-    
+    Cambia el plan del usuario. Solo puede ser llamado con ADMIN_TOKEN.
+
     - **new_plan**: Nuevo plan: essential, professional, enterprise
     """
+    token = (authorization or "").replace("Bearer ", "")
+    if token != ADMIN_TOKEN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Se requiere token de administrador para cambiar planes"
+        )
+
     if new_plan not in PLAN_CONFIG:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -426,11 +439,15 @@ async def get_current_user_info(
 
 
 @router.api_route("/setup/create-founder", methods=["GET", "POST"])
-async def create_founder_endpoint(db: Session = Depends(get_db)):
+async def create_founder_endpoint(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """
     Endpoint de emergencia para crear usuario founder.
-    Usa hash pre-calculado para evitar problemas con bcrypt en Render.
+    Requiere Authorization: Bearer <ADMIN_TOKEN>.
     """
+    token = (authorization or "").replace("Bearer ", "")
+    if token != ADMIN_TOKEN:
+        return JSONResponse(status_code=403, content={"error": "UNAUTHORIZED"})
+
     import uuid
     
     # Verificar si ya existe
@@ -486,11 +503,15 @@ async def debug_email_status():
 
 
 @router.api_route("/setup/reset-founder-password", methods=["GET", "POST"])
-async def reset_founder_password(db: Session = Depends(get_db)):
+async def reset_founder_password(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """
     Endpoint de emergencia para resetear la contraseña del founder.
-    Usa hash pre-calculado para evitar problemas con bcrypt.
+    Requiere Authorization: Bearer <ADMIN_TOKEN>.
     """
+    token = (authorization or "").replace("Bearer ", "")
+    if token != ADMIN_TOKEN:
+        return JSONResponse(status_code=403, content={"error": "UNAUTHORIZED"})
+
     # Buscar el usuario founder
     founder = db.query(User).filter(User.email == "founder@conflictzero.com").first()
     
@@ -514,11 +535,15 @@ async def reset_founder_password(db: Session = Depends(get_db)):
 
 
 @router.get("/debug/user-hash")
-async def debug_user_hash(email: str, db: Session = Depends(get_db)):
+async def debug_user_hash(email: str, authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
     """
     Debug: Verificar el formato del hash almacenado para un usuario.
-    Solo para diagnóstico - no expone la contraseña real.
+    Requiere Authorization: Bearer <ADMIN_TOKEN>.
     """
+    token = (authorization or "").replace("Bearer ", "")
+    if token != ADMIN_TOKEN:
+        return JSONResponse(status_code=403, content={"error": "UNAUTHORIZED"})
+
     user = db.query(User).filter(User.email == email).first()
     if not user:
         return {"error": "Usuario no encontrado"}
