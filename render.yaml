@@ -72,6 +72,11 @@ cron:
     schedule: "*/30 * * * *"  # Cada 30 minutos
     buildCommand: pip install -r requirements.txt
     startCommand: python scripts/health_check_monitor.py
+    
+  - name: network-monitor-daily
+    schedule: "0 6 * * *"  # 6 AM UTC = 1 AM Lima
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.jobs.network_monitor
 
 # Static Site para status page (opcional)
 staticSites:
