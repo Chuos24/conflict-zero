@@ -251,12 +251,39 @@ def init_database():
             
             # Índice para búsquedas rápidas por usuario y RUC
             cur.execute("""
-                CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc 
+                CREATE INDEX IF NOT EXISTS idx_alerts_user_ruc
                 ON supplier_alerts(user_id, ruc)
             """)
-            
+
+            # Tabla de pagos manuales (transferencia bancaria)
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS payments_manual (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                    amount DECIMAL(10,2) NOT NULL,
+                    currency VARCHAR(3) DEFAULT 'PEN',
+                    method VARCHAR(30) DEFAULT 'transferencia',
+                    reference VARCHAR(100) NOT NULL,
+                    payment_date DATE NOT NULL,
+                    notes TEXT,
+                    created_by VARCHAR(50) DEFAULT 'admin',
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """)
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS idx_payments_user
+                ON payments_manual(user_id)
+            """)
+
+            # Columnas de plan con vencimiento en users (si aún no existen)
+            for col_sql in [
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_activated_at TIMESTAMP",
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS plan_expires_at TIMESTAMP",
+            ]:
+                cur.execute(col_sql)
+
             conn.commit()
-            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users, supplier_alerts, invitations")
+            print("[DB] ✅ Tablas inicializadas: validations_v3, certificates_v3, users, supplier_alerts, invitations, payments_manual")
             return True
     except Exception as e:
         print(f"[DB] ❌ Error inicializando: {e}")
@@ -2761,6 +2788,320 @@ def check_and_trigger_alerts(ruc: str, new_score: float, old_data: Optional[dict
         print(f"[ALERTS] Error verificando alertas: {e}")
     finally:
         conn.close()
+
+# ============ PAGOS MANUALES (transferencia bancaria) ============
+
+class RecordPaymentRequest(BaseModel):
+    user_id: int
+    amount: float
+    reference: str          # Número de operación bancaria
+    date: str               # Fecha del pago ISO: "2026-04-12"
+    currency: str = "PEN"
+    method: str = "transferencia"
+    notes: Optional[str] = None
+
+class ActivatePlanRequest(BaseModel):
+    user_id: int
+    plan_type: str          # starter | professional | enterprise
+    months: int             # 1, 3, 6, 12
+
+def _require_admin(authorization: Optional[str]) -> bool:
+    """Valida token de admin. Retorna True si es válido."""
+    if not authorization or not authorization.startswith('Bearer '):
+        return False
+    token = authorization.replace('Bearer ', '')
+    if token == ADMIN_TOKEN:
+        return True
+    if AUTH_AVAILABLE:
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            return payload.get('type') == 'admin' or bool(payload.get('is_admin'))
+        except Exception:
+            pass
+    return False
+
+
+@app.post("/api/v3/admin/record-payment")
+async def record_payment(request: RecordPaymentRequest, authorization: str = Header(None)):
+    """
+    Registra un pago recibido por transferencia bancaria.
+    No activa el plan — eso se hace en /activate-plan.
+    Requiere token admin.
+    """
+    if not _require_admin(authorization):
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_UNAVAILABLE'})
+
+    # Validar plan_type no requerido aquí, pero validar que el user existe
+    valid_plans = {'starter', 'professional', 'enterprise'}
+    valid_methods = {'transferencia', 'deposito', 'yape', 'plin', 'efectivo'}
+
+    if request.method not in valid_methods:
+        return JSONResponse(status_code=400, content={
+            'success': False, 'error': 'INVALID_METHOD',
+            'valid': list(valid_methods)
+        })
+    if request.amount <= 0:
+        return JSONResponse(status_code=400, content={'success': False, 'error': 'INVALID_AMOUNT'})
+
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Verificar que el usuario existe
+            cur.execute("SELECT id, email, company_name, plan FROM users WHERE id = %s", (request.user_id,))
+            user = cur.fetchone()
+            if not user:
+                return JSONResponse(status_code=404, content={'success': False, 'error': 'USER_NOT_FOUND'})
+
+            cur.execute("""
+                INSERT INTO payments_manual
+                    (user_id, amount, currency, method, reference, payment_date, notes, created_by, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'admin', NOW())
+                RETURNING id, created_at
+            """, (
+                request.user_id,
+                request.amount,
+                request.currency,
+                request.method,
+                request.reference.strip(),
+                request.date,
+                request.notes,
+            ))
+            row = cur.fetchone()
+            conn.commit()
+
+            print(f"[Payments] ✅ Pago registrado: user={request.user_id}, ref={request.reference}, S/{request.amount}")
+            return {
+                'success': True,
+                'payment_id': row['id'],
+                'user_id': request.user_id,
+                'user_email': user['email'],
+                'amount': request.amount,
+                'currency': request.currency,
+                'reference': request.reference,
+                'created_at': str(row['created_at']),
+                'message': f'Pago registrado. Usa /activate-plan para activar el plan del usuario.',
+            }
+    except Exception as e:
+        print(f"[Payments] Error: {e}")
+        return JSONResponse(status_code=500, content={'success': False, 'error': 'DB_ERROR', 'message': str(e)})
+    finally:
+        conn.close()
+
+
+@app.post("/api/v3/admin/activate-plan")
+async def activate_plan(request: ActivatePlanRequest, authorization: str = Header(None)):
+    """
+    Activa o cambia el plan de un usuario por N meses.
+    Actualiza users.plan, plan_activated_at, plan_expires_at.
+    Requiere token admin.
+    """
+    if not _require_admin(authorization):
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_UNAVAILABLE'})
+
+    valid_plans = {'starter', 'professional', 'enterprise'}
+    if request.plan_type not in valid_plans:
+        return JSONResponse(status_code=400, content={
+            'success': False, 'error': 'INVALID_PLAN',
+            'valid': list(valid_plans)
+        })
+    if request.months < 1 or request.months > 24:
+        return JSONResponse(status_code=400, content={'success': False, 'error': 'INVALID_MONTHS', 'valid': '1-24'})
+
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT id, email, company_name, plan FROM users WHERE id = %s", (request.user_id,))
+            user = cur.fetchone()
+            if not user:
+                return JSONResponse(status_code=404, content={'success': False, 'error': 'USER_NOT_FOUND'})
+
+            previous_plan = user['plan']
+
+            cur.execute("""
+                UPDATE users
+                SET plan = %s,
+                    plan_activated_at = NOW(),
+                    plan_expires_at = NOW() + (%s || ' months')::INTERVAL,
+                    is_active = TRUE
+                WHERE id = %s
+                RETURNING plan, plan_activated_at, plan_expires_at
+            """, (request.plan_type, str(request.months), request.user_id))
+            updated = cur.fetchone()
+            conn.commit()
+
+            expires_at = str(updated['plan_expires_at'])
+            print(f"[Plans] ✅ Plan activado: user={request.user_id}, plan={request.plan_type}, meses={request.months}, vence={expires_at}")
+
+            return {
+                'success': True,
+                'user_id': request.user_id,
+                'user_email': user['email'],
+                'previous_plan': previous_plan,
+                'new_plan': request.plan_type,
+                'months': request.months,
+                'activated_at': str(updated['plan_activated_at']),
+                'expires_at': expires_at,
+            }
+    except Exception as e:
+        print(f"[Plans] Error: {e}")
+        return JSONResponse(status_code=500, content={'success': False, 'error': 'DB_ERROR', 'message': str(e)})
+    finally:
+        conn.close()
+
+
+@app.get("/api/v3/admin/pending-activations")
+async def pending_activations(authorization: str = Header(None)):
+    """
+    Retorna dos listas:
+    1. Usuarios con pago registrado pero plan = 'starter' (sin activar)
+    2. Usuarios con plan activo que vence en menos de 7 días
+    Requiere token admin.
+    """
+    if not _require_admin(authorization):
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_UNAVAILABLE'})
+
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Usuarios con pago registrado pero sin plan superior al starter
+            cur.execute("""
+                SELECT
+                    u.id, u.email, u.company_name, u.ruc, u.plan,
+                    pm.amount, pm.currency, pm.reference, pm.payment_date,
+                    pm.created_at AS payment_registered_at
+                FROM users u
+                INNER JOIN payments_manual pm ON pm.user_id = u.id
+                WHERE u.plan = 'starter'
+                ORDER BY pm.created_at DESC
+            """)
+            unactivated = [dict(r) for r in cur.fetchall()]
+            for r in unactivated:
+                for k in ('payment_date', 'payment_registered_at'):
+                    if r.get(k):
+                        r[k] = str(r[k])
+
+            # Usuarios con plan activo que vence en <= 7 días
+            cur.execute("""
+                SELECT
+                    id, email, company_name, ruc, plan,
+                    plan_activated_at, plan_expires_at,
+                    EXTRACT(DAY FROM (plan_expires_at - NOW())) AS days_left
+                FROM users
+                WHERE plan IN ('professional', 'enterprise')
+                  AND plan_expires_at IS NOT NULL
+                  AND plan_expires_at > NOW()
+                  AND plan_expires_at <= NOW() + INTERVAL '7 days'
+                ORDER BY plan_expires_at ASC
+            """)
+            expiring_soon = [dict(r) for r in cur.fetchall()]
+            for r in expiring_soon:
+                for k in ('plan_activated_at', 'plan_expires_at'):
+                    if r.get(k):
+                        r[k] = str(r[k])
+                r['days_left'] = int(r['days_left']) if r.get('days_left') is not None else None
+
+            return {
+                'success': True,
+                'unactivated': unactivated,
+                'unactivated_count': len(unactivated),
+                'expiring_soon': expiring_soon,
+                'expiring_soon_count': len(expiring_soon),
+            }
+    except Exception as e:
+        print(f"[Pending] Error: {e}")
+        return JSONResponse(status_code=500, content={'success': False, 'error': 'DB_ERROR', 'message': str(e)})
+    finally:
+        conn.close()
+
+
+@app.get("/api/v3/admin/payments-history")
+async def payments_history(
+    user_id: Optional[int] = None,
+    limit: int = 50,
+    authorization: str = Header(None)
+):
+    """
+    Historial de pagos manuales.
+    Parámetro opcional: ?user_id=123 para filtrar por usuario.
+    Requiere token admin.
+    """
+    if not _require_admin(authorization):
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+
+    if not PSYCOPG2_AVAILABLE:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_UNAVAILABLE'})
+
+    limit = min(max(limit, 1), 200)
+
+    conn = get_db_connection()
+    if not conn:
+        return JSONResponse(status_code=503, content={'success': False, 'error': 'DB_ERROR'})
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if user_id:
+                cur.execute("""
+                    SELECT
+                        pm.id, pm.user_id, u.email, u.company_name, u.plan,
+                        pm.amount, pm.currency, pm.method, pm.reference,
+                        pm.payment_date, pm.notes, pm.created_by, pm.created_at
+                    FROM payments_manual pm
+                    JOIN users u ON u.id = pm.user_id
+                    WHERE pm.user_id = %s
+                    ORDER BY pm.created_at DESC
+                    LIMIT %s
+                """, (user_id, limit))
+            else:
+                cur.execute("""
+                    SELECT
+                        pm.id, pm.user_id, u.email, u.company_name, u.plan,
+                        pm.amount, pm.currency, pm.method, pm.reference,
+                        pm.payment_date, pm.notes, pm.created_by, pm.created_at
+                    FROM payments_manual pm
+                    JOIN users u ON u.id = pm.user_id
+                    ORDER BY pm.created_at DESC
+                    LIMIT %s
+                """, (limit,))
+
+            rows = [dict(r) for r in cur.fetchall()]
+            for r in rows:
+                for k in ('payment_date', 'created_at'):
+                    if r.get(k):
+                        r[k] = str(r[k])
+
+            total_amount = sum(r['amount'] for r in rows)
+
+            return {
+                'success': True,
+                'payments': rows,
+                'count': len(rows),
+                'total_amount': round(total_amount, 2),
+                'currency': 'PEN',
+            }
+    except Exception as e:
+        print(f"[History] Error: {e}")
+        return JSONResponse(status_code=500, content={'success': False, 'error': 'DB_ERROR', 'message': str(e)})
+    finally:
+        conn.close()
+
 
 if __name__ == "__main__":
     import uvicorn
