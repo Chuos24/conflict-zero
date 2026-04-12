@@ -61,6 +61,28 @@ npm install
 npm run dev
 ```
 
+## 📝 REGLA DE DESARROLLO
+
+> **⚠️ IMPORTANTE: Convenciones de código para el equipo**
+
+- **Render corre**: `app.main:app` (routers modulares)
+- **NO modificar** `api_v3.py` para features nuevos
+- **Nuevos endpoints** van en `app/routers/`
+- **Claude Code** escribe en tu Mac → push → Render autodeploya
+
+### Arquitectura
+```
+app/
+├── main.py           # Entry point (Render lo ejecuta)
+├── routers/          # Endpoints modulares (USAR ESTO)
+│   ├── auth.py
+│   ├── admin.py      # <-- Nuevos endpoints admin aquí
+│   └── ...
+└── models/           # SQLAlchemy models
+
+api_v3.py            # ⚠️ LEGACY - No modificar
+```
+
 ## 📄 Licencia
 
 Copyright © 2025 Conflict Zero. Todos los derechos reservados.
