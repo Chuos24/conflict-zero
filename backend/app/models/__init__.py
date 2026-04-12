@@ -159,37 +159,6 @@ class MlTrainingLog(Base):
     notes = Column(Text, nullable=True)
 
 
-class NetworkWatchlist(Base):
-    """
-    Lista de proveedores monitoreados por cada usuario (Mi Red).
-    """
-    __tablename__ = "network_watchlist"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    ruc = Column(String(11), nullable=False, index=True)
-    alias = Column(String(255), nullable=False)
-    last_score = Column(Integer, nullable=True)
-    last_status = Column(String(50), nullable=True)   # ACTIVO, SUSPENDIDO, INHABILITADO, etc.
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-class NetworkAlert(Base):
-    """
-    Alertas de cambio de estado para proveedores en watchlist.
-    """
-    __tablename__ = "network_alerts"
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
-    ruc = Column(String(11), nullable=False, index=True)
-    alert_type = Column(String(50), nullable=False)   # score_change, status_change, sancion_nueva
-    old_status = Column(String(255), nullable=True)
-    new_status = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    read_at = Column(DateTime, nullable=True)
-
-
 class SupplierAlert(Base):
     """
     Alertas automáticas cuando un proveedor cambia de estado.

@@ -8,6 +8,5 @@ from app.routers.compare import router as compare_router
 from app.routers.payments import router as payments_router
 from app.routers.admin import router as admin_router
 from app.routers.notifications import router as notifications_router
-from app.routers.network import router as network_router
 
-__all__ = ["auth_router", "verification_router", "dashboard_router", "health_router", "consulta_router", "debug_router", "compare_router", "payments_router", "admin_router", "notifications_router", "network_router"]
+__all__ = ["auth_router", "verification_router", "dashboard_router", "health_router", "consulta_router", "debug_router", "compare_router", "payments_router", "admin_router", "notifications_router"]
