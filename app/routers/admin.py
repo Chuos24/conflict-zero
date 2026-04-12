@@ -266,24 +266,32 @@ async def pending_activations(authorization: str = Header(None), db: Session = D
                     r[k] = str(r[k])
 
         # Usuarios con plan expirando en menos de 7 días
+        # Query compatible con SQLite (usa datetime en lugar de NOW() + INTERVAL)
+        from datetime import datetime, timedelta
+        seven_days_from_now = (datetime.utcnow() + timedelta(days=7)).isoformat()
+        
         query_expiring = """
             SELECT
                 u.id, u.email, u.company_name, u.plan,
-                u.plan_activated_at, u.plan_expires_at,
-                EXTRACT(DAY FROM (u.plan_expires_at - NOW())) as days_left
+                u.plan_activated_at, u.plan_expires_at
             FROM users u
             WHERE u.plan != 'free'
                 AND u.plan_expires_at IS NOT NULL
-                AND u.plan_expires_at <= NOW() + INTERVAL '7 days'
+                AND u.plan_expires_at <= :seven_days
             ORDER BY u.plan_expires_at ASC
         """
-        result = db.execute(text(query_expiring))
+        result = db.execute(text(query_expiring), {"seven_days": seven_days_from_now})
         expiring_soon = [dict(row._mapping) for row in result]
         for r in expiring_soon:
             for k in ('plan_activated_at', 'plan_expires_at'):
                 if r.get(k):
                     r[k] = str(r[k])
-            r['days_left'] = int(r['days_left']) if r.get('days_left') is not None else None
+            # Calcular days_left manualmente
+            if r.get('plan_expires_at'):
+                expires = datetime.fromisoformat(r['plan_expires_at'].replace('Z', '+00:00').replace('+00:00', ''))
+                r['days_left'] = (expires - datetime.utcnow()).days
+            else:
+                r['days_left'] = None
 
         return {
             'success': True,
