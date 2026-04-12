@@ -17,7 +17,10 @@ class User(Base):
     ruc = Column(String(11), nullable=True)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    plan_type = Column(String(50), default="essential")
+    plan_type = Column(String(50), default="essential")  # essential, starter, professional, enterprise
+    plan = Column(String(50), default="free")  # free, starter, professional, enterprise
+    plan_activated_at = Column(DateTime, nullable=True)
+    plan_expires_at = Column(DateTime, nullable=True)
     api_key = Column(String(255), unique=True, nullable=True)
     monthly_requests = Column(Integer, default=0)
     monthly_limit = Column(Integer, default=1000)
@@ -183,3 +186,33 @@ class SupplierAlert(Base):
     email_sent_at = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ============================================================================
+# PAYMENTS: Registro manual de pagos por transferencia/deposito
+# ============================================================================
+
+class PaymentManual(Base):
+    """
+    Registro de pagos manuales recibidos por transferencia, depósito, Yape, etc.
+    Administrado por el equipo de Conflict Zero (no es un gateway automático).
+    """
+    __tablename__ = "payments_manual"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    
+    # Datos del pago
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), default="PEN")  # PEN, USD
+    method = Column(String(20), nullable=False)  # transferencia, deposito, yape, plin, efectivo
+    reference = Column(String(100), nullable=False)  # Número de operación, código de referencia
+    payment_date = Column(String(10), nullable=True)  # YYYY-MM-DD
+    notes = Column(Text, nullable=True)
+    
+    # Metadata
+    created_by = Column(String(50), default="admin")  # Quién registró el pago
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relación (opcional)
+    # user = relationship("User", back_populates="payments")
