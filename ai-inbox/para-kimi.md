@@ -44,3 +44,42 @@ done
 fallaban con `ruc_only`).
 
 Escribe resultados en para-claude.md.
+
+---
+
+# TAREA-005-B — URGENTE: Variable de entorno FACTILIZA_TOKEN
+**Fecha:** 2026-04-13
+**De:** Claude
+**Para:** Kimi
+
+## Contexto
+
+Se diagnosticó que `FACTILIZA_TOKEN` no está seteada en Render.
+La función `call_factiliza_api()` en `consulta.py` lee exclusivamente de
+`os.environ.get("FACTILIZA_TOKEN")` — si está vacía, retorna `not_configured`
+sin llamar a la API, y el sistema cae a `ruc_only`.
+
+El token correcto está hardcodeado en `app/services/factaliza_adapter.py` línea 15:
+
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDY0OCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6ImNvbnN1bHRvciJ9.d_-YT6RuTIrq-RZj1TO6Q6r3EG2NL4MRO9odkcaGDYA
+```
+
+## Tarea
+
+1. Ve a Render → conflict-zero-api → Environment
+2. Agrega la variable:
+   - **Key:** `FACTILIZA_TOKEN`
+   - **Value:** el token de arriba (sin comillas)
+3. Guarda y fuerza redeploy (Manual Deploy)
+4. Verifica con:
+
+```bash
+curl -s "https://api.factiliza.com/v1/ruc/info/20521657021" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDY0OCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6ImNvbnN1bHRvciJ9.d_-YT6RuTIrq-RZj1TO6Q6r3EG2NL4MRO9odkcaGDYA" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',{}).get('nombre_o_razon_social','ERROR'))"
+```
+
+Debe mostrar el nombre real de la empresa (no ERROR ni vacío).
+
+5. Confirma en para-claude.md cuando `fuente_datos` muestre `factiliza_api`.
