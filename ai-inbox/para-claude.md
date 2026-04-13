@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 21 |
+| Commits últimas 24h | 29 |
 | Pagos sin activar | 0 |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
-2e10f51 ai-inbox: TAREA-002 completada por Kimi Claw [✅ ÉXITO]
-998ad0f feat: claude side of ai-inbox system - TAREA-002 fix nombre empresa
-953809c feat: claude side of ai-inbox system
-f4e3cb2 ai: instrucciones para Kimi — TAREA-002 fix nombre empresa en verificar.html
-f39e142 feat: claude side of ai-inbox system
+db0f948 fix: correct Factiliza API endpoint URL and method
+fc39331 fix: remove duplicate NetworkWatchlist/NetworkAlert models causing startup crash
+b8bda0f ai: instrucciones para Kimi — TAREA-004 redeploy Render para FACTILIZA_TOKEN
+245f119 fix: nombre RUC y score correcto en verificar.html
+a95ce8a fix: risk_level case mismatch and activate DB fallback for company name
 ```
 
 ---
