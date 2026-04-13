@@ -333,11 +333,19 @@ async def consulta_completa(
     
     # Si BuscarUC falla O devuelve datos incompletos (sin razón social), usar fallback
     buscaruc_failed = sunat_data.get("error") or not sunat_data.get("razon_social")
-    
+
+    # Último recurso: DB local (osce_sanciones_detalle + osce_risk_data)
+    if buscaruc_failed and not sunat_data.get("razon_social"):
+        print(f"[CONSULTA] APIs externas fallaron, intentando DB local...")
+        db_fallback = get_sunat_fallback(ruc, db)
+        if db_fallback.get("razon_social"):
+            sunat_data = db_fallback
+            buscaruc_failed = False
+
     if buscaruc_failed:
         from app.services.osce_datos_abiertos import osce_datos_abiertos
         osce_db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
-        
+
         razon_social_fallback = None
         if osce_db_data and osce_db_data.get("nombre"):
             razon_social_fallback = osce_db_data.get("nombre")

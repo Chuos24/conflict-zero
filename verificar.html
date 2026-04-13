@@ -574,7 +574,7 @@
                 'CRITICAL': { name: 'RECHAZADO', description: 'No Certificable', color: '#DC2626', letter: '!' }
             };
             
-            const tier = riskToTier[data.risk_level] || riskToTier['LOW'];
+            const tier = riskToTier[(data.risk_level || 'low').toUpperCase()] || riskToTier['LOW'];
             const color = tier.color;
             const letra = tier.letter;
             const tierName = tier.name;
