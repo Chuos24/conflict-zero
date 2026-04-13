@@ -135,6 +135,7 @@ app.include_router(payments_router, prefix="/api/v1")
 # Routers v3 (para compatibilidad con frontend)
 app.include_router(auth_router, prefix="/api/v3")
 app.include_router(verification_router, prefix="/api/v3")
+app.include_router(consulta_router, prefix="/api/v3")  # FIX: Agregado para consulta RUC
 app.include_router(admin_router, prefix="/api/v3")
 app.include_router(notifications_router, prefix="/api/v3")
 app.include_router(network_router, prefix="/api/v3")
@@ -246,6 +247,63 @@ async def register_web_direct(request: RegisterWebRequest):
         return {"success": False, "error": str(e)}
     finally:
         db.close()
+
+
+# Endpoint notify-admin para notificaciones desde el frontend
+@app.post("/api/v3/notify-admin")
+async def notify_admin(request: dict):
+    """
+    Recibe notificación de nuevo registro y envía email al admin
+    """
+    import logging
+    from datetime import datetime
+    from app.services.email import get_email_service
+    
+    logger = logging.getLogger(__name__)
+    email_service = get_email_service()
+    
+    try:
+        ruc = request.get("ruc", "N/A")
+        empresa = request.get("empresa", "No especificada")
+        plan = request.get("plan", "N/A")
+        email = request.get("email", "N/A")
+        phone = request.get("phone", "N/A")
+        nombre = request.get("nombre", "N/A")
+        score = request.get("score", "N/A")
+        
+        admin_email = "tiagomunoz10@icloud.com"
+        subject = f"🔔 Nuevo Registro - {empresa}"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Inter, sans-serif; background: #0a0a0a; color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #141414; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px;">
+            <h2 style="color: #c9a961; font-family: Cormorant Garamond, serif;">🚀 Nuevo Registro Conflict Zero</h2>
+            <p><strong>Empresa:</strong> {empresa}</p>
+            <p><strong>Contacto:</strong> {nombre}</p>
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Teléfono:</strong> {phone}</p>
+            <p><strong>RUC:</strong> {ruc}</p>
+            <p><strong>Plan:</strong> {plan}</p>
+            <p><strong>Score:</strong> {score}</p>
+            <p style="color: #666; margin-top: 20px;">Fecha: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+        </body>
+        </html>
+        """
+        
+        sent = email_service.send_email(admin_email, subject, html_content)
+        
+        if sent:
+            logger.info(f"✅ Admin notificado sobre registro de {email}")
+        else:
+            logger.warning(f"⚠️ No se pudo notificar a admin (proveedor: {email_service.provider})")
+        
+        return {"success": True, "notified": sent}
+    except Exception as e:
+        logger.error(f"Error en notify-admin: {e}")
+        return {"success": False, "error": str(e)}
 
 # Manejo de excepciones
 @app.exception_handler(Exception)

@@ -291,6 +291,43 @@ Conflict Zero Team
         html_content = self._get_notification_template(subject, message)
         return self.send_email(to_email, subject, html_content, message)
 
+    def send_admin_registration_notification(
+        self,
+        admin_email: str,
+        user_email: str,
+        user_name: str,
+        user_company: str,
+        user_ruc: str,
+        plan: str
+    ) -> bool:
+        """Envía notificación al admin sobre un nuevo registro"""
+        subject = f"🚀 Nuevo registro - {user_company}"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Inter, sans-serif; background: #0a0a0a; color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #141414; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px;">
+            <h2 style="color: #c9a961; font-family: Cormorant Garamond, serif;">🚀 Nuevo Registro Conflict Zero</h2>
+            <p><strong>Empresa:</strong> {user_company}</p>
+            <p><strong>Contacto:</strong> {user_name}</p>
+            <p><strong>Email:</strong> {user_email}</p>
+            <p><strong>RUC:</strong> {user_ruc}</p>
+            <p><strong>Plan:</strong> {plan.upper()}</p>
+            <p style="color: #666; margin-top: 20px;">Fecha: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+        </body>
+        </html>
+        """
+        text_content = f"""Nuevo registro en Conflict Zero:
+Empresa: {user_company}
+Contacto: {user_name}
+Email: {user_email}
+RUC: {user_ruc}
+Plan: {plan.upper()}
+"""
+        return self.send_email(admin_email, subject, html_content, text_content)
+
 
 # Singleton
 def get_email_service() -> EmailService:
