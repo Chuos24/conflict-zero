@@ -298,6 +298,9 @@ def code_sync():
         if not repo.exists():
             log.warning("Repo no existe: %s", repo)
             continue
+        if not (repo / ".git").exists():
+            log.warning("No es un repo git: %s", repo)
+            continue
         hubo_cambios, output = git_pull_repo(repo)
         log.info("git pull %s → %s", repo.name, output[:80])
 
@@ -315,6 +318,10 @@ def code_sync():
                     cambios_kimi.append(f"**{repo.name}**:\n{log_result.stdout.strip()}")
             except Exception:
                 pass
+
+        # Después de actualizar el repo principal, revisa ai-inbox/para-claude.md
+        if repo == BASE_DIR / "app":
+            check_ai_inbox()
 
     if cambios_kimi:
         seccion = "Commits de Kimi (sync horario)\n" + "\n".join(cambios_kimi)
@@ -536,9 +543,8 @@ def setup_schedule():
     # Monitor de salud cada 30 minutos
     schedule.every(30).minutes.do(health_check)
 
-    # Sync de código + ai-inbox cada hora
+    # Sync de código cada hora (incluye check de ai-inbox tras git pull)
     schedule.every().hour.do(code_sync)
-    schedule.every().hour.do(check_ai_inbox)
 
     # Reporte nocturno 9pm Lima
     schedule.every().day.at("21:00").do(evening_report)
@@ -546,8 +552,7 @@ def setup_schedule():
     log.info("Schedule configurado (timezone Lima):")
     log.info("  Morning briefing: 07:00")
     log.info("  Health check:     cada 30 min")
-    log.info("  Code sync:        cada hora")
-    log.info("  AI-Inbox check:   cada hora")
+    log.info("  Code sync + ai-inbox: cada hora")
     log.info("  Evening report:   21:00")
 
 
