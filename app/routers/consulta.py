@@ -145,21 +145,19 @@ def call_factiliza_api(ruc: str, db) -> Dict[str, Any]:
         return {"fuente": "not_configured", "ruc": ruc}
     
     try:
-        url = "https://api.factiliza.com/api/ruc"
+        url = f"https://api.factiliza.com/v1/ruc/info/{ruc}"
         headers = {
             "User-Agent": "ConflictZero-API/1.0",
             "Accept": "application/json",
-            "Content-Type": "application/json",
             "Authorization": f"Bearer {token}"
         }
-        payload = {"ruc": ruc}
-        
+
         print(f"[FACTILIZA] Calling for RUC: {ruc}")
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        response = requests.get(url, headers=headers, timeout=15)
         data = response.json()
-        
-        print(f"[FACTILIZA] Response success: {data.get('success')}")
-        
+
+        print(f"[FACTILIZA] Response status: {data.get('status')} success: {data.get('success')}")
+
         if data.get("success") and data.get("data"):
             d = data["data"]
             return {
@@ -177,7 +175,7 @@ def call_factiliza_api(ruc: str, db) -> Dict[str, Any]:
                 "success": True
             }
         else:
-            print(f"[FACTILIZA] Error: {data.get('message', 'Unknown error')}")
+            print(f"[FACTILIZA] Error: {data.get('message', data.get('error', 'Unknown error'))}")
             return {"fuente": "factiliza_failed", "ruc": ruc}
             
     except Exception as e:
