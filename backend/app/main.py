@@ -135,116 +135,65 @@ app.include_router(payments_router, prefix="/api/v1")
 # Routers v3 (para compatibilidad con frontend)
 app.include_router(auth_router, prefix="/api/v3")
 app.include_router(verification_router, prefix="/api/v3")
+app.include_router(consulta_router, prefix="/api/v3")  # FIX: Añadido para consulta RUC
 app.include_router(admin_router, prefix="/api/v3")
 app.include_router(notifications_router, prefix="/api/v3")
 
-# Endpoint register-web directo (workaround para problema de caché en Render)
-from pydantic import BaseModel
-from typing import Optional
-
-class RegisterWebRequest(BaseModel):
-    email: str
-    password: str
-    full_name: str
-    company_name: Optional[str] = None
-    ruc: Optional[str] = None
-
-@app.post("/api/v3/auth/register-web")
-async def register_web_direct(request: RegisterWebRequest):
+# Endpoint notify-admin para notificaciones desde el frontend
+@app.post("/api/v3/notify-admin")
+async def notify_admin(request: dict):
     """
-    Registro desde formulario web - con notificaciones por email
+    Recibe notificación de nuevo registro y envía email al admin
     """
-    import uuid
-    import os
-    import random
-    import string
     import logging
     from datetime import datetime
-    from app.core.database import SessionLocal
-    from app.core.security import get_password_hash
-    from app.models import User
     from app.services.email import get_email_service
     
     logger = logging.getLogger(__name__)
-    db = SessionLocal()
     email_service = get_email_service()
     
     try:
-        # Verificar si email ya existe
-        existing = db.query(User).filter(User.email == request.email).first()
-        if existing:
-            return {"success": True, "message": "Solicitud recibida"}  # No revelar si existe
+        ruc = request.get("ruc", "N/A")
+        empresa = request.get("empresa", "No especificada")
+        plan = request.get("plan", "N/A")
+        email = request.get("email", "N/A")
+        phone = request.get("phone", "N/A")
+        nombre = request.get("nombre", "N/A")
+        score = request.get("score", "N/A")
         
-        # Generar contraseña temporal segura
-        alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
-        temp_password = ''.join(random.choice(alphabet) for _ in range(12))
-        
-        # Crear usuario
-        user = User(
-            id=str(uuid.uuid4()),
-            email=request.email,
-            hashed_password=f"temp:{temp_password}",  # Formato temporal para evitar problemas bcrypt
-            full_name=request.full_name,
-            company_name=request.company_name or "",
-            ruc=request.ruc or "00000000000",
-            plan_type="professional",
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        
-        # Enviar email de bienvenida al usuario
-        user_email_sent = False
-        try:
-            user_email_sent = email_service.send_welcome_email(
-                email=request.email,
-                temp_password=temp_password,
-                full_name=request.full_name,
-                plan="professional"
-            )
-            if user_email_sent:
-                logger.info(f"✅ Email de bienvenida enviado a {request.email}")
-            else:
-                logger.warning(f"⚠️ No se pudo enviar email a {request.email}. Proveedor: {email_service.provider}")
-        except Exception as e:
-            logger.error(f"❌ Error enviando email a usuario: {e}")
-        
-        # Notificar al admin sobre nuevo registro
         admin_email = "tiagomunoz10@icloud.com"
+        subject = f"🔔 Nuevo Registro - {empresa}"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Inter, sans-serif; background: #0a0a0a; color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #141414; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px;">
+            <h2 style="color: #c9a961; font-family: Cormorant Garamond, serif;">🚀 Nuevo Registro Conflict Zero</h2>
+            <p><strong>Empresa:</strong> {empresa}</p>
+            <p><strong>Contacto:</strong> {nombre}</p>
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Teléfono:</strong> {phone}</p>
+            <p><strong>RUC:</strong> {ruc}</p>
+            <p><strong>Plan:</strong> {plan}</p>
+            <p><strong>Score:</strong> {score}</p>
+            <p style="color: #666; margin-top: 20px;">Fecha: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+        </body>
+        </html>
+        """
         
-        admin_notifications_sent = 0
-        try:
-            admin_notified = email_service.send_admin_registration_notification(
-                admin_email=admin_email,
-                user_email=request.email,
-                user_name=request.full_name,
-                user_company=request.company_name or "No especificada",
-                user_ruc=request.ruc or "No especificado",
-                plan="professional"
-            )
-            if admin_notified:
-                admin_notifications_sent = 1
-                logger.info(f"✅ Admin notificado ({admin_email})")
-            else:
-                logger.warning(f"⚠️ No se pudo notificar a admin ({admin_email})")
-        except Exception as e:
-            logger.error(f"❌ Error notificando a admin ({admin_email}): {e}")
+        sent = email_service.send_email(admin_email, subject, html_content)
         
-        logger.info(f"📝 Nuevo registro: {request.email} - {request.full_name}")
+        if sent:
+            logger.info(f"✅ Admin notificado sobre registro de {email}")
+        else:
+            logger.warning(f"⚠️ No se pudo notificar a admin (proveedor: {email_service.provider})")
         
-        return {
-            "success": True,
-            "message": "Usuario registrado exitosamente",
-            "user_id": user.id,
-            "email_sent": user_email_sent,
-            "admin_notifications": admin_notifications_sent,
-            "provider": email_service.provider
-        }
+        return {"success": True, "notified": sent}
     except Exception as e:
-        logger.error(f"[Register Web] Error: {e}")
+        logger.error(f"Error en notify-admin: {e}")
         return {"success": False, "error": str(e)}
-    finally:
-        db.close()
 
 # Manejo de excepciones
 @app.exception_handler(Exception)
