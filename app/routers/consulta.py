@@ -309,28 +309,31 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Llamada a Factiliza.com (primera opción)
+    # Cascade: Factiliza → APIPeru.dev → Perú API → BuscarUC → DB local
+    # Cada fuente solo se salta si la anterior devolvió un nombre real.
+    def _got_name(d: dict) -> bool:
+        return bool(d.get("success") and d.get("razon_social", "").strip())
+
     sunat_data = call_factiliza_api(ruc, db)
-    
-    # Si Factiliza falla o no está configurado, intentar APIPeru.dev
-    if not sunat_data.get("success"):
-        print(f"[CONSULTA] Factiliza falló, intentando APIPeru.dev...")
+
+    if not _got_name(sunat_data):
+        print(f"[CONSULTA] Factiliza sin nombre ({sunat_data.get('fuente')}), intentando APIPeru.dev...")
         sunat_data = call_apiperu_dev(ruc, db)
-    
-    # Si APIPeru.dev falla o no está configurado, intentar Perú API
-    if not sunat_data.get("success"):
-        print(f"[CONSULTA] APIPeru.dev falló, intentando Perú API...")
+
+    if not _got_name(sunat_data):
+        print(f"[CONSULTA] APIPeru.dev sin nombre ({sunat_data.get('fuente')}), intentando Perú API...")
         sunat_data = call_peru_api(ruc, db)
-    
-    # Si Perú API también falla, intentar BuscarUC
-    if sunat_data.get("fuente") == "minimal_fallback":
-        print(f"[CONSULTA] Perú API falló, intentando BuscarUC...")
-        buscaruc_data = call_buscaruc_api(ruc, db)
-        if buscaruc_data.get("fuente") != "minimal_fallback":
-            sunat_data = buscaruc_data
-    
-    # Si BuscarUC falla O devuelve datos incompletos (sin razón social), usar fallback
-    buscaruc_failed = sunat_data.get("error") or not sunat_data.get("razon_social")
+
+    if not _got_name(sunat_data):
+        print(f"[CONSULTA] Perú API sin nombre ({sunat_data.get('fuente')}), intentando BuscarUC...")
+        sunat_data = call_buscaruc_api(ruc, db)
+
+    if not _got_name(sunat_data):
+        print(f"[CONSULTA] BuscarUC sin nombre ({sunat_data.get('fuente')}), intentando DB local...")
+        sunat_data = get_sunat_fallback(ruc, db)
+
+    # ¿Todavía sin nombre real tras todas las fuentes?
+    buscaruc_failed = not _got_name(sunat_data)
 
     # Último recurso: DB local (osce_sanciones_detalle + osce_risk_data)
     if buscaruc_failed and not sunat_data.get("razon_social"):
@@ -457,15 +460,19 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    # Intentar Factiliza primero, luego APIPeru.dev, luego Perú API, luego BuscarUC
+    def _got_name(d: dict) -> bool:
+        return bool(d.get("success") and d.get("razon_social", "").strip())
+
     data = call_factiliza_api(ruc, db)
-    if not data.get("success"):
+    if not _got_name(data):
         data = call_apiperu_dev(ruc, db)
-    if not data.get("success"):
+    if not _got_name(data):
         data = call_peru_api(ruc, db)
-    if data.get("fuente") == "minimal_fallback":
+    if not _got_name(data):
         data = call_buscaruc_api(ruc, db)
-    
+    if not _got_name(data):
+        data = get_sunat_fallback(ruc, db)
+
     return data
 
 
