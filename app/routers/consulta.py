@@ -1227,3 +1227,74 @@ async def legalbot_validate_get(
 
 
 # Deploy force Fri Mar 28 03:30:00 AM CST 2026 - LegalBot Universal V2.0
+
+
+@router.get(
+    "/debug/consulta-fuentes/{ruc}",
+    summary="Debug - Probar todas las fuentes de datos",
+    description="Endpoint de debug para verificar qué fuentes de datos funcionan para un RUC."
+)
+async def debug_consulta_fuentes(ruc: str, db: Session = Depends(get_db)):
+    """Debug endpoint para probar todas las fuentes de datos."""
+    resultados = {}
+    
+    # Probar Factiliza
+    try:
+        f = call_factiliza_api(ruc, db)
+        resultados['factiliza'] = {
+            'success': f.get('success', False),
+            'razon_social': f.get('razon_social', '')[:50],
+            'fuente': f.get('fuente')
+        }
+    except Exception as e:
+        resultados['factiliza'] = {'error': str(e)}
+    
+    # Probar apis.net.pe
+    try:
+        a = call_apis_net_pe(ruc, db)
+        resultados['apis_net_pe'] = {
+            'success': a.get('success', False),
+            'razon_social': a.get('razon_social', '')[:50],
+            'fuente': a.get('fuente')
+        }
+    except Exception as e:
+        resultados['apis_net_pe'] = {'error': str(e)}
+    
+    # Probar APIPeru.dev
+    try:
+        ap = call_apiperu_dev(ruc, db)
+        resultados['apiperu_dev'] = {
+            'success': ap.get('success', False),
+            'razon_social': ap.get('razon_social', '')[:50],
+            'fuente': ap.get('fuente')
+        }
+    except Exception as e:
+        resultados['apiperu_dev'] = {'error': str(e)}
+    
+    # Probar Perú API
+    try:
+        p = call_peru_api(ruc, db)
+        resultados['peru_api'] = {
+            'success': p.get('success', False),
+            'razon_social': p.get('razon_social', '')[:50],
+            'fuente': p.get('fuente')
+        }
+    except Exception as e:
+        resultados['peru_api'] = {'error': str(e)}
+    
+    # Probar BuscarUC
+    try:
+        b = call_buscaruc_api(ruc, db)
+        resultados['buscaruc'] = {
+            'success': b.get('success', False),
+            'razon_social': b.get('razon_social', '')[:50],
+            'fuente': b.get('fuente')
+        }
+    except Exception as e:
+        resultados['buscaruc'] = {'error': str(e)}
+    
+    return {
+        "ruc": ruc,
+        "resultados": resultados,
+        "alguna_funciono": any(r.get('success') for r in resultados.values() if 'success' in r)
+    }
