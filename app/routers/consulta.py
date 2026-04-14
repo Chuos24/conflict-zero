@@ -182,6 +182,50 @@ def call_factiliza_api(ruc: str, db) -> Dict[str, Any]:
         print(f"[FACTILIZA] Exception: {e}")
         return {"fuente": "factiliza_error", "ruc": ruc}
 
+# Función apis.net.pe - fuente adicional gratuita
+def call_apis_net_pe(ruc: str, db) -> Dict[str, Any]:
+    """Llama a apis.net.pe como fuente alternativa gratuita."""
+    token = os.environ.get("APIS_NET_PE_TOKEN")
+    
+    # Token por defecto (gratuito con límite)
+    if not token:
+        token = "apis-token-1.aTSI1T-ce2Rg8L7NZ42T0-ljQ8jV-EG"
+    
+    try:
+        url = f"https://api.apis.net.pe/v2/sunat/ruc/full?numero={ruc}"
+        headers = {
+            "User-Agent": "ConflictZero-API/1.0",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}"
+        }
+        
+        print(f"[APIS_NET_PE] Calling for RUC: {ruc}")
+        response = requests.get(url, headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            d = response.json()
+            return {
+                "ruc": ruc,
+                "razon_social": d.get("razonSocial", "").strip() or d.get("nombre", "").strip(),
+                "nombre": d.get("razonSocial", "").strip() or d.get("nombre", "").strip(),
+                "estado": d.get("estado", "ACTIVO").upper(),
+                "condicion": d.get("condicion", "HABIDO").upper(),
+                "direccion": d.get("direccion", "").strip(),
+                "departamento": d.get("departamento", ""),
+                "provincia": d.get("provincia", ""),
+                "distrito": d.get("distrito", ""),
+                "ubigeo": d.get("ubigeo", ""),
+                "fuente": "apis_net_pe",
+                "success": True
+            }
+        else:
+            print(f"[APIS_NET_PE] Error: HTTP {response.status_code}")
+            return {"fuente": "apis_net_pe_failed", "ruc": ruc}
+            
+    except Exception as e:
+        print(f"[APIS_NET_PE] Exception: {e}")
+        return {"fuente": "apis_net_pe_error", "ruc": ruc}
+
 # Función APIPeru.dev - alternativa confiable (POST)
 def call_apiperu_dev(ruc: str, db) -> Dict[str, Any]:
     """Llama a APIPeru.dev como fuente primaria."""
@@ -309,7 +353,7 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Cascade: Factiliza → APIPeru.dev → Perú API → BuscarUC → DB local
+    # Cascade: Factiliza → apis.net.pe → APIPeru.dev → Perú API → BuscarUC → DB local
     # Cada fuente solo se salta si la anterior devolvió un nombre real.
     def _got_name(d: dict) -> bool:
         return bool(d.get("success") and d.get("razon_social", "").strip())
@@ -317,7 +361,11 @@ async def consulta_completa(
     sunat_data = call_factiliza_api(ruc, db)
 
     if not _got_name(sunat_data):
-        print(f"[CONSULTA] Factiliza sin nombre ({sunat_data.get('fuente')}), intentando APIPeru.dev...")
+        print(f"[CONSULTA] Factiliza sin nombre ({sunat_data.get('fuente')}), intentando apis.net.pe...")
+        sunat_data = call_apis_net_pe(ruc, db)
+
+    if not _got_name(sunat_data):
+        print(f"[CONSULTA] apis.net.pe sin nombre ({sunat_data.get('fuente')}), intentando APIPeru.dev...")
         sunat_data = call_apiperu_dev(ruc, db)
 
     if not _got_name(sunat_data):
