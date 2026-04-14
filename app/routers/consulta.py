@@ -22,7 +22,33 @@ router = APIRouter(tags=["Consulta Completa"])
 def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
     """Obtiene datos de SUNAT desde la base de datos local como fallback."""
     try:
-        # Buscar en tabla de sanciones OSCE
+        # PRIMERO: Buscar en ruc_cache (tabla de respaldo prioritaria)
+        query_cache = text("""
+            SELECT ruc, razon_social, nombre_comercial, estado, condicion,
+                   direccion, departamento, provincia, distrito, ubigeo
+            FROM ruc_cache 
+            WHERE ruc = :ruc 
+            LIMIT 1
+        """)
+        cache_result = db.execute(query_cache, {"ruc": ruc}).fetchone()
+        
+        if cache_result:
+            return {
+                "ruc": ruc,
+                "razon_social": cache_result[1],
+                "nombre": cache_result[2] or cache_result[1],
+                "estado": cache_result[3] or "ACTIVO",
+                "condicion": cache_result[4] or "HABIDO",
+                "direccion": cache_result[5] or "",
+                "departamento": cache_result[6] or "",
+                "provincia": cache_result[7] or "",
+                "distrito": cache_result[8] or "",
+                "ubigeo": cache_result[9] or "",
+                "fuente": "ruc_cache",
+                "success": True
+            }
+        
+        # SEGUNDO: Buscar en tabla de sanciones OSCE
         query = text("""
             SELECT DISTINCT nombre, ruc 
             FROM osce_sanciones_detalle 
@@ -47,7 +73,7 @@ def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
                 "success": True
             }
         
-        # Si no está en OSCE, buscar en tabla osce_risk_data
+        # TERCERO: Buscar en tabla osce_risk_data
         query2 = text("""
             SELECT ruc, nombre_razon_social
             FROM osce_risk_data
@@ -1383,3 +1409,99 @@ async def debug_consulta_fuentes(ruc: str, db: Session = Depends(get_db)):
         "resultados": resultados,
         "alguna_funciono": any(r.get('success') for r in resultados.values() if 'success' in r)
     }
+
+
+@router.post(
+    "/admin/add-ruc",
+    summary="Admin - Agregar RUC manualmente",
+    description="Permite agregar un RUC a la base de datos local cuando no está en Factiliza."
+)
+async def admin_add_ruc(
+    ruc: str,
+    razon_social: str,
+    estado: str = "ACTIVO",
+    condicion: str = "HABIDO",
+    db: Session = Depends(get_db)
+):
+    """
+    Agrega un RUC manualmente a la tabla ruc_cache.
+    Útil cuando Factiliza no tiene el RUC pero tú sí conoces los datos.
+    """
+    # Validar RUC
+    if len(ruc) != 11 or not ruc.isdigit():
+        return {"error": True, "message": "RUC debe tener 11 dígitos numéricos"}
+    
+    if not razon_social or len(razon_social) < 3:
+        return {"error": True, "message": "Razón social es requerida"}
+    
+    try:
+        query = text("""
+            INSERT INTO ruc_cache (ruc, razon_social, estado, condicion, fuente, updated_at)
+            VALUES (:ruc, :razon_social, :estado, :condicion, 'manual', NOW())
+            ON CONFLICT (ruc) DO UPDATE SET
+                razon_social = EXCLUDED.razon_social,
+                estado = EXCLUDED.estado,
+                condicion = EXCLUDED.condicion,
+                fuente = 'manual',
+                updated_at = NOW()
+            RETURNING ruc, razon_social
+        """)
+        
+        result = db.execute(query, {
+            "ruc": ruc,
+            "razon_social": razon_social.upper(),
+            "estado": estado.upper(),
+            "condicion": condicion.upper()
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "RUC agregado/actualizado correctamente",
+            "ruc": result[0],
+            "razon_social": result[1]
+        }
+        
+    except Exception as e:
+        db.rollback()
+        return {"error": True, "message": f"Error al agregar RUC: {str(e)}"}
+
+
+@router.get(
+    "/admin/list-ruc-cache",
+    summary="Admin - Listar RUCs en caché",
+    description="Lista todos los RUCs almacenados en la tabla ruc_cache."
+)
+async def admin_list_ruc_cache(
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Lista los RUCs almacenados en caché."""
+    try:
+        query = text("""
+            SELECT ruc, razon_social, estado, fuente, created_at
+            FROM ruc_cache
+            ORDER BY created_at DESC
+            LIMIT :limit
+        """)
+        
+        results = db.execute(query, {"limit": limit}).fetchall()
+        
+        return {
+            "success": True,
+            "count": len(results),
+            "rucs": [
+                {
+                    "ruc": r[0],
+                    "razon_social": r[1],
+                    "estado": r[2],
+                    "fuente": r[3],
+                    "created_at": str(r[4])
+                }
+                for r in results
+            ]
+        }
+        
+    except Exception as e:
+        return {"error": True, "message": str(e)}
