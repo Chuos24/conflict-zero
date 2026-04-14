@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-14
+**Fecha:** 2026-04-15
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 23 |
-| Pagos sin activar | 0 |
+| Commits últimas 24h | 10 |
+| Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
-3bdd72e FIX: Consulta RUC v3, endpoint notify-admin, email notifications
-8228efe audit: informe completo nocturno de czperu.com — endpoints críticos faltantes
-7316c46 Merge branch 'main' of https://github.com/Chuos24/conflict-zero
-2a8d60d daily-standup: 2026-04-13 — 3 tareas prioritarias generadas
-3ab336a fix: cascada de fallbacks SUNAT - siempre intentar todas las fuentes
+d863241 DEPLOY: Forzar redeploy - admin endpoints activos v2
+e2132b1 FIX: Agregar endpoints admin pending-users y approve-user en admin.py
+d996e37 FORCE DEPLOY: Activar endpoints admin pending-users y approve-user
+9b21f9d ADD: Tabla ruc_cache + endpoints admin para gestionar RUCs no encontrados en Factiliza
+c9b32a5 ADD: Scraping SUNAT como fuente de respaldo para RUCs no encontrados en APIs
 ```
 
 ---
