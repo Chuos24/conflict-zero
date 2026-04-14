@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
-from app.models import CompanySnapshot, SupplierAlert
+from app.models import CompanySnapshot, SupplierAlert, User
 from app.core.database import SessionLocal
+from app.services.email_service import email_service, UHNW_COLORS
 
 
 class SnapshotService:
@@ -266,8 +267,43 @@ class AlertService:
         self.db.commit()
         self.db.refresh(alert)
         
-        # TODO: Enviar email si es high/critical
-        
+        if severity in ("high", "critical"):
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if user:
+                severity_color = "#8B0000" if severity == "critical" else "#B87333"
+                severity_label = "CRÍTICO" if severity == "critical" else "ALTO"
+                content = f"""
+                <div class="title" style="color:{severity_color};">Alerta {severity_label} — Proveedor</div>
+                <div class="text">
+                    Estimado/a <strong>{user.full_name}</strong>,<br><br>
+                    Se detectó un cambio importante en uno de sus proveedores monitoreados.
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Empresa</div>
+                    <div class="info-value">{supplier_name} — RUC {supplier_ruc}</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Cambio detectado</div>
+                    <div class="info-value">{change_type}</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Estado anterior</div>
+                    <div class="info-value" style="color:{UHNW_COLORS['light_gray']};text-decoration:line-through;">{previous_status or '—'}</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Estado actual</div>
+                    <div class="info-value" style="color:{severity_color};font-weight:600;">{new_status or '—'}</div>
+                </div>
+                <div class="divider"></div>
+                <a href="https://czperu.com/red.html" class="cta-button">Ver Mi Red</a>
+                """
+                html = email_service._get_base_template(content, f"Alerta {severity_label} — Conflict Zero")
+                email_service._send_email(
+                    to_email=user.email,
+                    subject=f"⚠ Alerta {severity_label}: {supplier_name} — Conflict Zero",
+                    html_content=html,
+                )
+
         return alert
     
     def get_unread_alerts(self, user_id: str) -> list:
