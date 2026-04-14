@@ -226,6 +226,76 @@ def call_apis_net_pe(ruc: str, db) -> Dict[str, Any]:
         print(f"[APIS_NET_PE] Exception: {e}")
         return {"fuente": "apis_net_pe_error", "ruc": ruc}
 
+
+# Función scraping SUNAT - último recurso
+def call_sunat_scraping(ruc: str, db) -> Dict[str, Any]:
+    """Scraping de SUNAT como último recurso."""
+    try:
+        print(f"[SUNAT_SCRAPING] Intentando scraping para RUC: {ruc}")
+        
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-PE,es;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        })
+        
+        # Paso 1: Obtener cookie de sesión
+        init_url = "https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/jcrS00Alias"
+        r1 = session.get(init_url, timeout=30)
+        
+        if r1.status_code != 200:
+            print(f"[SUNAT_SCRAPING] Error inicial: {r1.status_code}")
+            return {"fuente": "sunat_scraping_failed", "ruc": ruc}
+        
+        # Paso 2: Realizar consulta
+        consulta_url = "https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/jcrS00Alias"
+        data = {"accion": "consPorRuc", "razSoc": "", "nroRuc": ruc, "nrodoc": "", "contexto": "ti-it", "search1": ruc, "codigo": "", "tipdoc": "1"}
+        
+        r2 = session.post(consulta_url, data=data, timeout=30)
+        
+        if r2.status_code == 200 and "razonSocial" in r2.text.lower():
+            # Parsear HTML para extraer datos
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(r2.text, 'html.parser')
+            
+            # Buscar razón social
+            razon_social = ""
+            estado = "ACTIVO"
+            condicion = "HABIDO"
+            
+            # Intentar extraer de diferentes formatos
+            for tag in soup.find_all(['h4', 'h3', 'h2', 'span', 'div']):
+                text = tag.get_text().strip()
+                if len(text) > 10 and ruc in text:
+                    razon_social = text.replace(ruc, "").strip(" -")
+                    break
+            
+            if razon_social:
+                return {
+                    "ruc": ruc,
+                    "razon_social": razon_social,
+                    "nombre": razon_social,
+                    "estado": estado,
+                    "condicion": condicion,
+                    "direccion": "",
+                    "departamento": "",
+                    "provincia": "",
+                    "distrito": "",
+                    "ubigeo": "",
+                    "fuente": "sunat_scraping",
+                    "success": True
+                }
+        
+        print(f"[SUNAT_SCRAPING] No se pudo extraer datos del HTML")
+        return {"fuente": "sunat_scraping_failed", "ruc": ruc}
+        
+    except Exception as e:
+        print(f"[SUNAT_SCRAPING] Exception: {e}")
+        return {"fuente": "sunat_scraping_error", "ruc": ruc}
+
 # Función APIPeru.dev - alternativa confiable (POST)
 def call_apiperu_dev(ruc: str, db) -> Dict[str, Any]:
     """Llama a APIPeru.dev como fuente primaria."""
@@ -377,7 +447,11 @@ async def consulta_completa(
         sunat_data = call_buscaruc_api(ruc, db)
 
     if not _got_name(sunat_data):
-        print(f"[CONSULTA] BuscarUC sin nombre ({sunat_data.get('fuente')}), intentando DB local...")
+        print(f"[CONSULTA] BuscarUC sin nombre ({sunat_data.get('fuente')}), intentando scraping SUNAT...")
+        sunat_data = call_sunat_scraping(ruc, db)
+
+    if not _got_name(sunat_data):
+        print(f"[CONSULTA] Scraping SUNAT sin nombre ({sunat_data.get('fuente')}), intentando DB local...")
         sunat_data = get_sunat_fallback(ruc, db)
 
     # ¿Todavía sin nombre real tras todas las fuentes?
@@ -1292,6 +1366,17 @@ async def debug_consulta_fuentes(ruc: str, db: Session = Depends(get_db)):
         }
     except Exception as e:
         resultados['buscaruc'] = {'error': str(e)}
+    
+    # Probar Scraping SUNAT
+    try:
+        s = call_sunat_scraping(ruc, db)
+        resultados['sunat_scraping'] = {
+            'success': s.get('success', False),
+            'razon_social': s.get('razon_social', '')[:50],
+            'fuente': s.get('fuente')
+        }
+    except Exception as e:
+        resultados['sunat_scraping'] = {'error': str(e)}
     
     return {
         "ruc": ruc,
