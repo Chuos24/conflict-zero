@@ -1,5 +1,5 @@
 # Conflict Zero API - Main Application
-# DEPLOY_TIMESTAMP: 2026-04-08T17-30-00Z - Force redeploy con consulta router
+# DEPLOY_TIMESTAMP: 2026-04-16T03-50-00Z - Fix user status pending_approval
 # Last updated: 2026-04-08 17:30 UTC - Fixed UserProfileUpdate import
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!

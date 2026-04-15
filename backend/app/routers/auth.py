@@ -175,7 +175,8 @@ async def register_web(
         plan_type=plan,
         monthly_limit=plan_config["monthly_limit"],
         is_active=True,
-        is_approved=not requires_approval  # Si no requiere aprobación, está aprobado por defecto
+        is_approved=not requires_approval,  # Si no requiere aprobación, está aprobado por defecto
+        status="pending_approval" if requires_approval else "active"  # ← KEY FIX para admin panel
     )
     
     db.add(db_user)
