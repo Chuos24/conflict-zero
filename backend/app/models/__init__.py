@@ -21,6 +21,7 @@ class User(Base):
     api_key = Column(String(255), unique=True, nullable=True)
     monthly_requests = Column(Integer, default=0)
     monthly_limit = Column(Integer, default=1000)
+    status = Column(String(50), default="active")  # active, pending_approval, rejected
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
