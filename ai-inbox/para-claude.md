@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-17
+**Fecha:** 2026-04-18
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 1 |
+| Commits últimas 24h | 2 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
+bf6110f feat: Completar feature 'Mi Red' (Supplier Watchlist)
+9183a3a daily-standup: 2026-04-17 — 3 tareas prioritarias generadas
 985ca19 daily-standup: 2026-04-16 — 3 tareas prioritarias generadas
 8d35bc8 FIX: Establecer status=pending_approval para usuarios que requieren aprobación
 d0179b4 FIX: Agregar campo status a modelo User para admin approvals
-fafde78 daily-standup: 2026-04-15 — 3 tareas prioritarias generadas
-d863241 DEPLOY: Forzar redeploy - admin endpoints activos v2
 ```
 
 ---
