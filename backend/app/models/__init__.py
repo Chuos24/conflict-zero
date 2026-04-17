@@ -184,3 +184,38 @@ class SupplierAlert(Base):
     email_sent_at = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SupplierWatchlist(Base):
+    """
+    Lista de proveedores monitoreados por cada usuario.
+    Feature "Mi Red" - Supplier Watchlist.
+    """
+    __tablename__ = "supplier_watchlists"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    supplier_ruc = Column(String(11), nullable=False, index=True)
+    supplier_name = Column(String(255), nullable=True)
+    
+    # Configuración personalizable
+    alias = Column(String(255), nullable=True)  # Nombre personalizado
+    notes = Column(Text, nullable=True)  # Notas del usuario
+    tags = Column(JSON, default=list)  # Tags para organizar
+    
+    # Estado
+    is_active = Column(Boolean, default=True)
+    
+    # Configuración de alertas
+    alert_on_osce = Column(Boolean, default=True)  # Alertar inhabilitación OSCE
+    alert_on_tce = Column(Boolean, default=True)   # Alertar sanciones TCE
+    alert_on_sunat_debt = Column(Boolean, default=True)  # Alertar deuda SUNAT
+    alert_min_debt_amount = Column(Float, default=1000.0)  # Mínimo para alertar
+    
+    # Datos del último snapshot conocido
+    last_snapshot_id = Column(String(36), ForeignKey("company_snapshots.id"), nullable=True)
+    last_checked_at = Column(DateTime, nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
