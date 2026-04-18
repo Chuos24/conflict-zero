@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-18
+**Fecha:** 2026-04-19
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -19,11 +19,11 @@
 
 ### Últimos commits:
 ```
+9e4275b FIX: Login devuelve objeto user completo - data.user.email fix
+e17e868 daily-standup: 2026-04-18 — 3 tareas prioritarias generadas
 bf6110f feat: Completar feature 'Mi Red' (Supplier Watchlist)
 9183a3a daily-standup: 2026-04-17 — 3 tareas prioritarias generadas
 985ca19 daily-standup: 2026-04-16 — 3 tareas prioritarias generadas
-8d35bc8 FIX: Establecer status=pending_approval para usuarios que requieren aprobación
-d0179b4 FIX: Agregar campo status a modelo User para admin approvals
 ```
 
 ---
