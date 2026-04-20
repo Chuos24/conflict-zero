@@ -330,6 +330,12 @@ async def notify_admin(request: dict):
         logger.error(f"Error en notify-admin: {e}")
         return {"success": False, "error": str(e)}
 
+# Test Sentry endpoint
+@app.get("/api/v1/sentry-test")
+async def sentry_test():
+    """Trigger a test error for Sentry verification"""
+    raise ValueError("This is a test error for Sentry - please ignore")
+
 # Manejo de excepciones
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
