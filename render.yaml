@@ -48,6 +48,8 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 30
+      - key: SENTRY_DSN
+        value: https://9b8e0de098e39cc1d43e7b77b2b5821d@o4511252074594304.ingest.de.sentry.io/4511252170408016
 
   # Redis para cache (opcional pero recomendado)
   - type: redis
