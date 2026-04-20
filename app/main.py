@@ -9,6 +9,10 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import os
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -21,6 +25,24 @@ from app.routers import auth_router, verification_router, dashboard_router, heal
 import uuid
 
 settings = get_settings()
+
+# Initialize Sentry for error monitoring
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.environ.get("ENVIRONMENT", "production"),
+        release=os.environ.get("RENDER_GIT_COMMIT", "unknown"),
+        integrations=[
+            FastApiIntegration(),
+            SqlalchemyIntegration(),
+        ],
+        traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+        profiles_sample_rate=0.1,
+    )
+    print("✅ Sentry initialized")
+else:
+    print("⚠️ SENTRY_DSN not set - error monitoring disabled")
 
 print("🚀 Starting Conflict Zero API - LegalBot V3.0 - Deploy Fix")
 
