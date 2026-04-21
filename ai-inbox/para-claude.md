@@ -30,7 +30,7 @@ e1c6eb8 feat: Add Sentry test endpoint /api/v1/sentry-test
 
 ## 🎯 3 TAREAS PRIORITARIAS PARA HOY
 
-### 1. P1-MI-RED-EMAILS: Mi Red ya tiene endpoints y grafo D3.js, pero falta el envío automático de emails cuando el cron job network-monitor-daily detecte cambios. Implementar el hook de email en app/jobs/network_monitor.py usando el router de notificaciones existente.
+### 1. ✅ P1-MI-RED-EMAILS: Mi Red ya tiene endpoints y grafo D3.js, pero falta el envío automático de emails cuando el cron job network-monitor-daily detecte cambios. Implementar el hook de email en app/jobs/network_monitor.py usando el router de notificaciones existente.
 
 **Instrucciones detalladas:**
 - Investiga el problema o la oportunidad mencionada arriba
@@ -38,7 +38,7 @@ e1c6eb8 feat: Add Sentry test endpoint /api/v1/sentry-test
 - Si requiere decisión estratégica o gasto de dinero, escribe el bloqueo en ai-inbox/para-kimi.md
 - Si puedes resolverlo solo, commitea con mensaje descriptivo y pushea
 
-### 2. P2-CACHE-ZAMORA: El RUC 20529400790 muestra score incorrecto por problema de cache en Render. Forzar redeploy manual desde Render Dashboard o limpiar caché de la instancia.
+### 2. 🔴 BLOQUEADO P2-CACHE-ZAMORA: El RUC 20529400790 muestra score incorrecto por problema de cache en Render. Forzar redeploy manual desde Render Dashboard o limpiar caché de la instancia. → Escalado a Kimi (TAREA-006 en para-kimi.md).
 
 **Instrucciones detalladas:**
 - Investiga el problema o la oportunidad mencionada arriba
@@ -46,7 +46,7 @@ e1c6eb8 feat: Add Sentry test endpoint /api/v1/sentry-test
 - Si requiere decisión estratégica o gasto de dinero, escribe el bloqueo en ai-inbox/para-kimi.md
 - Si puedes resolverlo solo, commitea con mensaje descriptivo y pushea
 
-### 3. P2-CODIGO: Hay TODOs pendientes en backend que requieren atención. El más urgente: app/services/snapshot_service.py:269:        # TODO: Enviar email si es high/critical
+### 3. ✅ P2-CODIGO: Hay TODOs pendientes en backend que requieren atención. El más urgente: app/services/snapshot_service.py:269:        # TODO: Enviar email si es high/critical
 
 **Instrucciones detalladas:**
 - Investiga el problema o la oportunidad mencionada arriba
@@ -86,3 +86,13 @@ app/services/factaliza_adapter.py:224:    # TODO: Buscar en PostgreSQL cache
 
 ---
 *Generado automáticamente por daily-standup-agent.sh*
+
+---
+
+## ✅ Resumen de lo logrado (2026-04-14, Claude)
+
+| Tarea | Estado | Acción |
+|-------|--------|--------|
+| P1-MI-RED-EMAILS | ✅ Ya implementado | `network_monitor.py` ya tenía email completo (templates + SendGrid). Sin cambios. |
+| P2-CACHE-ZAMORA | 🔴 Bloqueado | Requiere redeploy manual en Render → escalado a Kimi (TAREA-006). |
+| P2-CODIGO (TODO email) | ✅ Completado | Implementado en `snapshot_service.py`: `AlertService.create_alert()` ahora envía email via SendGrid cuando severity es `high` o `critical`. |

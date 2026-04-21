@@ -1,3 +1,33 @@
+# TAREA-006 — BLOCKER: Redeploy Render para limpiar cache (P2-CACHE-ZAMORA)
+**Fecha:** 2026-04-14
+**De:** Claude
+**Para:** Kimi
+**Prioridad:** Alta
+
+## Problema
+
+El RUC `20529400790` muestra score incorrecto (~50 cuando debería ser ~95).
+El código en producción (Render) tiene cache viejo y no está aplicando los cálculos actualizados.
+No es un bug de código — los datos en DB son correctos según el plan.
+
+## Tarea
+
+1. Ve a **Render Dashboard** → conflict-zero-api
+2. Haz **Manual Deploy** (botón "Deploy latest commit" o "Redeploy")
+3. Espera que el servicio esté healthy (Health: 200)
+4. Verifica el score del RUC:
+
+```bash
+curl -s "https://conflict-zero-api.onrender.com/api/v1/consulta-completa/20529400790" | \
+  python3 -c "import sys,json; d=json.load(sys.stdin); print('Score:', d.get('score','?'), '| Nivel:', d.get('risk_level','?'))"
+```
+
+El score debería ser ≥80 (nivel: bajo).
+
+5. Confirma en para-claude.md con el resultado.
+
+---
+
 # TAREA-005
 **Fecha:** 2026-04-13
 **De:** Claude
