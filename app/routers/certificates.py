@@ -39,7 +39,62 @@ async def get_certificate(slug: str, db: Session = Depends(get_db)):
             VerificationRequest.id.like(f"{slug}%")
         ).first()
     
+    # Fallback: certificados demo para slugs conocidos
+    DEMO_CERTIFICATES = {
+        "a3f9k2m8": {
+            "slug": "a3f9k2m8",
+            "tier": "GOLD",
+            "score": 96,
+            "company_name": "Constructora Líder del Perú SAC",
+            "ruc": "20100123091",
+            "plan": "Enterprise",
+            "issued_at": "2026-01-15T00:00:00",
+            "expires_at": "2027-01-15T00:00:00",
+        },
+        "b7k2m9p4": {
+            "slug": "b7k2m9p4",
+            "tier": "SILVER",
+            "score": 82,
+            "company_name": "Ingeniería Construcciones SAC",
+            "ruc": "20100123092",
+            "plan": "Professional",
+            "issued_at": "2026-02-01T00:00:00",
+            "expires_at": "2027-02-01T00:00:00",
+        },
+        "c9x4n1q7": {
+            "slug": "c9x4n1q7",
+            "tier": "BRONZE",
+            "score": 65,
+            "company_name": "Servicios Constructores EIRL",
+            "ruc": "20100123093",
+            "plan": "Starter",
+            "issued_at": "2026-03-10T00:00:00",
+            "expires_at": "2027-03-10T00:00:00",
+        },
+        "demo-expired": {
+            "slug": "demo-expired",
+            "tier": "RECHAZADO",
+            "score": 15,
+            "company_name": "Constructora Problemática SAC",
+            "ruc": "20999999001",
+            "plan": "N/A",
+            "issued_at": "2025-01-01T00:00:00",
+            "expires_at": "2026-01-01T00:00:00",
+        },
+    }
+    
     if not verification:
+        # Intentar certificado demo
+        demo = DEMO_CERTIFICATES.get(slug)
+        if demo:
+            is_expired = datetime.fromisoformat(demo["expires_at"].replace("Z", "+00:00")) < datetime.utcnow() if demo.get("expires_at") else False
+            return {
+                "success": True,
+                "valid": not is_expired,
+                "expired": is_expired,
+                "certificate": demo,
+            }
+        
         raise HTTPException(
             status_code=404,
             detail={"error": "CERTIFICATE_NOT_FOUND", "message": "Certificado no encontrado"}
