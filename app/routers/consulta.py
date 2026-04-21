@@ -116,6 +116,86 @@ def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
         "success": True
     }
 
+# ============================================================================
+# SUNAT API CASCADE - Cleaned up 2026-04-18
+# Priority: Factaliza → APIPeru.dev → Perú API → apis.net.pe → DB fallback
+# Removed: BuscarUC (expired token), SUNAT scraping (fragile)
+# ============================================================================
+
+def _got_name(d: dict) -> bool:
+    """Check if API response has a real company name."""
+    return bool(d.get("success") and d.get("razon_social", "").strip())
+
+
+def get_sunat_data_cascade(ruc: str, db) -> Dict[str, Any]:
+    """
+    Attempts to get SUNAT data using multiple APIs in priority order.
+    Returns the first successful response with a company name.
+    """
+    # 1. FACTALIZA - Primary source (Consultor #40648)
+    result = call_factiliza_api(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] Factaliza failed ({result.get('fuente')}), trying APIPeru.dev...")
+    
+    # 2. APIPERU.DEV - Alternative (requires token)
+    result = call_apiperu_dev(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] APIPeru.dev failed ({result.get('fuente')}), trying Perú API...")
+    
+    # 3. PERU API - Another alternative (requires token)
+    result = call_peru_api(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] Perú API failed ({result.get('fuente')}), trying apis.net.pe...")
+    
+    # 4. APIS.NET.PE - Free, always available but rate-limited
+    result = call_apis_net_pe(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] apis.net.pe failed ({result.get('fuente')}), using DB fallback...")
+    
+    # 5. DB LOCAL FALLBACK - Last resort
+    result = get_sunat_fallback(ruc, db)
+    if _got_name(result):
+        return result
+    
+    # 6. OSCE DB FALLBACK - Use OSCE sanctions data if available
+    from app.services.osce_datos_abiertos import osce_datos_abiertos
+    osce_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
+    if osce_data and osce_data.get("nombre"):
+        return {
+            "ruc": ruc,
+            "razon_social": osce_data.get("nombre", ""),
+            "nombre": osce_data.get("nombre", ""),
+            "estado": "ACTIVO",
+            "condicion": "HABIDO",
+            "direccion": "",
+            "departamento": "",
+            "provincia": "",
+            "distrito": "",
+            "ubigeo": "",
+            "fuente": "osce_db_fallback",
+            "success": True
+        }
+    
+    # 7. MINIMAL FALLBACK - Return empty but valid structure
+    return {
+        "ruc": ruc,
+        "razon_social": f"RUC {ruc}",
+        "nombre": f"RUC {ruc}",
+        "estado": "ACTIVO",
+        "condicion": "HABIDO",
+        "direccion": "",
+        "departamento": "",
+        "provincia": "",
+        "distrito": "",
+        "ubigeo": "",
+        "fuente": "minimal_fallback",
+        "success": True
+    }
+
 # Función Perú API - alternativa confiable
 def call_peru_api(ruc: str, db) -> Dict[str, Any]:
     """Llama a Perú API (peruapi.com) como fuente primaria."""
@@ -449,93 +529,8 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Cascade: Factiliza → apis.net.pe → APIPeru.dev → Perú API → BuscarUC → DB local
-    # Cada fuente solo se salta si la anterior devolvió un nombre real.
-    def _got_name(d: dict) -> bool:
-        return bool(d.get("success") and d.get("razon_social", "").strip())
-
-    sunat_data = call_factiliza_api(ruc, db)
-
-    if not _got_name(sunat_data):
-        print(f"[CONSULTA] Factiliza sin nombre ({sunat_data.get('fuente')}), intentando apis.net.pe...")
-        sunat_data = call_apis_net_pe(ruc, db)
-
-    if not _got_name(sunat_data):
-        print(f"[CONSULTA] apis.net.pe sin nombre ({sunat_data.get('fuente')}), intentando APIPeru.dev...")
-        sunat_data = call_apiperu_dev(ruc, db)
-
-    if not _got_name(sunat_data):
-        print(f"[CONSULTA] APIPeru.dev sin nombre ({sunat_data.get('fuente')}), intentando Perú API...")
-        sunat_data = call_peru_api(ruc, db)
-
-    if not _got_name(sunat_data):
-        print(f"[CONSULTA] Perú API sin nombre ({sunat_data.get('fuente')}), intentando BuscarUC...")
-        sunat_data = call_buscaruc_api(ruc, db)
-
-    if not _got_name(sunat_data):
-        print(f"[CONSULTA] BuscarUC sin nombre ({sunat_data.get('fuente')}), intentando scraping SUNAT...")
-        sunat_data = call_sunat_scraping(ruc, db)
-
-    if not _got_name(sunat_data):
-        print(f"[CONSULTA] Scraping SUNAT sin nombre ({sunat_data.get('fuente')}), intentando DB local...")
-        sunat_data = get_sunat_fallback(ruc, db)
-
-    # ¿Todavía sin nombre real tras todas las fuentes?
-    buscaruc_failed = not _got_name(sunat_data)
-
-    # Último recurso: DB local (osce_sanciones_detalle + osce_risk_data)
-    if buscaruc_failed and not sunat_data.get("razon_social"):
-        print(f"[CONSULTA] APIs externas fallaron, intentando DB local...")
-        db_fallback = get_sunat_fallback(ruc, db)
-        if db_fallback.get("razon_social"):
-            sunat_data = db_fallback
-            buscaruc_failed = False
-
-    if buscaruc_failed:
-        from app.services.osce_datos_abiertos import osce_datos_abiertos
-        osce_db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
-
-        razon_social_fallback = None
-        if osce_db_data and osce_db_data.get("nombre"):
-            razon_social_fallback = osce_db_data.get("nombre")
-        elif sunat_data.get("razon_social"):
-            # Usar lo que vino de BuscarUC aunque sea incompleto
-            razon_social_fallback = sunat_data.get("razon_social")
-        else:
-            razon_social_fallback = f"RUC {ruc}"
-        
-        if osce_db_data:
-            # Usar datos de OSCE como fallback
-            sunat_data = {
-                "ruc": ruc,
-                "razon_social": razon_social_fallback,
-                "nombre": osce_db_data.get("nombre", ""),
-                "estado": sunat_data.get("estado", "ACTIVO"),
-                "condicion": sunat_data.get("condicion", "HABIDO"),
-                "direccion": sunat_data.get("direccion", ""),
-                "departamento": sunat_data.get("departamento", ""),
-                "provincia": sunat_data.get("provincia", ""),
-                "distrito": sunat_data.get("distrito", ""),
-                "ubigeo": sunat_data.get("ubigeo", ""),
-                "success": True,
-                "fuente": "osce_db_fallback"
-            }
-        else:
-            # Último fallback: usar lo que tengamos de BuscarUC o solo el RUC
-            sunat_data = {
-                "ruc": ruc,
-                "razon_social": razon_social_fallback,
-                "nombre": sunat_data.get("nombre", ""),
-                "estado": sunat_data.get("estado", "ACTIVO"),
-                "condicion": sunat_data.get("condicion", "HABIDO"),
-                "direccion": sunat_data.get("direccion", ""),
-                "departamento": sunat_data.get("departamento", ""),
-                "provincia": sunat_data.get("provincia", ""),
-                "distrito": sunat_data.get("distrito", ""),
-                "ubigeo": sunat_data.get("ubigeo", ""),
-                "success": True,
-                "fuente": "ruc_only"
-            }
+    # Use cleaned cascade: Factaliza → APIPeru.dev → Perú API → apis.net.pe → DB fallback
+    sunat_data = get_sunat_data_cascade(ruc, db)
     
     # Consultar sanciones OSCE (datos reales de CONOSCE)
     osce_sanciones = scraping_service.get_osce_sanctions(ruc)
@@ -608,19 +603,8 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    def _got_name(d: dict) -> bool:
-        return bool(d.get("success") and d.get("razon_social", "").strip())
-
-    data = call_factiliza_api(ruc, db)
-    if not _got_name(data):
-        data = call_apiperu_dev(ruc, db)
-    if not _got_name(data):
-        data = call_peru_api(ruc, db)
-    if not _got_name(data):
-        data = call_buscaruc_api(ruc, db)
-    if not _got_name(data):
-        data = get_sunat_fallback(ruc, db)
-
+    # Use cleaned cascade
+    data = get_sunat_data_cascade(ruc, db)
     return data
 
 
@@ -634,7 +618,7 @@ async def consulta_score(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": True, "message": "RUC inválido"}
     
-    sunat_data = call_buscaruc_api(ruc, db)
+    sunat_data = get_sunat_data_cascade(ruc, db)
     
     if sunat_data.get("error"):
         return sunat_data
