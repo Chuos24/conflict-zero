@@ -1,5 +1,5 @@
 # Conflict Zero API - Main Application
-# DEPLOY_TIMESTAMP: 2026-04-09-06-39-28 - Force deploy consulta
+# DEPLOY_TIMESTAMP: 2026-04-21-10-00-00 - Fix: Certificates router + Bronze/Silver buttons
 # Last updated: 2026-04-08 17:30 UTC - Fixed UserProfileUpdate import
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
@@ -21,7 +21,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router, certificates_router
 import uuid
 
 settings = get_settings()
@@ -153,6 +153,7 @@ app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
+app.include_router(certificates_router, prefix="/api/v1")
 
 # Routers v3 (para compatibilidad con frontend)
 app.include_router(auth_router, prefix="/api/v3")
@@ -164,6 +165,7 @@ app.include_router(payments_router, prefix="/api/v3")  # FIX: Payments disponibl
 app.include_router(admin_router, prefix="/api/v3")
 app.include_router(notifications_router, prefix="/api/v3")
 app.include_router(network_router, prefix="/api/v3")
+app.include_router(certificates_router, prefix="/api/v3")
 
 # Endpoint register-web directo (workaround para problema de caché en Render)
 from pydantic import BaseModel
@@ -343,6 +345,10 @@ async def general_exception_handler(request, exc):
         status_code=500,
         content={"detail": "Error interno del servidor", "error": str(exc)}
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     import uvicorn
