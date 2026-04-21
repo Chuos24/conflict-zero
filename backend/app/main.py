@@ -17,7 +17,10 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router
+from app.routers import (auth_router, verification_router, dashboard_router, health_router, 
+                         consulta_router, debug_router, compare_router, payments_router, 
+                         admin_router, notifications_router, payments_admin_router, 
+                         invitations_router, certificates_router)
 import uuid
 
 settings = get_settings()
@@ -138,6 +141,11 @@ app.include_router(verification_router, prefix="/api/v3")
 app.include_router(consulta_router, prefix="/api/v3")  # FIX: Añadido para consulta RUC
 app.include_router(admin_router, prefix="/api/v3")
 app.include_router(notifications_router, prefix="/api/v3")
+
+# NEW: Routers ported from Backend B (api_v3.py) - Phase 1 Migration
+app.include_router(payments_admin_router, prefix="/api/v3")
+app.include_router(invitations_router, prefix="/api/v3")
+app.include_router(certificates_router, prefix="/api/v3")
 
 # Endpoint notify-admin para notificaciones desde el frontend
 @app.post("/api/v3/notify-admin")
