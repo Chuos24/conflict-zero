@@ -220,6 +220,65 @@ class SupplierAlert(Base):
 
 
 # ============================================================================
+# INVITATIONS: Sistema de invitaciones para subcontratistas
+# ============================================================================
+
+class Invitation(Base):
+    """
+    Invitaciones enviadas a subcontratistas para unirse a la plataforma.
+    """
+    __tablename__ = "invitations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), nullable=False, index=True)
+    name = Column(String(255), nullable=True)
+    ruc = Column(String(11), nullable=True, index=True)
+    company = Column(String(255), nullable=True)
+    invited_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    status = Column(String(20), default="pending")  # pending, accepted, expired, revoked
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    accepted_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    notes = Column(Text, nullable=True)
+
+
+# ============================================================================
+# CERTIFICATES: Certificados de verificación generados
+# ============================================================================
+
+class Certificate(Base):
+    """
+    Certificados de verificación generados para empresas.
+    Cada certificado tiene un código único para validación pública.
+    """
+    __tablename__ = "certificates"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    code = Column(String(16), unique=True, nullable=False, index=True)
+    ruc = Column(String(11), nullable=False, index=True)
+    company_name = Column(String(255), nullable=True)
+    score = Column(Integer, nullable=False)
+    risk_level = Column(String(20), nullable=False)
+    
+    # Datos del certificado
+    sunat_status = Column(String(50), nullable=True)
+    osce_sanctions_count = Column(Integer, default=0)
+    tce_sanctions_count = Column(Integer, default=0)
+    
+    # Metadata
+    generated_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    pdf_url = Column(String(500), nullable=True)
+    status = Column(String(20), default="active")  # active, expired, revoked
+    
+    # Datos de validación pública
+    verification_data = Column(JSON, default=dict)
+
+
+# ============================================================================
 # PAYMENTS: Registro manual de pagos por transferencia/deposito
 # ============================================================================
 
