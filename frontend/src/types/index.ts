@@ -54,3 +54,21 @@ export interface ApiResponse<T> {
   error?: string;
   message?: string;
 }
+
+export interface CreateConflictData {
+  title: string;
+  description: string;
+  type: ConflictType;
+  severity: SeverityLevel;
+  status?: ConflictStatus;
+  parties: Omit<Party, 'id'>[];
+}
+
+export interface UpdateConflictData {
+  title?: string;
+  description?: string;
+  type?: ConflictType;
+  severity?: SeverityLevel;
+  status?: ConflictStatus;
+  parties?: Omit<Party, 'id'>[];
+}

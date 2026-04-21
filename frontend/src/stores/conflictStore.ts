@@ -15,6 +15,7 @@ interface ConflictState {
   fetchConflict: (id: string) => Promise<void>;
   fetchStats: () => Promise<void>;
   createConflict: (data: CreateConflictData) => Promise<void>;
+  addConflict: (data: CreateConflictData) => Promise<void>;
   updateConflict: (id: string, data: UpdateConflictData) => Promise<void>;
   deleteConflict: (id: string) => Promise<void>;
   setCurrentConflict: (conflict: Conflict | null) => void;
@@ -27,6 +28,11 @@ export const useConflictStore = create<ConflictState>((set, get) => ({
   stats: null,
   loading: false,
   error: null,
+  
+  // Alias para compatibilidad con componentes
+  addConflict: async (data: CreateConflictData) => {
+    await get().createConflict(data);
+  },
 
   fetchConflicts: async () => {
     set({ loading: true, error: null });
