@@ -21,6 +21,7 @@ class User(Base):
     api_key = Column(String(255), unique=True, nullable=True)
     monthly_requests = Column(Integer, default=0)
     monthly_limit = Column(Integer, default=1000)
+    status = Column(String(50), default="active")  # active, pending_approval, rejected
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -183,3 +184,88 @@ class SupplierAlert(Base):
     email_sent_at = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class SupplierWatchlist(Base):
+    """
+    Lista de proveedores monitoreados por cada usuario.
+    Feature "Mi Red" - Supplier Watchlist.
+    """
+    __tablename__ = "supplier_watchlists"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    supplier_ruc = Column(String(11), nullable=False, index=True)
+    supplier_name = Column(String(255), nullable=True)
+    
+    # Configuración personalizable
+    alias = Column(String(255), nullable=True)  # Nombre personalizado
+    notes = Column(Text, nullable=True)  # Notas del usuario
+    tags = Column(JSON, default=list)  # Tags para organizar
+    
+    # Estado
+    is_active = Column(Boolean, default=True)
+    
+    # Configuración de alertas
+    alert_on_osce = Column(Boolean, default=True)  # Alertar inhabilitación OSCE
+    alert_on_tce = Column(Boolean, default=True)   # Alertar sanciones TCE
+    alert_on_sunat_debt = Column(Boolean, default=True)  # Alertar deuda SUNAT
+    alert_min_debt_amount = Column(Float, default=1000.0)  # Mínimo para alertar
+    
+    # Datos del último snapshot conocido
+    last_snapshot_id = Column(String(36), ForeignKey("company_snapshots.id"), nullable=True)
+    last_checked_at = Column(DateTime, nullable=True)
+    
+    # Metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ============================================================================
+# MODELS PORTED FROM BACKEND B (api_v3.py) - Phase 1
+# ============================================================================
+
+class PaymentManual(Base):
+    """Pagos manuales por transferencia bancaria, Yape, Plin, etc."""
+    __tablename__ = "payments_manual"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), default="PEN")
+    method = Column(String(30), default="transferencia")  # transferencia, deposito, yape, plin, efectivo
+    reference = Column(String(100), nullable=False)
+    payment_date = Column(DateTime, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_by = Column(String(50), default="admin")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Invitation(Base):
+    """Sistema de invitaciones para Mi Red (Professional/Enterprise)"""
+    __tablename__ = "invitations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    invitador_ruc = Column(String(11), nullable=False, index=True)
+    email = Column(String(200), nullable=False)
+    token = Column(String(100), unique=True, nullable=False, index=True)
+    ruc_invitado = Column(String(11), nullable=True)
+    expira = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(hours=24))
+    usada = Column(Boolean, default=False)
+    usada_por = Column(String(36), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Certificate(Base):
+    """Certificados digitales emitidos a empresas verificadas"""
+    __tablename__ = "certificates_v3"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ruc = Column(String(11), nullable=False, index=True)
+    company_name = Column(String(255), nullable=False)
+    score = Column(Float, nullable=False)
+    tier = Column(String(20), nullable=False)  # GOLD, SILVER, BRONZE, RECHAZADO
+    plan_type = Column(String(20), nullable=False)  # starter, professional, enterprise
+    cert_slug = Column(String(8), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=365))

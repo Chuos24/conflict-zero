@@ -175,7 +175,8 @@ async def register_web(
         plan_type=plan,
         monthly_limit=plan_config["monthly_limit"],
         is_active=True,
-        is_approved=not requires_approval  # Si no requiere aprobación, está aprobado por defecto
+        is_approved=not requires_approval,  # Si no requiere aprobación, está aprobado por defecto
+        status="pending_approval" if requires_approval else "active"  # ← KEY FIX para admin panel
     )
     
     db.add(db_user)
@@ -436,7 +437,19 @@ async def login(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "company_name": user.company_name,
+            "ruc": user.ruc,
+            "plan_type": user.plan_type,
+            "monthly_limit": user.monthly_limit,
+            "monthly_requests": user.monthly_requests,
+            "is_active": user.is_active,
+            "is_admin": getattr(user, 'is_admin', False)
+        }
     }
 
 @router.post(
@@ -480,7 +493,19 @@ async def login_form(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "full_name": user.full_name,
+            "company_name": user.company_name,
+            "ruc": user.ruc,
+            "plan_type": user.plan_type,
+            "monthly_limit": user.monthly_limit,
+            "monthly_requests": user.monthly_requests,
+            "is_active": user.is_active,
+            "is_admin": getattr(user, 'is_admin', False)
+        }
     }
 
 @router.get(

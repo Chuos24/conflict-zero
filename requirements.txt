@@ -19,3 +19,4 @@ cryptography==41.0.7
 sendgrid==6.11.0
 python-dotenv==1.0.0
 email-validator==2.1.0
+sentry-sdk[fastapi]==1.40.6

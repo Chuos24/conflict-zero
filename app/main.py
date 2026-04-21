@@ -1,5 +1,5 @@
 # Conflict Zero API - Main Application
-# DEPLOY_TIMESTAMP: 2026-04-09-06-39-28 - Force deploy consulta
+# DEPLOY_TIMESTAMP: 2026-04-21-10-00-00 - Fix: Certificates router + Bronze/Silver buttons
 # Last updated: 2026-04-08 17:30 UTC - Fixed UserProfileUpdate import
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
@@ -9,6 +9,10 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import os
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 import time
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -17,10 +21,31 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router, certificates_router
+from app.routers import (auth_router, verification_router, dashboard_router, health_router, 
+                         consulta_router, debug_router, compare_router, payments_router, 
+                         admin_router, notifications_router, network_router, certificates_router,
+                         payments_admin_router, invitations_router)
 import uuid
 
 settings = get_settings()
+
+# Initialize Sentry for error monitoring
+SENTRY_DSN = os.environ.get("SENTRY_DSN", "")
+if SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        environment=os.environ.get("ENVIRONMENT", "production"),
+        release=os.environ.get("RENDER_GIT_COMMIT", "unknown"),
+        integrations=[
+            FastApiIntegration(),
+            SqlalchemyIntegration(),
+        ],
+        traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
+        profiles_sample_rate=0.1,
+    )
+    print("✅ Sentry initialized")
+else:
+    print("⚠️ SENTRY_DSN not set - error monitoring disabled")
 
 print("🚀 Starting Conflict Zero API - LegalBot V3.0 - Deploy Fix")
 
@@ -131,12 +156,25 @@ app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
+app.include_router(certificates_router, prefix="/api/v1")
+
+# NEW: Phase 1 Migration routers
+app.include_router(payments_admin_router, prefix="/api/v1")
+app.include_router(invitations_router, prefix="/api/v1")
 
 # Routers v3 (para compatibilidad con frontend)
 app.include_router(auth_router, prefix="/api/v3")
 app.include_router(verification_router, prefix="/api/v3")
+app.include_router(consulta_router, prefix="/api/v3")  # FIX: Agregado para consulta RUC
+app.include_router(dashboard_router, prefix="/api/v3")  # FIX: Dashboard disponible en v3
+app.include_router(compare_router, prefix="/api/v3")  # FIX: Compare disponible en v3
+app.include_router(payments_router, prefix="/api/v3")  # FIX: Payments disponible en v3
 app.include_router(admin_router, prefix="/api/v3")
 app.include_router(notifications_router, prefix="/api/v3")
+
+# NEW: Phase 1 Migration routers v3
+app.include_router(payments_admin_router, prefix="/api/v3")
+app.include_router(invitations_router, prefix="/api/v3")
 app.include_router(network_router, prefix="/api/v3")
 app.include_router(certificates_router, prefix="/api/v3")
 
@@ -248,6 +286,69 @@ async def register_web_direct(request: RegisterWebRequest):
     finally:
         db.close()
 
+
+# Endpoint notify-admin para notificaciones desde el frontend
+@app.post("/api/v3/notify-admin")
+async def notify_admin(request: dict):
+    """
+    Recibe notificación de nuevo registro y envía email al admin
+    """
+    import logging
+    from datetime import datetime
+    from app.services.email import get_email_service
+    
+    logger = logging.getLogger(__name__)
+    email_service = get_email_service()
+    
+    try:
+        ruc = request.get("ruc", "N/A")
+        empresa = request.get("empresa", "No especificada")
+        plan = request.get("plan", "N/A")
+        email = request.get("email", "N/A")
+        phone = request.get("phone", "N/A")
+        nombre = request.get("nombre", "N/A")
+        score = request.get("score", "N/A")
+        
+        admin_email = "tiagomunoz10@icloud.com"
+        subject = f"🔔 Nuevo Registro - {empresa}"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><meta charset="UTF-8"></head>
+        <body style="font-family: Inter, sans-serif; background: #0a0a0a; color: #f5f5f5; padding: 20px;">
+        <div style="max-width: 600px; margin: 0 auto; background: #141414; border: 1px solid #2a2a2a; border-radius: 16px; padding: 40px;">
+            <h2 style="color: #c9a961; font-family: Cormorant Garamond, serif;">🚀 Nuevo Registro Conflict Zero</h2>
+            <p><strong>Empresa:</strong> {empresa}</p>
+            <p><strong>Contacto:</strong> {nombre}</p>
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Teléfono:</strong> {phone}</p>
+            <p><strong>RUC:</strong> {ruc}</p>
+            <p><strong>Plan:</strong> {plan}</p>
+            <p><strong>Score:</strong> {score}</p>
+            <p style="color: #666; margin-top: 20px;">Fecha: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+        </body>
+        </html>
+        """
+        
+        sent = email_service.send_email(admin_email, subject, html_content)
+        
+        if sent:
+            logger.info(f"✅ Admin notificado sobre registro de {email}")
+        else:
+            logger.warning(f"⚠️ No se pudo notificar a admin (proveedor: {email_service.provider})")
+        
+        return {"success": True, "notified": sent}
+    except Exception as e:
+        logger.error(f"Error en notify-admin: {e}")
+        return {"success": False, "error": str(e)}
+
+# Test Sentry endpoint
+@app.get("/api/v1/sentry-test")
+async def sentry_test():
+    """Trigger a test error for Sentry verification"""
+    raise ValueError("This is a test error for Sentry - please ignore")
+
 # Manejo de excepciones
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
@@ -255,6 +356,10 @@ async def general_exception_handler(request, exc):
         status_code=500,
         content={"detail": "Error interno del servidor", "error": str(exc)}
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     import uvicorn

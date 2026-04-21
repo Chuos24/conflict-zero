@@ -375,14 +375,15 @@
             // Generar contraseña temporal
             const tempPassword = 'Temp' + Math.random().toString(36).substring(2, 10) + '!';
             
-            // Datos para API
+            // Datos para API - Formato FrontendRegisterRequest
             const data = {
+                firstName: firstName,
+                lastName: lastName,
                 email: email,
-                password: tempPassword,
-                name: firstName + ' ' + lastName,
-                company_name: company,
-                ruc: rucParam || '00000000000',
-                phone: phone
+                company: company,
+                plan: plan,
+                phone: phone,
+                date: new Date().toISOString()
             };
             
             btn.disabled = true;
