@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-21
+**Fecha:** 2026-04-22
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 7 |
+| Commits últimas 24h | 4 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
+cf05ac6 FIX P0: Add invitations and payments_admin routers to DEPLOYED app
+be94fd6 FIX P0: Add certificates router + update landing submodule
+3ca34e1 MIGRATION Phase 1: Port critical features from api_v3.py to Backend A
+800ab58 daily-standup: 2026-04-21 — 3 tareas prioritarias generadas
 e1c6eb8 feat: Add Sentry test endpoint /api/v1/sentry-test
-739ef8e config: Agregar SENTRY_DSN para monitoreo de errores
-a306c6e FIX: Agregar dashboard, compare, payments a /api/v3 - frontend usa v3
-8a0e731 feat: Install Sentry monitoring - backend + frontend
-7ba2617 DEPRECATE: api_v3.py ya no se usa - backend modular app/main.py es el oficial
 ```
 
 ---
