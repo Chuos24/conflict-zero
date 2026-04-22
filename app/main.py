@@ -221,7 +221,7 @@ async def register_web_direct(request: RegisterWebRequest):
         user = User(
             id=str(uuid.uuid4()),
             email=request.email,
-            hashed_password=f"temp:{temp_password}",  # Formato temporal para evitar problemas bcrypt
+            hashed_password=get_password_hash(temp_password),
             full_name=request.full_name,
             company_name=request.company_name or "",
             ruc=request.ruc or "00000000000",
