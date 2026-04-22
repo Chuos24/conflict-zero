@@ -68,31 +68,35 @@ def create_founder_user():
         return
     db = SessionLocal()
     try:
+        # Hash pre-calculado de "CZ2025!" - bcrypt válido
+        PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+        
         existing = db.query(User).filter(User.email == "founder@conflictzero.com").first()
-        if not existing:
-            # Hash pre-calculado de "CZ2025!" - evita problemas con bcrypt en Render
-            PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
-            founder = User(
-                id=str(uuid.uuid4()),
-                email="founder@conflictzero.com",
-                hashed_password=PRECOMPUTED_HASH,  # FIXED: Precomputed hash
-                full_name="Conflict Zero Founder",
-                company_name="Conflict Zero Inc.",
-                ruc="20100000001",
-                is_active=True,
-                is_admin=True,
-                plan_type="enterprise",
-                monthly_requests=0,
-                monthly_limit=999999,
-                api_key="cz_founder_" + str(uuid.uuid4()).replace("-", "")
-            )
-            db.add(founder)
+        if existing:
+            existing.hashed_password = PRECOMPUTED_HASH
             db.commit()
-            print("✅ Usuario founder creado exitosamente con contraseña CZ2025!")
+            print("✅ Founder hash actualizado")
+            db.close()
+            return
+        
+        founder = User(
+            id=str(uuid.uuid4()),
+            email="founder@conflictzero.com",
+            hashed_password=PRECOMPUTED_HASH,
+            full_name="Conflict Zero Founder",
+            company_name="Conflict Zero Inc.",
+            ruc="20100000001",
+            is_active=True,
+            is_admin=True
+        )
+        db.add(founder)
+        db.commit()
+        print("✅ Usuario founder creado exitosamente con contraseña CZ2025!")
     except Exception as e:
         print(f"⚠️ Error creando founder: {e}")
     finally:
         db.close()
+
 
 create_founder_user()
 
