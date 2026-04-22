@@ -44,3 +44,16 @@ build/
 # Secrets
 .env
 !.env.example
+
+# Credentials & tokens (never commit)
+.github_token.csv
+.env.github
+.env.infrastructure
+
+# Operational logs
+HEALTH_LOG.md
+ai-inbox/historial/
+
+# Temporary scripts
+tmp-deploy.sh
+deploy-fix-login.sh
