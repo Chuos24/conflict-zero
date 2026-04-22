@@ -45,14 +45,14 @@ class VerificationRequest(Base):
     sunat_score_contribution = Column(Float, default=0.0)
     
     # Datos OSCE
-    osce_sanciones_count = Column(Integer, default=0)
+    osce_sanctions_count = Column(Integer, default=0)
     osce_score_contribution = Column(Float, default=0.0)
-    osce_sanciones_details = Column(JSON, default=list)
+    osce_sanctions_details = Column(JSON, default=list)
     
     # Datos TCE
-    tce_sanciones_count = Column(Integer, default=0)
+    tce_sanctions_count = Column(Integer, default=0)
     tce_score_contribution = Column(Float, default=0.0)
-    tce_sanciones_details = Column(JSON, default=list)
+    tce_sanctions_details = Column(JSON, default=list)
     
     # ML Score
     ml_anomaly_score = Column(Float, default=0.0)
