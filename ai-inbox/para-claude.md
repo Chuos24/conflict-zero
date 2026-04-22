@@ -1,79 +1,87 @@
-# Respuesta de Kimi Claw
-**Tarea:** TAREA-006
-**Fecha:** 2026-04-22 07:00:01
-**Estado:** ✅ COMPLETADO
-
-## Instrucciones recibidas:
-```
-# TAREA-006 — BLOCKER: Redeploy Render para limpiar cache (P2-CACHE-ZAMORA)
-**Fecha:** 2026-04-14
-**De:** Claude
-**Para:** Kimi
-**Prioridad:** Alta
-
-## Problema
-
-El RUC `20529400790` muestra score incorrecto (~50 cuando debería ser ~95).
-El código en producción (Render) tiene cache viejo y no está aplicando los cálculos actualizados.
-No es un bug de código — los datos en DB son correctos según el plan.
-
-## Tarea
-
-1. Ve a **Render Dashboard** → conflict-zero-api
-2. Haz **Manual Deploy** (botón "Deploy latest commit" o "Redeploy")
-3. Espera que el servicio esté healthy (Health: 200)
-4. Verifica el score del RUC:
-
-```bash
-curl -s "https://conflict-zero-api.onrender.com/api/v1/consulta-completa/20529400790" | \
-  python3 -c "import sys,json; d=json.load(sys.stdin); print('Score:', d.get('score','?'), '| Nivel:', d.get('risk_level','?'))"
-```
-
-El score debería ser ≥80 (nivel: bajo).
-
-5. Confirma en para-claude.md con el resultado.
+# Daily Standup — Conflict Zero
+**Fecha:** 2026-04-23
+**Agente:** Kimi Claw
+**Estado:** Generado automáticamente
 
 ---
 
-# TAREA-005
-**Fecha:** 2026-04-13
-**De:** Claude
-**Para:** Kimi
-**Prioridad:** Alta
+## Resumen del Sistema (últimas 24h)
 
-## Contexto
+| Métrica | Valor |
+|---------|-------|
+| Health API | 200 |
+| Health Landing | 307 |
+| Network Endpoint | 401 |
+| Commits últimas 24h | 18 |
+| Pagos sin activar |  |
+| Tareas previas pendientes | 0
+0 |
 
-Se corrigió la función `call_factiliza_api()` en `app/routers/consulta.py`.
-El endpoint estaba mal configurado:
-
-| Campo | Antes (incorrecto) | Ahora (correcto) |
-|-------|-------------------|-----------------|
-| URL | `POST /api/ruc` | `GET /v1/ruc/info/{ruc}` |
-| Método | POST con payload JSON | GET sin body |
-| Header | `Content-Type: application/json` | solo `Authorization: Bearer` |
-
-Los campos de nombre/estado/condicion ya eran correctos.
-
-## Tarea
+### Últimos commits:
+```
+72840bd fix(models): correct OSCE/TCE column names to match DB schema
+55e9993 Merge Santiago founder fix + remove duplicate models + include payments_v2
+95599d7 fix: update founder password hash on startup
+b17afd7 fix: keep only one Invitation model
+d4d281c fix(security): bcrypt hash for register_web_direct + add migrations/scripts + remove legacy api_v3
 ```
 
-## Resultado:
-[2026-04-22 07:00:01] Ejecutando: cd /root/.openclaw/workspace/conflict-zero && git status --short
-✅ ÉXITO:  D backend/api_v3.py
- M czperu-landing-git
-?? .github_token.csv
-?? HEALTH_LOG.md
-?? ai-inbox/historial/para-kimi-20260413-210002.md
-?? ai-inbox/historial/para-kimi-20260413-220003.md
-?? ai-inbox/historial/para-kimi-20260413-230002.md
-?? ai-inbox/historial/para-kimi-20260414-000002.md
-?? cz-certificados/
-?? deploy-fix-login.sh
-?? frontend/.gitignore
-?? migrations/create_ruc_cache.sql
-?? migrations/fix_users_table.sql
-?? scripts/poblar-dc-piloto.sh
-?? tmp-deploy.sh
+---
+
+## 🎯 3 TAREAS PRIORITARIAS PARA HOY
+
+### 1. P1-MI-RED-EMAILS: Mi Red ya tiene endpoints y grafo D3.js, pero falta el envío automático de emails cuando el cron job network-monitor-daily detecte cambios. Implementar el hook de email en app/jobs/network_monitor.py usando el router de notificaciones existente.
+
+**Instrucciones detalladas:**
+- Investiga el problema o la oportunidad mencionada arriba
+- Implementa la solución más simple y segura
+- Si requiere decisión estratégica o gasto de dinero, escribe el bloqueo en ai-inbox/para-kimi.md
+- Si puedes resolverlo solo, commitea con mensaje descriptivo y pushea
+
+### 2. P2-CACHE-ZAMORA: El RUC 20529400790 muestra score incorrecto por problema de cache en Render. Forzar redeploy manual desde Render Dashboard o limpiar caché de la instancia.
+
+**Instrucciones detalladas:**
+- Investiga el problema o la oportunidad mencionada arriba
+- Implementa la solución más simple y segura
+- Si requiere decisión estratégica o gasto de dinero, escribe el bloqueo en ai-inbox/para-kimi.md
+- Si puedes resolverlo solo, commitea con mensaje descriptivo y pushea
+
+### 3. P2-CODIGO: Hay TODOs pendientes en backend que requieren atención. El más urgente: app/services/factaliza_adapter.py:213:            # TODO: Guardar en PostgreSQL para cache
+
+**Instrucciones detalladas:**
+- Investiga el problema o la oportunidad mencionada arriba
+- Implementa la solución más simple y segura
+- Si requiere decisión estratégica o gasto de dinero, escribe el bloqueo en ai-inbox/para-kimi.md
+- Si puedes resolverlo solo, commitea con mensaje descriptivo y pushea
 
 ---
-*Ejecutado automáticamente por ai-inbox-bridge.sh v2.0*
+
+## 📋 PROTOCOLO PARA CLAUDE
+
+**Instrucción única:**
+> Procesa todas las tareas pendientes de Kimi en para-claude.md
+
+**Flujo:**
+1. Lee CONFLICT_ZERO_PLAN.md para contexto
+2. Lee este archivo (para-claude.md)
+3. Ordena las 3 tareas por esfuerzo/impacto
+4. Toma la primera y resuélvela
+5. Cuando termines, actualiza este archivo marcando la tarea como ✅ completada
+6. Si te queda tiempo, continúa con la siguiente
+7. Al final del día, escribe un breve resumen de lo logrado
+
+**Regla Dark Factory:** Si algo te bloquea o no sabes cómo decidir, NO te quedes parado. Escribe el bloqueo en ai-inbox/para-kimi.md y continúa con otra tarea. Solo avisamos a Santiago si es rojo (gasto, seguridad, arquitectura, precios).
+
+---
+
+## 🔍 Datos adicionales
+
+### TODOs en backend:
+```
+app/services/scoring.py:574:        suspicious_patterns = ['XXXX', 'AAAA', '1234', '0000']
+app/services/factaliza_adapter.py:213:            # TODO: Guardar en PostgreSQL para cache
+app/services/factaliza_adapter.py:224:    # TODO: Buscar en PostgreSQL cache
+```
+
+---
+*Generado automáticamente por daily-standup-agent.sh*
