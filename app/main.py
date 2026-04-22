@@ -1,5 +1,5 @@
 # Conflict Zero API - Main Application
-# DEPLOY_TIMESTAMP: 2026-04-21-10-00-00 - Fix: Certificates router + Bronze/Silver buttons
+# DEPLOY_TIMESTAMP: 2026-04-22-18-00-00 - Deploy test
 # Last updated: 2026-04-08 17:30 UTC - Fixed UserProfileUpdate import
 # FIX: CAP scoring - sanciones vigentes check
 # FIX: Founder password corrected to CZ2025!
