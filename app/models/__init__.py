@@ -45,14 +45,14 @@ class VerificationRequest(Base):
     sunat_score_contribution = Column(Float, default=0.0)
     
     # Datos OSCE
-    osce_sanctions_count = Column(Integer, default=0)
+    osce_sanciones_count = Column(Integer, default=0)
     osce_score_contribution = Column(Float, default=0.0)
-    osce_sanctions_details = Column(JSON, default=list)
+    osce_sanciones_details = Column(JSON, default=list)
     
     # Datos TCE
-    tce_sanctions_count = Column(Integer, default=0)
+    tce_sanciones_count = Column(Integer, default=0)
     tce_score_contribution = Column(Float, default=0.0)
-    tce_sanctions_details = Column(JSON, default=list)
+    tce_sanciones_details = Column(JSON, default=list)
     
     # ML Score
     ml_anomaly_score = Column(Float, default=0.0)
@@ -92,80 +92,61 @@ class SystemLog(Base):
 
 # ============================================================================
 # ML-READY: Company Snapshots (Time-Series para entrenamiento futuro)
-# Guardamos el estado de cada empresa en cada consulta para ML posterior
 # ============================================================================
 
 class CompanySnapshot(Base):
-    """
-    Time-series de estados de empresas para ML predictivo.
-    Cada fila es una "foto" del estado de una empresa en un momento dado.
-    """
     __tablename__ = "company_snapshots"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     ruc = Column(String(11), nullable=False, index=True)
     snapshot_date = Column(DateTime, default=datetime.utcnow, index=True)
     
-    # --- Datos SUNAT (Time-Series) ---
-    sunat_status = Column(String(20), nullable=True)  # ACTIVO, SUSPENDIDO, etc.
+    sunat_status = Column(String(20), nullable=True)
     sunat_debt = Column(Float, default=0.0)
     sunat_num_trabajadores = Column(Integer, nullable=True)
     sunat_ultimo_pago = Column(DateTime, nullable=True)
     
-    # --- Datos OSCE (Time-Series) ---
     osce_inhabilitado = Column(Boolean, default=False)
     osce_sanciones_count = Column(Integer, default=0)
     osce_sanciones_vigentes = Column(Integer, default=0)
     osce_sanciones_historicas = Column(Integer, default=0)
     osce_ultima_sancion_fecha = Column(DateTime, nullable=True)
     
-    # --- Datos TCE (Time-Series) ---
     tce_sanciones_count = Column(Integer, default=0)
     tce_ultima_sancion_fecha = Column(DateTime, nullable=True)
     
-    # --- Features calculadas (para ML futuro) ---
     dias_ultimo_pago = Column(Integer, nullable=True)
     dias_ultima_sancion_osce = Column(Integer, nullable=True)
     score_calculado = Column(Integer, nullable=True)
     
-    # --- Metadata ---
-    source_api = Column(String(50), nullable=True)  # 'sunat', 'osce', 'decolecta', 'manual'
+    source_api = Column(String(50), nullable=True)
     query_id = Column(String(36), ForeignKey("verification_requests.id"), nullable=True)
-    raw_data_hash = Column(String(64), nullable=True)  # Para detectar cambios
+    raw_data_hash = Column(String(64), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Índice compuesto para consultas ML: RUC + fecha
     __table_args__ = (
-        # Index para consultas time-series por empresa
         {'mysql_charset': 'utf8mb4'},
     )
 
 
 class MlTrainingLog(Base):
-    """
-    Log de entrenamientos de modelos ML.
-    Placeholder para cuando activemos ML en Mes 3-6.
-    """
     __tablename__ = "ml_training_logs"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     model_version = Column(String(20), nullable=False)
     training_date = Column(DateTime, default=datetime.utcnow)
-    dataset_size = Column(Integer, nullable=False)  # Número de snapshots usados
-    accuracy = Column(Float, nullable=True)  # Precisión del modelo
+    dataset_size = Column(Integer, nullable=False)
+    accuracy = Column(Float, nullable=True)
     precision = Column(Float, nullable=True)
     recall = Column(Float, nullable=True)
     f1_score = Column(Float, nullable=True)
-    feature_importance = Column(JSON, default=dict)  # Qué features pesan más
-    model_path = Column(String(500), nullable=True)  # S3/local path al .pkl
-    is_active = Column(Boolean, default=False)  # Este modelo está en producción?
+    feature_importance = Column(JSON, default=dict)
+    model_path = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=False)
     notes = Column(Text, nullable=True)
 
 
 class NetworkWatchlist(Base):
-    """
-    Lista de proveedores monitoreados por cada usuario (Mi Red).
-    """
     __tablename__ = "network_watchlist"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -178,9 +159,6 @@ class NetworkWatchlist(Base):
 
 
 class NetworkAlert(Base):
-    """
-    Alertas de cambio de estado para proveedores en watchlist.
-    """
     __tablename__ = "network_alerts"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -194,10 +172,6 @@ class NetworkAlert(Base):
 
 
 class SupplierAlert(Base):
-    """
-    Alertas automáticas cuando un proveedor cambia de estado.
-    Valor inmediato sin ser ML (detección de cambio simple).
-    """
     __tablename__ = "supplier_alerts"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -205,13 +179,11 @@ class SupplierAlert(Base):
     supplier_ruc = Column(String(11), nullable=False, index=True)
     supplier_name = Column(String(255), nullable=True)
     
-    # Cambio detectado
-    change_type = Column(String(50), nullable=False)  # 'osce_inhabilitado', 'sunat_deuda', etc.
+    change_type = Column(String(50), nullable=False)
     previous_status = Column(String(255), nullable=True)
     new_status = Column(String(255), nullable=True)
-    severity = Column(String(20), default="medium")  # low, medium, high, critical
+    severity = Column(String(20), default="medium")
     
-    # Estado de la alerta
     is_read = Column(Boolean, default=False)
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
@@ -224,9 +196,6 @@ class SupplierAlert(Base):
 # ============================================================================
 
 class Invitation(Base):
-    """
-    Invitaciones enviadas a subcontratistas para unirse a la plataforma.
-    """
     __tablename__ = "invitations"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -236,7 +205,7 @@ class Invitation(Base):
     company = Column(String(255), nullable=True)
     invited_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     token = Column(String(64), unique=True, nullable=False, index=True)
-    status = Column(String(20), default="pending")  # pending, accepted, expired, revoked
+    status = Column(String(20), default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)
     accepted_at = Column(DateTime, nullable=True)
@@ -249,10 +218,6 @@ class Invitation(Base):
 # ============================================================================
 
 class Certificate(Base):
-    """
-    Certificados de verificación generados para empresas.
-    Cada certificado tiene un código único para validación pública.
-    """
     __tablename__ = "certificates"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -262,19 +227,16 @@ class Certificate(Base):
     score = Column(Integer, nullable=False)
     risk_level = Column(String(20), nullable=False)
     
-    # Datos del certificado
     sunat_status = Column(String(50), nullable=True)
-    osce_sanctions_count = Column(Integer, default=0)
-    tce_sanctions_count = Column(Integer, default=0)
+    osce_sanciones_count = Column(Integer, default=0)
+    tce_sanciones_count = Column(Integer, default=0)
     
-    # Metadata
     generated_by = Column(String(36), ForeignKey("users.id"), nullable=False)
     generated_at = Column(DateTime, default=datetime.utcnow)
     expires_at = Column(DateTime, nullable=True)
     pdf_url = Column(String(500), nullable=True)
-    status = Column(String(20), default="active")  # active, expired, revoked
+    status = Column(String(20), default="active")
     
-    # Datos de validación pública
     verification_data = Column(JSON, default=dict)
 
 
@@ -283,65 +245,19 @@ class Certificate(Base):
 # ============================================================================
 
 class PaymentManual(Base):
-    """
-    Registro de pagos manuales recibidos por transferencia, depósito, Yape, etc.
-    Administrado por el equipo de Conflict Zero (no es un gateway automático).
-    """
     __tablename__ = "payments_manual"
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
     
-    # Datos del pago
     amount = Column(Float, nullable=False)
-    currency = Column(String(3), default="PEN")  # PEN, USD
-    method = Column(String(20), nullable=False)  # transferencia, deposito, yape, plin, efectivo
-    reference = Column(String(100), nullable=False)  # Número de operación, código de referencia
-    payment_date = Column(String(10), nullable=True)  # YYYY-MM-DD
+    currency = Column(String(3), default="PEN")
+    method = Column(String(20), nullable=False)
+    reference = Column(String(100), nullable=False)
+    payment_date = Column(String(10), nullable=True)
     notes = Column(Text, nullable=True)
     
-    # Metadata
-    created_by = Column(String(50), default="admin")  # Quién registró el pago
+    created_by = Column(String(50), default="admin")
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    # Relación (opcional)
     # user = relationship("User", back_populates="payments")
-
-
-# ============================================================================
-# INVITATIONS: Sistema de invitaciones para Mi Red (Professional/Enterprise)
-# ============================================================================
-
-class Invitation(Base):
-    """Invitaciones para que subcontratistas se unan a la red de un cliente."""
-    __tablename__ = "invitations"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    invitador_ruc = Column(String(11), nullable=False, index=True)
-    email = Column(String(200), nullable=False)
-    token = Column(String(100), unique=True, nullable=False, index=True)
-    ruc_invitado = Column(String(11), nullable=True)
-    expira = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(hours=24))
-    usada = Column(Boolean, default=False)
-    usada_por = Column(String(36), ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-
-# ============================================================================
-# CERTIFICATES: Certificados digitales emitidos a empresas verificadas
-# ============================================================================
-
-class Certificate(Base):
-    """Certificados digitales con sello GOLD/SILVER/BRONZE/RECHAZADO."""
-    __tablename__ = "certificates_v3"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    ruc = Column(String(11), nullable=False, index=True)
-    company_name = Column(String(255), nullable=False)
-    score = Column(Float, nullable=False)
-    tier = Column(String(20), nullable=False)  # GOLD, SILVER, BRONZE, RECHAZADO
-    plan_type = Column(String(20), nullable=False)  # starter, professional, enterprise
-    cert_slug = Column(String(8), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    expires_at = Column(DateTime, default=lambda: datetime.utcnow() + timedelta(days=365))
-
