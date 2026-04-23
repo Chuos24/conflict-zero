@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-23
+**Fecha:** 2026-04-24
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 18 |
+| Commits últimas 24h | 2 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
+af0d123 Add daily sanctions audit workflow
+b7e39bd daily-standup: 2026-04-23 — 3 tareas prioritarias generadas
 72840bd fix(models): correct OSCE/TCE column names to match DB schema
 55e9993 Merge Santiago founder fix + remove duplicate models + include payments_v2
 95599d7 fix: update founder password hash on startup
-b17afd7 fix: keep only one Invitation model
-d4d281c fix(security): bcrypt hash for register_web_direct + add migrations/scripts + remove legacy api_v3
 ```
 
 ---
