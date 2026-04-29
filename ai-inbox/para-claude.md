@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-29
+**Fecha:** 2026-04-30
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -19,11 +19,11 @@
 
 ### Últimos commits:
 ```
+44ffdc5 daily-standup: 2026-04-29 — 3 tareas prioritarias generadas
 b6f3a7b daily-standup: 2026-04-28 — 3 tareas prioritarias generadas
 d0a49c8 daily-standup: 2026-04-27 — 3 tareas prioritarias generadas
 75a83a2 daily-standup: 2026-04-26 — 3 tareas prioritarias generadas
 5a4fd02 daily-standup: 2026-04-25 — 3 tareas prioritarias generadas
-118d363 daily-standup: 2026-04-24 — 3 tareas prioritarias generadas
 ```
 
 ---
