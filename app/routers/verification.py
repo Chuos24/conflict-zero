@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict
+from datetime import datetime, timedelta
+import hashlib
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user, verify_token
@@ -14,6 +16,71 @@ from app.schemas import (
 
 router = APIRouter(prefix="/verify", tags=["Verificación"])
 security = HTTPBearer()
+
+# ─── Rate Limiting por IP para /verify/public ──────────────────────────────
+# Almacenamiento en memoria (para producción usar Redis)
+_public_rate_limits: Dict[str, Dict] = {}
+
+PUBLIC_RATE_LIMIT = 3  # consultas por hora
+PUBLIC_RATE_WINDOW = 3600  # segundos (1 hora)
+
+
+def _get_client_ip(request: Request) -> str:
+    """Obtiene la IP real del cliente considerando proxies."""
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _check_public_rate_limit(ip: str) -> tuple[bool, Dict]:
+    """
+    Verifica si la IP está dentro del rate limit.
+    Retorna (allowed, rate_limit_info).
+    """
+    now = datetime.utcnow()
+    key = hashlib.sha256(ip.encode()).hexdigest()[:16]
+    
+    if key not in _public_rate_limits:
+        _public_rate_limits[key] = {
+            "count": 1,
+            "reset_at": now + timedelta(seconds=PUBLIC_RATE_WINDOW),
+            "first_request": now
+        }
+        return True, {
+            "limit": PUBLIC_RATE_LIMIT,
+            "remaining": PUBLIC_RATE_LIMIT - 1,
+            "reset_at": _public_rate_limits[key]["reset_at"].isoformat()
+        }
+    
+    entry = _public_rate_limits[key]
+    
+    # Resetear si pasó la ventana
+    if now > entry["reset_at"]:
+        entry["count"] = 1
+        entry["reset_at"] = now + timedelta(seconds=PUBLIC_RATE_WINDOW)
+        entry["first_request"] = now
+        return True, {
+            "limit": PUBLIC_RATE_LIMIT,
+            "remaining": PUBLIC_RATE_LIMIT - 1,
+            "reset_at": entry["reset_at"].isoformat()
+        }
+    
+    # Verificar límite
+    if entry["count"] >= PUBLIC_RATE_LIMIT:
+        return False, {
+            "limit": PUBLIC_RATE_LIMIT,
+            "remaining": 0,
+            "reset_at": entry["reset_at"].isoformat(),
+            "retry_after": int((entry["reset_at"] - now).total_seconds())
+        }
+    
+    entry["count"] += 1
+    return True, {
+        "limit": PUBLIC_RATE_LIMIT,
+        "remaining": PUBLIC_RATE_LIMIT - entry["count"],
+        "reset_at": entry["reset_at"].isoformat()
+    }
 
 @router.post(
     "/",
@@ -169,18 +236,30 @@ async def get_verification_history(
     "/public",
     response_model=VerificationResponse,
     summary="Verificación Pública (Demo)",
-    description="Endpoint público para demostración. Limitado a 3 consultas por hora por IP."
+    description=f"Endpoint público para demostración. Limitado a {PUBLIC_RATE_LIMIT} consultas por hora por IP."
 )
 async def verify_ruc_public(
     request_data: VerificationRequest,
     request: Request
 ):
     """
-    Endpoint público para demostraciones. No requiere autenticación
-    pero tiene rate limiting estricto.
+    Endpoint público para demostraciones. No requiere autenticación.
+    Rate limiting estricto por IP: {PUBLIC_RATE_LIMIT} consultas/hora.
     """
-    # Aquí implementarías rate limiting por IP
-    # Por ahora, solo retornamos la verificación sin guardar
+    client_ip = _get_client_ip(request)
+    allowed, rate_info = _check_public_rate_limit(client_ip)
+    
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "error": "RATE_LIMIT_EXCEEDED",
+                "message": f"Límite de {PUBLIC_RATE_LIMIT} consultas por hora alcanzado.",
+                "retry_after_seconds": rate_info.get("retry_after"),
+                "reset_at": rate_info["reset_at"]
+            },
+            headers={"Retry-After": str(rate_info.get("retry_after", PUBLIC_RATE_WINDOW))}
+        )
     
     try:
         result = verification_service.verify_ruc(
@@ -189,7 +268,7 @@ async def verify_ruc_public(
             db=None
         )
         
-        return VerificationResponse(
+        response = VerificationResponse(
             id=None,
             ruc=result["ruc"],
             company_name=result.get("company_name"),
@@ -204,6 +283,15 @@ async def verify_ruc_public(
             pdf_url=None,
             cached=result.get("cached", False)
         )
+        
+        # Agregar headers de rate limit
+        response.headers = {
+            "X-RateLimit-Limit": str(rate_info["limit"]),
+            "X-RateLimit-Remaining": str(rate_info["remaining"]),
+            "X-RateLimit-Reset": rate_info["reset_at"]
+        }
+        
+        return response
     
     except ValueError as e:
         raise HTTPException(

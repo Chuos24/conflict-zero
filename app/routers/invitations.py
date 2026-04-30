@@ -85,11 +85,12 @@ async def create_invitation(
     
     # Crear invitación (expira en 24h)
     invitation = Invitation(
-        invitador_ruc=user.ruc or "00000000000",
+        invited_by=user.id,
         email=request.email,
         token=token,
-        ruc_invitado=request.ruc_invitado,
-        expira=datetime.utcnow() + timedelta(hours=24)
+        ruc=request.ruc_invitado,
+        company=user.company_name or "",
+        expires_at=datetime.utcnow() + timedelta(hours=24)
     )
     db.add(invitation)
     db.commit()
@@ -103,7 +104,7 @@ async def create_invitation(
             "id": invitation.id,
             "email": request.email,
             "token": invitation.token,
-            "expira": invitation.expira.isoformat() if invitation.expira else None,
+            "expires_at": invitation.expires_at.isoformat() if invitation.expires_at else None,
             "created_at": invitation.created_at.isoformat() if invitation.created_at else None,
             "register_link": register_link
         },
@@ -122,25 +123,25 @@ async def validate_invitation(
     """
     invitation = db.query(Invitation).filter(
         Invitation.token == token,
-        Invitation.usada == False,
-        Invitation.expira > datetime.utcnow()
+        Invitation.status == "pending",
+        Invitation.expires_at > datetime.utcnow()
     ).first()
     
     if not invitation:
         raise HTTPException(status_code=400, detail="Token inválido o expirado")
     
     # Buscar info del invitador
-    invitador = db.query(User).filter(User.ruc == invitation.invitador_ruc).first()
+    invitador = db.query(User).filter(User.id == invitation.invited_by).first()
     
     return {
         "success": True,
         "valid": True,
         "invitador": {
-            "ruc": invitation.invitador_ruc,
-            "company_name": invitador.company_name if invitador else invitation.invitador_ruc
+            "ruc": invitador.ruc if invitador else None,
+            "company_name": invitador.company_name if invitador else "Empresa desconocida"
         },
         "email": invitation.email,
-        "expira": invitation.expira.isoformat() if invitation.expira else None
+        "expires_at": invitation.expires_at.isoformat() if invitation.expires_at else None
     }
 
 
@@ -155,8 +156,8 @@ async def register_with_invitation(
     # Validar token
     invitation = db.query(Invitation).filter(
         Invitation.token == request.token,
-        Invitation.usada == False,
-        Invitation.expira > datetime.utcnow()
+        Invitation.status == "pending",
+        Invitation.expires_at > datetime.utcnow()
     ).first()
     
     if not invitation:
@@ -181,16 +182,16 @@ async def register_with_invitation(
         company_name=request.company_name or f"Empresa {request.ruc}",
         ruc=request.ruc,
         is_active=True,
-        plan_type="essential",
-        status="active"
+        plan_type="essential"
     )
     db.add(user)
     db.commit()
     db.refresh(user)
     
     # Marcar invitación como usada
-    invitation.usada = True
-    invitation.usada_por = user.id
+    invitation.status = "accepted"
+    invitation.accepted_at = datetime.utcnow()
+    invitation.accepted_by = user.id
     db.commit()
     
     # Crear JWT
@@ -206,10 +207,10 @@ async def register_with_invitation(
             "email": user.email,
             "ruc": user.ruc,
             "company_name": user.company_name,
-            "invitado_por": invitation.invitador_ruc
+            "invitado_por": invitation.invited_by
         },
         "invitador": {
-            "ruc": invitation.invitador_ruc
+            "id": invitation.invited_by
         }
     }
 
@@ -227,18 +228,18 @@ async def get_invitados(
         raise HTTPException(status_code=401, detail="Token requerido")
     
     user = db.query(User).filter(User.id == user_payload.get("sub")).first()
-    if not user or not user.ruc:
-        raise HTTPException(status_code=404, detail="Usuario no encontrado o sin RUC")
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
     
     invitados = db.query(Invitation).filter(
-        Invitation.invitador_ruc == user.ruc
+        Invitation.invited_by == user.id
     ).order_by(Invitation.created_at.desc()).all()
     
     result = []
     for inv in invitados:
         registrado = None
-        if inv.usada_por:
-            registrado_user = db.query(User).filter(User.id == inv.usada_por).first()
+        if inv.accepted_by:
+            registrado_user = db.query(User).filter(User.id == inv.accepted_by).first()
             if registrado_user:
                 registrado = {
                     "ruc": registrado_user.ruc,
@@ -249,10 +250,11 @@ async def get_invitados(
         result.append({
             "id": inv.id,
             "email": inv.email,
-            "ruc_invitado": inv.ruc_invitado,
-            "usada": inv.usada,
+            "ruc_invitado": inv.ruc,
+            "status": inv.status,
             "created_at": inv.created_at.isoformat() if inv.created_at else None,
-            "expira": inv.expira.isoformat() if inv.expira else None,
+            "expires_at": inv.expires_at.isoformat() if inv.expires_at else None,
+            "accepted_at": inv.accepted_at.isoformat() if inv.accepted_at else None,
             "registrado": registrado
         })
     
@@ -260,5 +262,5 @@ async def get_invitados(
         "success": True,
         "invitados": result,
         "count": len(result),
-        "count_registrados": sum(1 for i in invitados if i.usada)
+        "count_aceptados": sum(1 for i in invitados if i.status == "accepted")
     }

@@ -22,7 +22,7 @@ from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
 from app.routers import (auth_router, verification_router, dashboard_router, health_router, 
-                         consulta_router, debug_router, compare_router, payments_router, 
+                         consulta_router, debug_router, compare_router, payments_router, payments_v2_router,
                          admin_router, notifications_router, network_router, certificates_router,
                          invitations_router)
 import uuid
@@ -160,6 +160,7 @@ app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
+app.include_router(payments_v2_router, prefix="/api/v1")
 app.include_router(certificates_router, prefix="/api/v1")
 
 # NEW: Phase 1 Migration routers
@@ -172,6 +173,7 @@ app.include_router(consulta_router, prefix="/api/v3")  # FIX: Agregado para cons
 app.include_router(dashboard_router, prefix="/api/v3")  # FIX: Dashboard disponible en v3
 app.include_router(compare_router, prefix="/api/v3")  # FIX: Compare disponible en v3
 app.include_router(payments_router, prefix="/api/v3")  # FIX: Payments disponible en v3
+app.include_router(payments_v2_router, prefix="/api/v3")  # FIX: Payments v2 disponible en v3
 app.include_router(admin_router, prefix="/api/v3")
 app.include_router(notifications_router, prefix="/api/v3")
 

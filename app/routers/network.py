@@ -135,32 +135,57 @@ async def list_watchlist(
 
 @router.get("/alerts", response_model=List[AlertEntry])
 async def list_alerts(
+    unread_only: bool = True,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
     """
-    Lista las alertas no leídas del usuario (cambios de estado desde
-    la última verificación).
+    Lista las alertas del usuario.
+    Por default solo muestra no leídas (unread_only=true).
+    Si unread_only=false, muestra todas.
     """
     _require_pro(current_user)
 
-    alerts = (
+    query = db.query(NetworkAlert).filter(NetworkAlert.user_id == current_user.id)
+    if unread_only:
+        query = query.filter(NetworkAlert.read_at == None)  # noqa: E711
+
+    alerts = query.order_by(NetworkAlert.created_at.desc()).all()
+    return alerts
+
+
+@router.patch("/alerts/{alert_id}/read", status_code=status.HTTP_200_OK)
+async def mark_alert_read(
+    alert_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Marca una alerta específica como leída.
+    """
+    _require_pro(current_user)
+
+    alert = (
         db.query(NetworkAlert)
         .filter(
+            NetworkAlert.id == alert_id,
             NetworkAlert.user_id == current_user.id,
-            NetworkAlert.read_at == None,  # noqa: E711
         )
-        .order_by(NetworkAlert.created_at.desc())
-        .all()
+        .first()
     )
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
 
-    # Marcar como leídas
-    now = datetime.utcnow()
-    for alert in alerts:
-        alert.read_at = now
+    alert.read_at = datetime.utcnow()
     db.commit()
+    db.refresh(alert)
 
-    return alerts
+    return {
+        "success": True,
+        "message": "Alerta marcada como leída.",
+        "alert_id": alert.id,
+        "read_at": alert.read_at.isoformat(),
+    }
 
 
 @router.delete("/remove/{ruc}", status_code=status.HTTP_200_OK)
