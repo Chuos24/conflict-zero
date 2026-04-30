@@ -40,8 +40,18 @@ def _require_admin(user: User):
 # ─── Schemas ────────────────────────────────────────────────────────────────
 
 class AddToWatchlistRequest(BaseModel):
-    ruc: str
-    alias: str
+    ruc: Optional[str] = None
+    supplier_ruc: Optional[str] = None
+    alias: Optional[str] = None
+    supplier_name: Optional[str] = None
+    notes: Optional[str] = None
+    tags: Optional[list] = None
+
+    def get_ruc(self) -> str:
+        return self.ruc or self.supplier_ruc or ""
+
+    def get_alias(self) -> str:
+        return self.alias or self.supplier_name or "Sin alias"
 
 
 class WatchlistEntry(BaseModel):
@@ -83,14 +93,15 @@ async def add_to_watchlist(
     """
     _require_pro(current_user)
 
-    if len(body.ruc) != 11 or not body.ruc.isdigit():
+    ruc = body.get_ruc()
+    if len(ruc) != 11 or not ruc.isdigit():
         raise HTTPException(status_code=400, detail="RUC debe tener 11 dígitos numéricos.")
 
     existing = (
         db.query(NetworkWatchlist)
         .filter(
             NetworkWatchlist.user_id == current_user.id,
-            NetworkWatchlist.ruc == body.ruc,
+            NetworkWatchlist.ruc == ruc,
         )
         .first()
     )
@@ -99,8 +110,8 @@ async def add_to_watchlist(
 
     entry = NetworkWatchlist(
         user_id=current_user.id,
-        ruc=body.ruc,
-        alias=body.alias,
+        ruc=ruc,
+        alias=body.get_alias(),
     )
     db.add(entry)
     db.commit()
@@ -108,12 +119,55 @@ async def add_to_watchlist(
 
     return {
         "success": True,
-        "message": f"'{body.alias}' ({body.ruc}) agregado a tu red.",
+        "message": f"'{body.get_alias()}' ({ruc}) agregado a tu red.",
         "id": entry.id,
     }
 
 
-@router.get("/", response_model=List[WatchlistEntry])
+@router.get("/stats")
+async def network_stats(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Estadísticas de la red del usuario.
+    """
+    _require_pro(current_user)
+
+    total = db.query(NetworkWatchlist).filter(
+        NetworkWatchlist.user_id == current_user.id
+    ).count()
+
+    unread_alerts = db.query(NetworkAlert).filter(
+        NetworkAlert.user_id == current_user.id,
+        NetworkAlert.read_at == None,  # noqa: E711
+    ).count()
+
+    # Límite según plan
+    plan_limits = {"essential": 0, "professional": 50, "enterprise": 200}
+    limit = plan_limits.get(current_user.plan_type, 0)
+
+    # Riesgo basado en last_score
+    entries = db.query(NetworkWatchlist).filter(
+        NetworkWatchlist.user_id == current_user.id
+    ).all()
+
+    high_risk = sum(1 for e in entries if e.last_score is not None and e.last_score < 40)
+    medium_risk = sum(1 for e in entries if e.last_score is not None and 40 <= e.last_score < 60)
+    low_risk = sum(1 for e in entries if e.last_score is not None and e.last_score >= 60)
+
+    return {
+        "success": True,
+        "total_suppliers": total,
+        "limit": limit,
+        "unread_alerts": unread_alerts,
+        "high_risk_count": high_risk,
+        "medium_risk_count": medium_risk,
+        "low_risk_count": low_risk,
+    }
+
+
+@router.get("/")
 async def list_watchlist(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -130,7 +184,31 @@ async def list_watchlist(
         .order_by(NetworkWatchlist.created_at.desc())
         .all()
     )
-    return entries
+
+    # Verificar si hay alertas pendientes por RUC
+    unread_alert_rucs = {
+        row[0] for row in db.query(NetworkAlert.ruc).filter(
+            NetworkAlert.user_id == current_user.id,
+            NetworkAlert.read_at == None,  # noqa: E711
+        ).all()
+    }
+
+    result = []
+    for e in entries:
+        result.append({
+            "id": e.id,
+            "supplier_ruc": e.ruc,
+            "supplier_name": e.alias,
+            "alias": e.alias,
+            "notes": None,
+            "tags": [],
+            "current_score": e.last_score,
+            "current_status": None,  # Simplificado — el frontend puede hacer fetch adicional
+            "has_pending_alerts": e.ruc in unread_alert_rucs,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    return result
 
 
 @router.get("/alerts", response_model=List[AlertEntry])
@@ -188,7 +266,7 @@ async def mark_alert_read(
     }
 
 
-@router.delete("/remove/{ruc}", status_code=status.HTTP_200_OK)
+@router.delete("/{ruc}", status_code=status.HTTP_200_OK)
 async def remove_from_watchlist(
     ruc: str,
     current_user: User = Depends(get_current_active_user),
