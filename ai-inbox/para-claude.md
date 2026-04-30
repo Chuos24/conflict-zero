@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-30
+**Fecha:** 2026-05-01
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 1 |
+| Commits últimas 24h | 3 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
+7e7dfef feat(fase1): Mi Red backend aligned with frontend + stats endpoint
+3cbe503 feat(fase1): Mi Red PATCH alerts + fix invitations model + payments_v2 wired + tests expanded
+41ddd23 daily-standup: 2026-04-30 — 3 tareas prioritarias generadas
 44ffdc5 daily-standup: 2026-04-29 — 3 tareas prioritarias generadas
 b6f3a7b daily-standup: 2026-04-28 — 3 tareas prioritarias generadas
-d0a49c8 daily-standup: 2026-04-27 — 3 tareas prioritarias generadas
-75a83a2 daily-standup: 2026-04-26 — 3 tareas prioritarias generadas
-5a4fd02 daily-standup: 2026-04-25 — 3 tareas prioritarias generadas
 ```
 
 ---
