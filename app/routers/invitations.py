@@ -85,7 +85,7 @@ async def create_invitation(
     
     # Crear invitación (expira en 24h)
     invitation = Invitation(
-        invitador_ruc=user.ruc or "00000000000",
+        invited_by=user.id,
         email=request.email,
         token=token,
         ruc_invitado=request.ruc_invitado,
@@ -130,14 +130,14 @@ async def validate_invitation(
         raise HTTPException(status_code=400, detail="Token inválido o expirado")
     
     # Buscar info del invitador
-    invitador = db.query(User).filter(User.ruc == invitation.invitador_ruc).first()
+    invitador = db.query(User).filter(User.ruc == invitador.ruc if invitador else "00000000000").first()
     
     return {
         "success": True,
         "valid": True,
         "invitador": {
-            "ruc": invitation.invitador_ruc,
-            "company_name": invitador.company_name if invitador else invitation.invitador_ruc
+            "ruc": invitador.ruc if invitador else "00000000000",
+            "company_name": invitador.company_name if invitador else invitador.ruc if invitador else "00000000000"
         },
         "email": invitation.email,
         "expira": invitation.expira.isoformat() if invitation.expira else None
@@ -206,10 +206,10 @@ async def register_with_invitation(
             "email": user.email,
             "ruc": user.ruc,
             "company_name": user.company_name,
-            "invitado_por": invitation.invitador_ruc
+            "invitado_por": invitador.ruc if invitador else "00000000000"
         },
         "invitador": {
-            "ruc": invitation.invitador_ruc
+            "ruc": invitador.ruc if invitador else "00000000000"
         }
     }
 
@@ -230,8 +230,8 @@ async def get_invitados(
     if not user or not user.ruc:
         raise HTTPException(status_code=404, detail="Usuario no encontrado o sin RUC")
     
-    invitados = db.query(Invitation).filter(
-        Invitation.invitador_ruc == user.ruc
+    invitados = db.query(Invitation).join(User, Invitation.invited_by == User.id).filter(
+        User.ruc == user.ruc
     ).order_by(Invitation.created_at.desc()).all()
     
     result = []
