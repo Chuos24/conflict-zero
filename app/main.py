@@ -361,9 +361,25 @@ async def general_exception_handler(request, exc):
         content={"detail": "Error interno del servidor", "error": str(exc)}
     )
 
+
+# Auto-migrate: crear tablas/columnas faltantes
+@app.on_event("startup")
+async def auto_migrate():
+    from app.core.database import engine
+    from app.models import Base
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+# Auto-migrate: crear tablas/columnas faltantes
+@app.on_event("startup")
+async def auto_migrate():
+    from app.core.database import engine
+    from app.models import Base
+    Base.metadata.create_all(bind=engine, checkfirst=True)
 
 if __name__ == "__main__":
     import uvicorn
