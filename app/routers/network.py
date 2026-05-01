@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import os
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models import User, NetworkWatchlist, NetworkAlert
 from app.services.verification import verification_service
+import os
 
 router = APIRouter(prefix="/network", tags=["Mi Red"])
 
@@ -40,8 +42,18 @@ def _require_admin(user: User):
 # ─── Schemas ────────────────────────────────────────────────────────────────
 
 class AddToWatchlistRequest(BaseModel):
-    ruc: str
-    alias: str
+    ruc: Optional[str] = None
+    supplier_ruc: Optional[str] = None
+    alias: Optional[str] = None
+    supplier_name: Optional[str] = None
+    notes: Optional[str] = None
+    tags: Optional[list] = None
+
+    def get_ruc(self) -> str:
+        return self.ruc or self.supplier_ruc or ""
+
+    def get_alias(self) -> str:
+        return self.alias or self.supplier_name or "Sin alias"
 
 
 class WatchlistEntry(BaseModel):
@@ -83,14 +95,15 @@ async def add_to_watchlist(
     """
     _require_pro(current_user)
 
-    if len(body.ruc) != 11 or not body.ruc.isdigit():
+    ruc = body.get_ruc()
+    if len(ruc) != 11 or not ruc.isdigit():
         raise HTTPException(status_code=400, detail="RUC debe tener 11 dígitos numéricos.")
 
     existing = (
         db.query(NetworkWatchlist)
         .filter(
             NetworkWatchlist.user_id == current_user.id,
-            NetworkWatchlist.ruc == body.ruc,
+            NetworkWatchlist.ruc == ruc,
         )
         .first()
     )
@@ -99,8 +112,8 @@ async def add_to_watchlist(
 
     entry = NetworkWatchlist(
         user_id=current_user.id,
-        ruc=body.ruc,
-        alias=body.alias,
+        ruc=ruc,
+        alias=body.get_alias(),
     )
     db.add(entry)
     db.commit()
@@ -108,12 +121,55 @@ async def add_to_watchlist(
 
     return {
         "success": True,
-        "message": f"'{body.alias}' ({body.ruc}) agregado a tu red.",
+        "message": f"'{body.get_alias()}' ({ruc}) agregado a tu red.",
         "id": entry.id,
     }
 
 
-@router.get("/", response_model=List[WatchlistEntry])
+@router.get("/stats")
+async def network_stats(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Estadísticas de la red del usuario.
+    """
+    _require_pro(current_user)
+
+    total = db.query(NetworkWatchlist).filter(
+        NetworkWatchlist.user_id == current_user.id
+    ).count()
+
+    unread_alerts = db.query(NetworkAlert).filter(
+        NetworkAlert.user_id == current_user.id,
+        NetworkAlert.read_at == None,  # noqa: E711
+    ).count()
+
+    # Límite según plan
+    plan_limits = {"essential": 0, "professional": 50, "enterprise": 200}
+    limit = plan_limits.get(current_user.plan_type, 0)
+
+    # Riesgo basado en last_score
+    entries = db.query(NetworkWatchlist).filter(
+        NetworkWatchlist.user_id == current_user.id
+    ).all()
+
+    high_risk = sum(1 for e in entries if e.last_score is not None and e.last_score < 40)
+    medium_risk = sum(1 for e in entries if e.last_score is not None and 40 <= e.last_score < 60)
+    low_risk = sum(1 for e in entries if e.last_score is not None and e.last_score >= 60)
+
+    return {
+        "success": True,
+        "total_suppliers": total,
+        "limit": limit,
+        "unread_alerts": unread_alerts,
+        "high_risk_count": high_risk,
+        "medium_risk_count": medium_risk,
+        "low_risk_count": low_risk,
+    }
+
+
+@router.get("/")
 async def list_watchlist(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
@@ -130,40 +186,89 @@ async def list_watchlist(
         .order_by(NetworkWatchlist.created_at.desc())
         .all()
     )
-    return entries
+
+    # Verificar si hay alertas pendientes por RUC
+    unread_alert_rucs = {
+        row[0] for row in db.query(NetworkAlert.ruc).filter(
+            NetworkAlert.user_id == current_user.id,
+            NetworkAlert.read_at == None,  # noqa: E711
+        ).all()
+    }
+
+    result = []
+    for e in entries:
+        result.append({
+            "id": e.id,
+            "supplier_ruc": e.ruc,
+            "supplier_name": e.alias,
+            "alias": e.alias,
+            "notes": None,
+            "tags": [],
+            "current_score": e.last_score,
+            "current_status": None,  # Simplificado — el frontend puede hacer fetch adicional
+            "has_pending_alerts": e.ruc in unread_alert_rucs,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+        })
+
+    return result
 
 
 @router.get("/alerts", response_model=List[AlertEntry])
 async def list_alerts(
+    unread_only: bool = True,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db),
 ):
     """
-    Lista las alertas no leídas del usuario (cambios de estado desde
-    la última verificación).
+    Lista las alertas del usuario.
+    Por default solo muestra no leídas (unread_only=true).
+    Si unread_only=false, muestra todas.
     """
     _require_pro(current_user)
 
-    alerts = (
-        db.query(NetworkAlert)
-        .filter(
-            NetworkAlert.user_id == current_user.id,
-            NetworkAlert.read_at == None,  # noqa: E711
-        )
-        .order_by(NetworkAlert.created_at.desc())
-        .all()
-    )
+    query = db.query(NetworkAlert).filter(NetworkAlert.user_id == current_user.id)
+    if unread_only:
+        query = query.filter(NetworkAlert.read_at == None)  # noqa: E711
 
-    # Marcar como leídas
-    now = datetime.utcnow()
-    for alert in alerts:
-        alert.read_at = now
-    db.commit()
-
+    alerts = query.order_by(NetworkAlert.created_at.desc()).all()
     return alerts
 
 
-@router.delete("/remove/{ruc}", status_code=status.HTTP_200_OK)
+@router.patch("/alerts/{alert_id}/read", status_code=status.HTTP_200_OK)
+async def mark_alert_read(
+    alert_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Marca una alerta específica como leída.
+    """
+    _require_pro(current_user)
+
+    alert = (
+        db.query(NetworkAlert)
+        .filter(
+            NetworkAlert.id == alert_id,
+            NetworkAlert.user_id == current_user.id,
+        )
+        .first()
+    )
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alerta no encontrada.")
+
+    alert.read_at = datetime.utcnow()
+    db.commit()
+    db.refresh(alert)
+
+    return {
+        "success": True,
+        "message": "Alerta marcada como leída.",
+        "alert_id": alert.id,
+        "read_at": alert.read_at.isoformat(),
+    }
+
+
+@router.delete("/{ruc}", status_code=status.HTTP_200_OK)
 async def remove_from_watchlist(
     ruc: str,
     current_user: User = Depends(get_current_active_user),
@@ -193,14 +298,48 @@ async def remove_from_watchlist(
 
 @router.post("/verify-all")
 async def verify_all(
-    current_user: User = Depends(get_current_active_user),
+    authorization: str = Header(None),
+    x_admin_token: str = Header(None, alias="X-Admin-Token"),
     db: Session = Depends(get_db),
 ):
     """
     Re-verifica todos los RUCs de todas las watchlists y genera alertas
     cuando hay cambios de estado o score. Solo accesible para admins (cron job).
+    Acepta autenticación via Bearer JWT o X-Admin-Token.
     """
-    _require_admin(current_user)
+    # Autenticación: Bearer JWT admin OR X-Admin-Token
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=500, detail="ADMIN_TOKEN no configurado")
+
+    is_admin = False
+    current_user = None
+
+    # Intentar X-Admin-Token primero (cron jobs)
+    if x_admin_token and x_admin_token == ADMIN_TOKEN:
+        is_admin = True
+    # Fallback a Bearer JWT
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+        from app.core.security import verify_token
+        payload = verify_token(token)
+        if payload:
+            user_id = payload.get("sub")
+            current_user = db.query(User).filter(User.id == user_id).first()
+            if current_user and current_user.is_admin:
+                is_admin = True
+
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo administradores pueden ejecutar este endpoint."
+        )
+
+    # Para cron jobs (X-Admin-Token), necesitamos un user object para verification_service
+    if current_user is None:
+        current_user = db.query(User).filter(User.is_admin == True).first()
+        if current_user is None:
+            raise HTTPException(status_code=500, detail="No hay usuario admin disponible para cron job")
 
     entries = db.query(NetworkWatchlist).all()
     updated = 0

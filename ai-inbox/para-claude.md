@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-04-26
+**Fecha:** 2026-05-02
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 1 |
+| Commits últimas 24h | 4 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
-5a4fd02 daily-standup: 2026-04-25 — 3 tareas prioritarias generadas
-118d363 daily-standup: 2026-04-24 — 3 tareas prioritarias generadas
-af0d123 Add daily sanctions audit workflow
-b7e39bd daily-standup: 2026-04-23 — 3 tareas prioritarias generadas
-72840bd fix(models): correct OSCE/TCE column names to match DB schema
+1bac8ef feat(network): verify-all accepts X-Admin-Token for cron job authentication
+bdcdb0f security(admin): remove hardcoded ADMIN_TOKEN fallback — require env var
+2bbc4b1 fix(audit): correct DB column names in sanctions auditor (entidad/motivo vs nombre)
+04ed3c4 daily-standup: 2026-05-01 — 3 tareas prioritarias generadas
+7e7dfef feat(fase1): Mi Red backend aligned with frontend + stats endpoint
 ```
 
 ---

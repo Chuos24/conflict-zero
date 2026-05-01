@@ -1,0 +1,10 @@
+services:
+  - type: static
+    name: cz-certificados
+    env: static
+    buildCommand: echo "No build needed"
+    staticPublishPath: .
+    routes:
+      - type: rewrite
+        source: /certificado/:slug
+        destination: /certificado-:slug.html

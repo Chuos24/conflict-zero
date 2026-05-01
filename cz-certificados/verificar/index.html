@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificado de Verificación — Conflict Zero</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --gold: #C5A059;
+            --gold-dark: #8B6914;
+            --gold-light: #D4AF37;
+            --black: #0A0A0F;
+            --card: #0D0D12;
+            --stone: #2A2A2E;
+            --bone: #F5F5F0;
+            --muted: #8A8A85;
+            --forest: #1B3A2F;
+            --bronze: #CD7F32;
+            --silver: #A8A8A8;
+            --danger: #DC3545;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            font-weight: 300;
+            background: var(--black);
+            color: var(--bone);
+            line-height: 1.7;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        h1, h2, h3, .serif {
+            font-family: 'Cormorant Garamond', serif;
+            font-weight: 300;
+            letter-spacing: 0.08em;
+        }
+        
+        /* Header */
+        .header {
+            padding: 24px 64px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 10, 15, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--stone);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            text-decoration: none;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            border: 1px solid var(--gold);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .logo-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: var(--gold);
+            stroke-width: 1;
+            fill: none;
+        }
+        
+        .logo-text {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 18px;
+            font-weight: 400;
+            color: var(--bone);
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+        }
+        
+        /* Main Certificate */
+        .certificate-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 64px;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(197, 160, 89, 0.03) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(27, 58, 47, 0.05) 0%, transparent 50%),
+                var(--black);
+        }
+        
+        .certificate {
+            background: var(--card);
+            border: 1px solid var(--stone);
+            border-radius: 8px;
+            padding: 80px 100px;
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            box-shadow: 
+                0 4px 6px -1px rgba(0, 0, 0, 0.3),
+                0 2px 4px -1px rgba(0, 0, 0, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.02);
+        }
+        
+        .certificate::before {
+            content: '';
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            bottom: 12px;
+            border: 1px solid var(--stone);
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        
+        /* Sello según nivel */
+        .seal-container {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 48px;
+            position: relative;
+        }
+        
+        .seal-container.bronze .seal-ring { stroke: var(--bronze); }
+        .seal-container.bronze .seal-text { fill: var(--bronze); }
+        .seal-container.bronze .seal-center { fill: var(--bronze); }
+        
+        .seal-container.silver .seal-ring { stroke: var(--silver); }
+        .seal-container.silver .seal-text { fill: var(--silver); }
+        .seal-container.silver .seal-center { fill: var(--silver); }
+        
+        .seal-container.gold .seal-ring { stroke: var(--gold); }
+        .seal-container.gold .seal-text { fill: var(--gold); }
+        .seal-container.gold .seal-center { fill: var(--gold); }
+        
+        .seal-container.expired .seal-ring { stroke: var(--danger); }
+        .seal-container.expired .seal-text { fill: var(--danger); }
+        .seal-container.expired .seal-center { fill: var(--danger); }
+        
+        .seal-container svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.5));
+        }
+        
+        /* Status Badge */
+        .status-badge {
+            display: inline-block;
+            font-size: 10px;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            padding: 12px 24px;
+            border-radius: 4px;
+            margin-bottom: 32px;
+            font-weight: 400;
+        }
+        
+        .status-badge.bronze {
+            color: var(--bronze);
+            border: 1px solid var(--bronze);
+            background: rgba(205, 127, 50, 0.1);
+        }
+        
+        .status-badge.silver {
+            color: var(--silver);
+            border: 1px solid var(--silver);
+            background: rgba(168, 168, 168, 0.1);
+        }
+        
+        .status-badge.gold {
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            background: rgba(197, 160, 89, 0.1);
+        }
+        
+        .status-badge.expired {
+            color: var(--danger);
+            border: 1px solid var(--danger);
+            background: rgba(220, 53, 69, 0.1);
+        }
+        
+        /* Company Info */
+        .cert-header {
+            font-size: 11px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 16px;
+        }
+        
+        .company-name {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 32px;
+            font-weight: 400;
+            color: var(--bone);
+            margin-bottom: 8px;
+            letter-spacing: 0.05em;
+        }
+        
+        .company-ruc {
+            font-size: 13px;
+            color: var(--muted);
+            letter-spacing: 0.1em;
+            margin-bottom: 48px;
+        }
+        
+        /* Divider */
+        .cert-divider {
+            width: 60px;
+            height: 1px;
+            background: var(--stone);
+            margin: 0 auto 48px;
+        }
+        
+        /* Certification Details */
+        .cert-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+            margin-bottom: 48px;
+            text-align: left;
+            padding: 0 40px;
+        }
+        
+        .detail-item {
+            text-align: center;
+        }
+        
+        .detail-label {
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        
+        .detail-value {
+            font-size: 14px;
+            color: var(--bone);
+            letter-spacing: 0.05em;
+        }
+        
+        /* Footer Info */
+        .cert-footer {
+            border-top: 1px solid var(--stone);
+            padding-top: 32px;
+            margin-top: 32px;
+        }
+        
+        .verified-by {
+            font-size: 10px;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+        
+        .cz-brand {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 16px;
+            color: var(--bone);
+            letter-spacing: 0.2em;
+            margin-bottom: 24px;
+        }
+        
+        .social-proof {
+            font-size: 12px;
+            color: var(--muted);
+            font-style: italic;
+        }
+        
+        .social-proof strong {
+            color: var(--gold);
+            font-style: normal;
+        }
+        
+        /* CTA Section */
+        .cta-section {
+            background: var(--card);
+            border-top: 1px solid var(--stone);
+            padding: 48px 64px;
+            text-align: center;
+        }
+        
+        .cta-text {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 24px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: transparent;
+            color: var(--gold);
+            border: 1px solid var(--gold);
+            border-radius: 4px;
+            padding: 16px 32px;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            text-decoration: none;
+            transition: all 0.4s;
+        }
+        
+        .cta-button:hover {
+            background: var(--gold);
+            color: var(--black);
+        }
+        
+        /* Not Found State */
+        .not-found {
+            text-align: center;
+            padding: 120px 64px;
+        }
+        
+        .not-found h2 {
+            font-size: 24px;
+            margin-bottom: 16px;
+            color: var(--bone);
+        }
+        
+        .not-found p {
+            color: var(--muted);
+            margin-bottom: 32px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header { padding: 20px 32px; }
+            .certificate-container { padding: 32px; }
+            .certificate { padding: 48px 32px; }
+            .seal-container { width: 140px; height: 140px; }
+            .company-name { font-size: 24px; }
+            .cert-details { 
+                grid-template-columns: 1fr; 
+                padding: 0;
+                gap: 24px;
+            }
+            .cta-section { padding: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <a href="/" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+            </div>
+            <span class="logo-text">Conflict Zero</span>
+        </a>
+    </header>
+
+    <main class="certificate-container" id="certificateContainer">
+        <!-- Certificate content will be injected by JavaScript -->
+    </main>
+
+    <section class="cta-section" id="ctaSection">
+        <p class="cta-text">¿Necesitas verificar a tu empresa o contratistas?</p>
+        <a href="https://cz-founders.vercel.app" class="cta-button">Solicitar Certificación</a>
+    </section>
+
+    <script>
+        // Datos de ejemplo para demostración
+        // En producción, esto vendría de una API
+        const mockData = {
+            'a3f9k2m8': {
+                level: 'gold',
+                statusBadge: 'Verificación Empresarial',
+                companyName: 'Constructora ABC',
+                companyNamePartial: 'Constructora A*** SAC',
+                ruc: '20100123091',
+                rucPartial: '20100123***',
+                emissionDate: '15 MAR 2026',
+                expirationDate: '15 MAR 2027',
+                viewsThisMonth: 47,
+                status: 'active'
+            },
+            'b7k2m9p4': {
+                level: 'silver',
+                statusBadge: 'Verificación Profesional',
+                companyName: 'Ingeniería Proyectos Sur',
+                companyNamePartial: 'Ingeniería P*** Sur S.A.C.',
+                ruc: '20512345678',
+                rucPartial: '20512345***',
+                emissionDate: '20 FEB 2026',
+                expirationDate: '20 FEB 2027',
+                viewsThisMonth: 23,
+                status: 'active'
+            },
+            'c9x4n1q7': {
+                level: 'bronze',
+                statusBadge: 'Verificación Básica',
+                companyName: 'Servicios Eléctricos Lima',
+                companyNamePartial: 'Servicios E*** Lima E.I.R.L.',
+                ruc: '20698765432',
+                rucPartial: '20698765***',
+                emissionDate: '01 MAR 2026',
+                expirationDate: '01 MAR 2027',
+                viewsThisMonth: 12,
+                status: 'active'
+            },
+            'demo-expired': {
+                level: 'expired',
+                statusBadge: 'Verificación Vencida',
+                companyName: 'Constructora Demo',
+                companyNamePartial: 'Constructora D*** S.A.',
+                ruc: '20987654321',
+                rucPartial: '20987654***',
+                emissionDate: '01 ENE 2025',
+                expirationDate: '01 ENE 2026',
+                viewsThisMonth: 8,
+                status: 'expired'
+            }
+        };
+
+        // Colores según nivel
+        const levelColors = {
+            bronze: '#CD7F32',
+            silver: '#A8A8A8',
+            gold: '#C5A059',
+            expired: '#DC3545'
+        };
+
+        function getSlugFromUrl() {
+            const path = window.location.pathname;
+            const parts = path.split('/');
+            return parts[parts.length - 1] || parts[parts.length - 2];
+        }
+
+        function renderCertificate(data) {
+            const container = document.getElementById('certificateContainer');
+            const color = levelColors[data.level];
+            
+            const sealSvg = `
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="50" cy="50" r="46" fill="none" stroke="${color}" stroke-width="2" class="seal-ring"/>
+                    <circle cx="50" cy="50" r="38" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.5"/>
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="${color}" stroke-width="0.5" opacity="0.5"/>
+                    
+                    <path id="textPath" d="M 50,15 A 35,35 0 1,1 49.99,15" fill="none" />
+                    <text class="seal-text" fill="${color}" font-family="Cormorant Garamond" font-size="5" font-weight="400" letter-spacing="0.3em">
+                        <textPath href="#textPath" startOffset="50%" text-anchor="middle">
+                            CONFLICT ZERO • CERTIFICADO •
+                        </textPath>
+                    </text>
+                    
+                    <text x="50" y="52" text-anchor="middle" class="seal-center" fill="${color}" font-family="Cormorant Garamond" font-size="20" font-weight="300" dominant-baseline="middle">
+                        ${data.level === 'gold' ? 'G' : data.level === 'silver' ? 'S' : data.level === 'bronze' ? 'B' : '✕'}
+                    </text>
+                </svg>
+            `;
+            
+            container.innerHTML = `
+                <div class="certificate">
+                    <div class="seal-container ${data.level}">
+                        ${sealSvg}
+                    </div>
+                    
+                    <span class="status-badge ${data.level}">${data.statusBadge}</span>
+                    
+                    <div class="cert-header">Empresa Certificada</div>
+                    <h1 class="company-name">${data.companyNamePartial}</h1>
+                    <div class="company-ruc">RUC: ${data.rucPartial}</div>
+                    
+                    <div class="cert-divider"></div>
+                    
+                    <div class="cert-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Fecha de Emisión</div>
+                            <div class="detail-value">${data.emissionDate}</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Vigencia Hasta</div>
+                            <div class="detail-value" style="color: ${data.status === 'expired' ? '#DC3545' : 'inherit'}">${data.expirationDate}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="cert-footer">
+                        <div class="verified-by">Verificado por</div>
+                        <div class="cz-brand">CONFLICT ZERO</div>
+                        <p class="social-proof">
+                            Este perfil ha sido consultado por <strong>${data.viewsThisMonth}</strong> empresas este mes
+                        </p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderNotFound() {
+            const container = document.getElementById('certificateContainer');
+            container.innerHTML = `
+                <div class="not-found">
+                    <h2 class="serif">Certificado No Encontrado</h2>
+                    <p>El enlace de verificación que has utilizado no corresponde a ningún certificado activo.</p>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 32px;">
+                        Si crees que esto es un error, contacta al equipo de verificación.
+                    </p>
+                </div>
+            `;
+        }
+
+        function init() {
+            const slug = getSlugFromUrl();
+            
+            // Si no hay slug o es la página base, mostrar ejemplo Gold
+            if (!slug || slug === 'verificar' || slug === 'verificar.html') {
+                renderCertificate(mockData['a3f9k2m8']);
+                return;
+            }
+            
+            // Buscar en datos de ejemplo
+            if (mockData[slug]) {
+                renderCertificate(mockData[slug]);
+            } else {
+                // Para demo, si el slug no existe, mostrar ejemplo Gold
+                // En producción, esto sería: renderNotFound();
+                renderCertificate(mockData['a3f9k2m8']);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

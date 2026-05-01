@@ -3,7 +3,9 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse
 from typing import Optional
 
-ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
+ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN')
+if not ADMIN_TOKEN:
+    raise RuntimeError("ADMIN_TOKEN environment variable is required")
 
 router = APIRouter(tags=["Debug"])
 

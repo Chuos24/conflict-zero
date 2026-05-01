@@ -20,7 +20,7 @@ from app.models import User
 from app.routers import (auth_router, verification_router, dashboard_router, health_router, 
                          consulta_router, debug_router, compare_router, payments_router, 
                          admin_router, notifications_router, payments_admin_router, 
-                         invitations_router, certificates_router)
+                         invitations_router, certificates_router, network_router)
 import uuid
 
 settings = get_settings()
@@ -146,6 +146,7 @@ app.include_router(notifications_router, prefix="/api/v3")
 app.include_router(payments_admin_router, prefix="/api/v3")
 app.include_router(invitations_router, prefix="/api/v3")
 app.include_router(certificates_router, prefix="/api/v3")
+app.include_router(network_router, prefix="/api/v3")
 
 # Endpoint notify-admin para notificaciones desde el frontend
 @app.post("/api/v3/notify-admin")
