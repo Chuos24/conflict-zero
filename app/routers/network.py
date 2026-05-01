@@ -8,11 +8,13 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import os
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models import User, NetworkWatchlist, NetworkAlert
 from app.services.verification import verification_service
+import os
 
 router = APIRouter(prefix="/network", tags=["Mi Red"])
 
@@ -296,14 +298,48 @@ async def remove_from_watchlist(
 
 @router.post("/verify-all")
 async def verify_all(
-    current_user: User = Depends(get_current_active_user),
+    authorization: str = Header(None),
+    x_admin_token: str = Header(None, alias="X-Admin-Token"),
     db: Session = Depends(get_db),
 ):
     """
     Re-verifica todos los RUCs de todas las watchlists y genera alertas
     cuando hay cambios de estado o score. Solo accesible para admins (cron job).
+    Acepta autenticación via Bearer JWT o X-Admin-Token.
     """
-    _require_admin(current_user)
+    # Autenticación: Bearer JWT admin OR X-Admin-Token
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if not ADMIN_TOKEN:
+        raise HTTPException(status_code=500, detail="ADMIN_TOKEN no configurado")
+
+    is_admin = False
+    current_user = None
+
+    # Intentar X-Admin-Token primero (cron jobs)
+    if x_admin_token and x_admin_token == ADMIN_TOKEN:
+        is_admin = True
+    # Fallback a Bearer JWT
+    elif authorization and authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+        from app.core.security import verify_token
+        payload = verify_token(token)
+        if payload:
+            user_id = payload.get("sub")
+            current_user = db.query(User).filter(User.id == user_id).first()
+            if current_user and current_user.is_admin:
+                is_admin = True
+
+    if not is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo administradores pueden ejecutar este endpoint."
+        )
+
+    # Para cron jobs (X-Admin-Token), necesitamos un user object para verification_service
+    if current_user is None:
+        current_user = db.query(User).filter(User.is_admin == True).first()
+        if current_user is None:
+            raise HTTPException(status_code=500, detail="No hay usuario admin disponible para cron job")
 
     entries = db.query(NetworkWatchlist).all()
     updated = 0
