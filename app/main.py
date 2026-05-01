@@ -49,11 +49,35 @@ else:
 
 print("🚀 Starting Conflict Zero API - LegalBot V3.0 - Deploy Fix")
 
-# Crear tablas en la base de datos (con manejo de errores para no bloquear startup)
+# Crear tablas y migrar columnas faltantes (con manejo de errores para no bloquear startup)
 def init_database():
     try:
+        from sqlalchemy import inspect, text
+        from app.models import Invitation
+        
+        # 1. Crear tablas que no existen
         Base.metadata.create_all(bind=engine)
-        print("✅ Tablas de base de datos creadas/verificadas")
+        
+        # 2. Migrar columnas faltantes en tablas existentes (PostgreSQL-safe)
+        inspector = inspect(engine)
+        
+        # --- invitations table ---
+        if inspector.has_table("invitations"):
+            existing_cols = {c["name"] for c in inspector.get_columns("invitations")}
+            required_cols = {
+                "name": "VARCHAR(255)",
+                "company": "VARCHAR(255)",
+                "notes": "TEXT",
+                "accepted_by": "VARCHAR(36)"
+            }
+            with engine.connect() as conn:
+                for col_name, col_type in required_cols.items():
+                    if col_name not in existing_cols:
+                        conn.execute(text(f'ALTER TABLE invitations ADD COLUMN IF NOT EXISTS {col_name} {col_type}'))
+                        conn.commit()
+                        print(f"✅ Columna '{col_name}' agregada a invitations")
+        
+        print("✅ Base de datos lista")
         return True
     except Exception as e:
         print(f"⚠️ Error conectando a base de datos: {e}")
@@ -361,29 +385,10 @@ async def general_exception_handler(request, exc):
         content={"detail": "Error interno del servidor", "error": str(exc)}
     )
 
-
-# Auto-migrate: crear tablas/columnas faltantes
-@app.on_event("startup")
-async def auto_migrate():
-    from app.core.database import engine
-    from app.models import Base
-    Base.metadata.create_all(bind=engine, checkfirst=True)
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
-
-# Auto-migrate: crear tablas/columnas faltantes
-@app.on_event("startup")
-async def auto_migrate():
-    from app.core.database import engine
-    from app.models import Base
-    Base.metadata.create_all(bind=engine, checkfirst=True)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
 # Force redeploy Sat Mar 28 03:45:00 AM CST 2026 - LegalBot Universal V2.0
 # LegalBot V3.0 Redeploy Sat Mar 28 03:55:04 AM CST 2026
 # Redeploy Sat Mar 28 03:57:58 AM CST 2026
