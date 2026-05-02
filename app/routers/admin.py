@@ -110,7 +110,7 @@ async def admin_root():
     """Root endpoint - info básica"""
     return {"message": "Admin API - Payment System v1.0", "endpoints": [
         "/record-payment",
-        "/activate-plan", 
+        "/activate-plan",
         "/pending-activations",
         "/payments-history"
     ]}
