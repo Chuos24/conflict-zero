@@ -169,6 +169,53 @@ async def network_stats(
     }
 
 
+@router.get("/{ruc}")
+async def get_network_ruc(
+    ruc: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Obtiene los datos de un proveedor específico en la red del usuario.
+    """
+    _require_pro(current_user)
+
+    if len(ruc) != 11 or not ruc.isdigit():
+        raise HTTPException(status_code=400, detail="RUC debe tener 11 dígitos numéricos.")
+
+    entry = (
+        db.query(NetworkWatchlist)
+        .filter(
+            NetworkWatchlist.user_id == current_user.id,
+            NetworkWatchlist.ruc == ruc,
+        )
+        .first()
+    )
+
+    if not entry:
+        raise HTTPException(status_code=404, detail="RUC no encontrado en tu red.")
+
+    # Verificar si hay alertas pendientes
+    has_pending = db.query(NetworkAlert).filter(
+        NetworkAlert.user_id == current_user.id,
+        NetworkAlert.ruc == ruc,
+        NetworkAlert.read_at == None,  # noqa: E711
+    ).first() is not None
+
+    return {
+        "success": True,
+        "supplier": {
+            "id": entry.id,
+            "ruc": entry.ruc,
+            "alias": entry.alias,
+            "last_score": entry.last_score,
+            "last_status": entry.last_status,
+            "has_pending_alerts": has_pending,
+            "created_at": entry.created_at.isoformat() if entry.created_at else None,
+        }
+    }
+
+
 @router.get("/")
 async def list_watchlist(
     current_user: User = Depends(get_current_active_user),

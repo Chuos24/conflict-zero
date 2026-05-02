@@ -156,7 +156,7 @@ request_counts = defaultdict(list)
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
     # Ignorar health checks y docs
-    if request.url.path in ["/api/v1/health", "/docs", "/redoc", "/openapi.json"]:
+    if request.url.path in ["/api/v1/health", "/api/v3/health", "/docs", "/redoc", "/openapi.json"]:
         return await call_next(request)
     
     client_ip = request.client.host
@@ -205,6 +205,7 @@ app.include_router(notifications_router, prefix="/api/v3")
 app.include_router(invitations_router, prefix="/api/v3")
 app.include_router(network_router, prefix="/api/v3")
 app.include_router(certificates_router, prefix="/api/v3")
+app.include_router(health_router, prefix="/api/v3")  # FIX: Health disponible en v3
 
 # Endpoint register-web directo (workaround para problema de caché en Render)
 from pydantic import BaseModel

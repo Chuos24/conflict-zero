@@ -116,6 +116,46 @@ async def admin_root():
     ]}
 
 
+@router.post("/migrate-db")
+async def migrate_db(authorization: str = Header(None), db: Session = Depends(get_db)):
+    """Ejecuta migración manual de columnas faltantes. Útil cuando auto-migrate falla."""
+    if not _require_admin(authorization):
+        return JSONResponse(status_code=401, content={'success': False, 'error': 'UNAUTHORIZED'})
+    
+    from sqlalchemy import inspect, text
+    from app.core.database import engine
+    
+    results = []
+    try:
+        inspector = inspect(engine)
+        
+        # --- invitations table ---
+        if inspector.has_table("invitations"):
+            existing_cols = {c["name"] for c in inspector.get_columns("invitations")}
+            required_cols = {
+                "name": "VARCHAR(255)",
+                "company": "VARCHAR(255)",
+                "notes": "TEXT",
+                "accepted_by": "VARCHAR(36)"
+            }
+            with engine.connect() as conn:
+                for col_name, col_type in required_cols.items():
+                    if col_name not in existing_cols:
+                        try:
+                            conn.execute(text(f'ALTER TABLE invitations ADD COLUMN IF NOT EXISTS {col_name} {col_type}'))
+                            conn.commit()
+                            results.append({"table": "invitations", "column": col_name, "status": "created"})
+                        except Exception as e:
+                            results.append({"table": "invitations", "column": col_name, "status": "error", "error": str(e)})
+                    else:
+                        results.append({"table": "invitations", "column": col_name, "status": "already_exists"})
+        else:
+            results.append({"table": "invitations", "status": "table_not_found"})
+        
+        return {"success": True, "migrations": results}
+    except Exception as e:
+        return JSONResponse(status_code=500, content={'success': False, 'error': str(e), 'migrations': results})
+
 @router.post("/record-payment", response_model=PaymentResponse)
 async def record_payment(request: RecordPaymentRequest, authorization: str = Header(None), db: Session = Depends(get_db)):
     """

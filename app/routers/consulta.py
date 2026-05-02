@@ -532,6 +532,55 @@ async def consulta_completa(
     # Use cleaned cascade: Factaliza → APIPeru.dev → Perú API → apis.net.pe → DB fallback
     sunat_data = get_sunat_data_cascade(ruc, db)
     
+    # FIX CRÍTICO: Rechazar RUCs inválidos (ninguna fuente real devolvió datos)
+    es_ruc_real = bool(sunat_data.get("razon_social", "").strip()) and sunat_data.get("fuente") != "minimal_fallback"
+    if not es_ruc_real:
+        return {
+            "ruc": ruc,
+            "razon_social": sunat_data.get("razon_social", "No disponible"),
+            "estado": "DESCONOCIDO",
+            "condicion": "DESCONOCIDO",
+            "score": 15,
+            "risk_level": "RECHAZADO",
+            "risk_emoji": "⛔",
+            "risk_description": "RUC no verificable o empresa inexistente en registros oficiales",
+            "sunat": {
+                "ruc": ruc,
+                "razon_social": "No disponible",
+                "estado": "DESCONOCIDO",
+                "condicion": "DESCONOCIDO",
+                "direccion": ""
+            },
+            "sanciones": [],
+            "sanciones_osce": [],
+            "sanciones_rnp_tce": [],
+            "total_registros": 0,
+            "fuentes": {
+                "sunat": False,
+                "osce": 0,
+                "rnp_tce": 0
+            },
+            "score_breakdown": {
+                "sunat": 0,
+                "osce": 0,
+                "tce": 0,
+                "ml": 0
+            },
+            "score_details": {
+                "sunat_score": 0,
+                "osce_score": 0,
+                "tce_score": 0,
+                "ml_score": 0
+            },
+            "fuente_datos": sunat_data.get("fuente", "unknown"),
+            "ml_analysis": {
+                "risk_detected": True,
+                "risk_factors": ["RUC no encontrado en fuentes oficiales"],
+                "confidence": 1.0
+            },
+            "valid": False
+        }
+    
     # Consultar sanciones OSCE (datos reales de CONOSCE)
     osce_sanciones = scraping_service.get_osce_sanctions(ruc)
     
