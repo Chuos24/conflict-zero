@@ -397,21 +397,22 @@ async def auto_migrate():
 
     logger = logging.getLogger("auto_migrate")
 
-    # 1. Create any missing tables
-    Base.metadata.create_all(bind=engine, checkfirst=True)
+    try:
+        # 1. Create any missing tables
+        Base.metadata.create_all(bind=engine)
 
-    # 2. Add missing columns to existing tables (PostgreSQL specific)
-    with engine.connect() as conn:
-        # invitations table
-        conn.execute(text("""
-            ALTER TABLE invitations
-            ADD COLUMN IF NOT EXISTS name VARCHAR(255),
-            ADD COLUMN IF NOT EXISTS company VARCHAR(255),
-            ADD COLUMN IF NOT EXISTS notes TEXT,
-            ADD COLUMN IF NOT EXISTS accepted_by VARCHAR(36);
-        """))
-        conn.commit()
+        # 2. Add missing columns to existing tables (PostgreSQL specific)
+        with engine.begin() as conn:
+            conn.execute(text("""
+                ALTER TABLE invitations
+                ADD COLUMN IF NOT EXISTS name VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS company VARCHAR(255),
+                ADD COLUMN IF NOT EXISTS notes TEXT,
+                ADD COLUMN IF NOT EXISTS accepted_by VARCHAR(36);
+            """))
         logger.info("✅ Auto-migrate: invitations columns checked")
+    except Exception as e:
+        logger.warning(f"⚠️ Auto-migrate skipped (may already exist): {e}")
 
 if __name__ == "__main__":
     import uvicorn
