@@ -386,10 +386,38 @@ async def general_exception_handler(request, exc):
         content={"detail": "Error interno del servidor", "error": str(exc)}
     )
 
+# Auto-migrate: crear tablas/columnas faltantes
+@app.on_event("startup")
+async def auto_migrate():
+    """Migration: add missing columns to invitations table."""
+    from app.core.database import engine
+    from app.models import Base
+    from sqlalchemy import text
+    import logging
+
+    logger = logging.getLogger("auto_migrate")
+
+    # 1. Create any missing tables
+    Base.metadata.create_all(bind=engine, checkfirst=True)
+
+    # 2. Add missing columns to existing tables (PostgreSQL specific)
+    with engine.connect() as conn:
+        # invitations table
+        conn.execute(text("""
+            ALTER TABLE invitations
+            ADD COLUMN IF NOT EXISTS name VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS company VARCHAR(255),
+            ADD COLUMN IF NOT EXISTS notes TEXT,
+            ADD COLUMN IF NOT EXISTS accepted_by VARCHAR(36);
+        """))
+        conn.commit()
+        logger.info("✅ Auto-migrate: invitations columns checked")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
+# Force redeploy trigger 2026-05-02
 # Force redeploy Sat Mar 28 03:45:00 AM CST 2026 - LegalBot Universal V2.0
 # LegalBot V3.0 Redeploy Sat Mar 28 03:55:04 AM CST 2026
 # Redeploy Sat Mar 28 03:57:58 AM CST 2026
