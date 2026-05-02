@@ -15,6 +15,7 @@ services:
     
     # Auto-restart en caso de falla
     autoDeploy: true
+    # Force deploy trigger - updated 2026-05-02
     
     # Environment Variables (se configuran en dashboard)
     envVars:
