@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-05-02
+**Fecha:** 2026-05-03
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 4 |
+| Commits últimas 24h | 12 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
-1bac8ef feat(network): verify-all accepts X-Admin-Token for cron job authentication
-bdcdb0f security(admin): remove hardcoded ADMIN_TOKEN fallback — require env var
-2bbc4b1 fix(audit): correct DB column names in sanctions auditor (entidad/motivo vs nombre)
-04ed3c4 daily-standup: 2026-05-01 — 3 tareas prioritarias generadas
-7e7dfef feat(fase1): Mi Red backend aligned with frontend + stats endpoint
+742ec54 resolve: accept upstream versions for all conflicted files
+3dd83b0 Merge branch 'main' of https://github.com/Chuos24/conflict-zero
+2687c4b fix: safer auto-migrate with try/except and engine.begin()
+98bd557 Merge branch 'main' of https://github.com/Chuos24/conflict-zero
+523c153 fix: admin_root endpoint list format
 ```
 
 ---
@@ -81,6 +81,7 @@ bdcdb0f security(admin): remove hardcoded ADMIN_TOKEN fallback — require env v
 app/services/scoring.py:574:        suspicious_patterns = ['XXXX', 'AAAA', '1234', '0000']
 app/services/factaliza_adapter.py:213:            # TODO: Guardar en PostgreSQL para cache
 app/services/factaliza_adapter.py:224:    # TODO: Buscar en PostgreSQL cache
+app/routers/certificates.py:164:    Lista TODOS los certificados (solo admin).
 ```
 
 ---
