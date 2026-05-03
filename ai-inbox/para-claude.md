@@ -1,5 +1,5 @@
 # Daily Standup — Conflict Zero
-**Fecha:** 2026-05-03
+**Fecha:** 2026-05-04
 **Agente:** Kimi Claw
 **Estado:** Generado automáticamente
 
@@ -12,18 +12,18 @@
 | Health API | 200 |
 | Health Landing | 307 |
 | Network Endpoint | 401 |
-| Commits últimas 24h | 12 |
+| Commits últimas 24h | 2 |
 | Pagos sin activar |  |
 | Tareas previas pendientes | 0
 0 |
 
 ### Últimos commits:
 ```
+cc296a8 feat(backend): rate limiting por plan + fixes de tokens + tests
+1f584fd daily-standup: 2026-05-03 — 3 tareas prioritarias generadas
 742ec54 resolve: accept upstream versions for all conflicted files
 3dd83b0 Merge branch 'main' of https://github.com/Chuos24/conflict-zero
 2687c4b fix: safer auto-migrate with try/except and engine.begin()
-98bd557 Merge branch 'main' of https://github.com/Chuos24/conflict-zero
-523c153 fix: admin_root endpoint list format
 ```
 
 ---
