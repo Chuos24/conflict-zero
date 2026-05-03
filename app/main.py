@@ -18,11 +18,15 @@ from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
 from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router, invitations_router, certificates_router
+from app.routers.payments_v2 import router as payments_v2_router
 import uuid
+
+from app.core.rate_limit import RateLimitHeadersMiddleware
 
 settings = get_settings()
 
 print("🚀 Starting Conflict Zero API - LegalBot V3.0 - Deploy Fix")
+print("📡 Rate limiting por plan activo")
 
 # Crear tablas en la base de datos (con manejo de errores para no bloquear startup)
 def init_database():
@@ -88,6 +92,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate Limit Headers Middleware (inyecta X-RateLimit-* en respuestas)
+app.add_middleware(RateLimitHeadersMiddleware)
+
 # Middleware de logging
 @app.middleware("http")
 async def add_process_time_header(request, call_next):
@@ -97,7 +104,8 @@ async def add_process_time_header(request, call_next):
     response.headers["X-Process-Time"] = str(process_time)
     return response
 
-# Rate limiting simple (en memoria) - 100 requests por minuto por IP
+# Rate limiting simple (en memoria) - 100 requests por minuto por IP para endpoints públicos
+# Los endpoints autenticados usan rate_limit_by_plan dependency
 request_counts = defaultdict(list)
 
 @app.middleware("http")
@@ -106,13 +114,22 @@ async def rate_limit_middleware(request: Request, call_next):
     if request.url.path in ["/api/v1/health", "/docs", "/redoc", "/openapi.json"]:
         return await call_next(request)
     
+    # Si la request tiene un usuario autenticado, el rate limiting por plan ya se aplica
+    # Este middleware solo aplica a endpoints públicos sin auth
+    # Detectamos si es endpoint público por el path
+    public_paths = ["/api/v1/verify/public", "/api/v1/certificates/verify/", "/api/v3/auth/register-web"]
+    is_public = any(request.url.path.startswith(p) for p in public_paths)
+    
+    if not is_public:
+        return await call_next(request)
+    
     client_ip = request.client.host
     now = datetime.now()
     
     # Limpiar requests antiguos (> 1 minuto)
     request_counts[client_ip] = [t for t in request_counts[client_ip] if now - t < timedelta(minutes=1)]
     
-    # Verificar límite (100 req/min)
+    # Verificar límite (100 req/min para endpoints públicos)
     if len(request_counts[client_ip]) >= 100:
         return JSONResponse(
             status_code=429,
@@ -122,7 +139,7 @@ async def rate_limit_middleware(request: Request, call_next):
     request_counts[client_ip].append(now)
     return await call_next(request)
 
-# Routers
+# Routers v1 (API principal)
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(debug_router, prefix="/api/v1")
 app.include_router(consulta_router, prefix="/api/v1")
@@ -131,10 +148,14 @@ app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
+app.include_router(payments_v2_router, prefix="/api/v1")
 app.include_router(invitations_router, prefix="/api/v1")
 app.include_router(certificates_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(notifications_router, prefix="/api/v1")
+app.include_router(network_router, prefix="/api/v1")
 
-# Routers v3 (para compatibilidad con frontend)
+# Routers v3 (para compatibilidad con frontend legacy)
 app.include_router(auth_router, prefix="/api/v3")
 app.include_router(verification_router, prefix="/api/v3")
 app.include_router(admin_router, prefix="/api/v3")

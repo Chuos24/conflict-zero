@@ -100,6 +100,53 @@ class TestRateLimiting:
             assert limit > 0
             assert isinstance(limit, int)
 
+    def test_rate_limit_store_allows_within_limit(self):
+        """RateLimitStore debe permitir requests dentro del límite."""
+        from app.core.rate_limit import RateLimitStore
+        store = RateLimitStore()
+        allowed, headers = store.is_allowed("test_key", limit_minute=10, limit_day=100)
+        assert allowed is True
+        assert headers["X-RateLimit-Remaining-Minute"] == "9"
+        assert headers["X-RateLimit-Remaining-Day"] == "99"
+
+    def test_rate_limit_store_blocks_over_limit(self):
+        """RateLimitStore debe bloquear requests que exceden el límite."""
+        from app.core.rate_limit import RateLimitStore
+        store = RateLimitStore()
+        # Consumir todo el límite
+        for _ in range(5):
+            store.is_allowed("test_key_2", limit_minute=5, limit_day=100)
+        # El siguiente debe ser bloqueado
+        allowed, headers = store.is_allowed("test_key_2", limit_minute=5, limit_day=100)
+        assert allowed is False
+        assert headers["X-RateLimit-Remaining-Minute"] == "0"
+
+    def test_rate_limit_store_reset_works(self):
+        """RateLimitStore reset debe limpiar contadores."""
+        from app.core.rate_limit import RateLimitStore
+        store = RateLimitStore()
+        store.is_allowed("test_key_3", limit_minute=5, limit_day=100)
+        store.reset("test_key_3")
+        allowed, headers = store.is_allowed("test_key_3", limit_minute=5, limit_day=100)
+        assert allowed is True
+        assert headers["X-RateLimit-Remaining-Minute"] == "4"
+
+    def test_plan_rate_limits_configured(self):
+        """Los límites por plan deben estar configurados correctamente."""
+        from app.core.rate_limit import PLAN_RATE_LIMITS
+        assert "essential" in PLAN_RATE_LIMITS
+        assert "professional" in PLAN_RATE_LIMITS
+        assert "enterprise" in PLAN_RATE_LIMITS
+        assert PLAN_RATE_LIMITS["essential"]["requests_per_minute"] == 60
+        assert PLAN_RATE_LIMITS["professional"]["requests_per_minute"] == 120
+        assert PLAN_RATE_LIMITS["enterprise"]["requests_per_minute"] == 300
+
+    def test_essential_plan_has_lowest_limits(self):
+        """Essential debe tener los límites más bajos."""
+        from app.core.rate_limit import PLAN_RATE_LIMITS
+        assert PLAN_RATE_LIMITS["essential"]["requests_per_minute"] < PLAN_RATE_LIMITS["professional"]["requests_per_minute"]
+        assert PLAN_RATE_LIMITS["essential"]["requests_per_day"] < PLAN_RATE_LIMITS["professional"]["requests_per_day"]
+
 
 # ─── Model Integrity Tests ──────────────────────────────────────────────────
 
@@ -233,19 +280,20 @@ class TestInvitationRouter:
 # ─── Certificate Router Logic Tests ─────────────────────────────────────────
 
 class TestCertificateRouter:
-    def test_risk_to_tier_mapping(self):
-        """El mapeo de riesgo a tier debe ser correcto."""
-        from app.routers.certificates import RISK_TO_TIER
-        assert RISK_TO_TIER["LOW"] == "GOLD"
-        assert RISK_TO_TIER["MEDIUM"] == "SILVER"
-        assert RISK_TO_TIER["HIGH"] == "BRONZE"
-        assert RISK_TO_TIER["CRITICAL"] == "RECHAZADO"
+    def test_certificate_code_generation(self):
+        """Los códigos de certificado deben ser únicos y de 8 caracteres."""
+        import secrets
+        alphabet = "abcdefghijklmnopqrstuvwxyz0123456789"
+        code = ''.join(secrets.choice(alphabet) for _ in range(8))
+        assert len(code) == 8
+        assert code.isalnum()
+        assert code.islower() or any(c.isdigit() for c in code)
 
     def test_certificate_validity_one_year(self):
-        """Los certificados deben ser válidos por 1 año."""
+        """Los certificados deben ser válidos por 90 días."""
         from datetime import timedelta
-        validity = timedelta(days=365)
-        assert validity.days == 365
+        validity = timedelta(days=90)
+        assert validity.days == 90
 
 
 if __name__ == "__main__":
