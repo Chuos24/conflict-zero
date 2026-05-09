@@ -75,6 +75,22 @@
 **Prioridad**: Baja
 **Descripción**: Agregar índices adicionales si las consultas se vuelven lentas.
 
+### 5. Frontend - Integrar checkout con pasarela real (Stripe/Culqi)
+**Prioridad**: Alta
+**Descripción**: Checkout actual es mock. Se creó webhook router pero falta integración real.
+
+### 6. Backend - Aplicar rate limiting en endpoints protegidos
+**Prioridad**: Media
+**Descripción**: Rate limiter creado pero no aplicado en los routers aún.
+
+### 7. Frontend - Usar componentes reutilizables en páginas existentes
+**Prioridad**: Media
+**Descripción**: Button, Input, Loading creados pero no integrados en pages existentes.
+
+### 8. Tests E2E (Playwright/Cypress)
+**Prioridad**: Baja
+**Descripción**: Tests unitarios del backend creados, faltan tests E2E del frontend.
+
 ---
 
 ## 🐛 BUGS CONOCIDOS
@@ -100,6 +116,20 @@
 - [x] Fórmula "cruda pero justa" implementada
 - [x] Fechas de inicio/fin en verificar.html
 - [x] Script update_sancion_20529400790.py creado
+- [x] **Frontend: middleware.ts** - Protección de rutas del dashboard (2026-04-20)
+- [x] **Frontend: types/index.ts** - Tipos TypeScript centralizados (2026-04-20)
+- [x] **Frontend: hooks/useAuth.ts** - Hook de autenticación (2026-04-20)
+- [x] **Frontend: hooks/useApi.ts** - Hook para API calls (2026-04-20)
+- [x] **Frontend: components/ui/Loading.tsx** - Componente reutilizable (2026-04-20)
+- [x] **Frontend: components/ui/Button.tsx** - Botón reutilizable (2026-04-20)
+- [x] **Frontend: components/ui/Input.tsx** - Input reutilizable (2026-04-20)
+- [x] **Frontend: components/ProtectedRoute.tsx** - Protección client-side (2026-04-20)
+- [x] **Frontend: app/dashboard/loading.tsx** - Loading UI App Router (2026-04-20)
+- [x] **Frontend: app/dashboard/error.tsx** - Error UI App Router (2026-04-20)
+- [x] **Backend: app/core/rate_limit.py** - Rate limiting por plan (2026-04-20)
+- [x] **Backend: app/routers/webhooks.py** - Webhooks para pagos (2026-04-20)
+- [x] **Backend: tests/test_main.py** - Tests unitarios básicos (2026-04-20)
+- [x] **Backend: tests/conftest.py** - Fixtures para tests (2026-04-20)
 
 ---
 
