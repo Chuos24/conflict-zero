@@ -21,7 +21,7 @@ def register_webhook_handler(event_type: str, handler):
 @router.post(
     "/receive",
     summary="Recibir Webhook",
-    description="Endpoint para recibir webhooks de servicios externos (Stripe, Culqi, etc)."")
+    description="Endpoint para recibir webhooks de servicios externos (Stripe, Culqi, etc).")
 async def receive_webhook(
     request: Request,
     provider: str = "generic"
