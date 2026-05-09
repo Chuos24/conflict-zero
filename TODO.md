@@ -85,11 +85,13 @@
 
 ### 7. Frontend - Usar componentes reutilizables en páginas existentes
 **Prioridad**: Media
-**Descripción**: Button, Input, Loading creados pero no integrados en pages existentes.
+**Descripción**: Button, Input, Loading creados pero las páginas existentes (dashboard, login, register, compare) aún usan JSX inline. Migrar a componentes reutilizables.
+**Status**: 0% - Pendiente
 
 ### 8. Tests E2E (Playwright/Cypress)
 **Prioridad**: Baja
 **Descripción**: Tests unitarios del backend creados, faltan tests E2E del frontend.
+**Status**: 0% - Pendiente
 
 ---
 
@@ -130,6 +132,9 @@
 - [x] **Backend: app/routers/webhooks.py** - Webhooks para pagos (2026-04-20)
 - [x] **Backend: tests/test_main.py** - Tests unitarios básicos (2026-04-20)
 - [x] **Backend: tests/conftest.py** - Fixtures para tests (2026-04-20)
+- [x] **Backend: app/routers/admin.py** - Router admin faltante (2026-05-10)
+- [x] **Fix: SyntaxError en webhooks.py** - Comilla extra corregida (2026-05-10)
+- [x] **Commit de 19 archivos faltantes** - Todo el código creado el 2026-04-20 finalmente commiteado (2026-05-10)
 
 ---
 
