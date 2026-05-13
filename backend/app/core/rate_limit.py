@@ -64,3 +64,34 @@ def check_rate_limit(request: Request, user_id: str, plan_type: str):
         "X-RateLimit-Limit": str(limit),
         "X-RateLimit-Remaining": str(limit - len(limiter.requests_store[user_id])),
     }
+
+# FastAPI dependency for easy router integration
+from app.models.user import User
+from app.core.security import get_current_active_user
+
+def rate_limit_dependency(current_user: User = Depends(get_current_active_user)):
+    """
+    FastAPI dependency that applies plan-based rate limiting.
+    Use as: `Depends(rate_limit_dependency)` in protected router endpoints.
+    """
+    # We don't have Request here in pure Depends, but we can use a callable approach
+    # For simplicity, we apply limit by user_id + plan_type
+    return _check_user_rate_limit(current_user.id, current_user.plan_type)
+
+def _check_user_rate_limit(user_id: str, plan_type: str):
+    """Internal rate limit check (no Request object needed)."""
+    limit = get_rate_limit_for_user(plan_type or "essential")
+    
+    if not limiter.is_allowed(user_id, limit):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Rate limit exceeded. Limit: {limit} requests per minute for your plan ({plan_type or 'essential'}).",
+            headers={"Retry-After": str(limiter.window_seconds)}
+        )
+    
+    limiter.record_request(user_id)
+    
+    return {
+        "X-RateLimit-Limit": str(limit),
+        "X-RateLimit-Remaining": str(limit - len(limiter.requests_store[user_id])),
+    }

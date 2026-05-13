@@ -5,6 +5,7 @@ from typing import Dict
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
+from app.core.rate_limit import rate_limit_dependency
 from app.models import User, VerificationRequest
 from app.schemas import DashboardStats, VerificationHistory
 
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 )
 async def get_dashboard_stats(
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -93,7 +95,8 @@ async def get_dashboard_stats(
     description="Obtiene información sobre el uso del plan actual."
 )
 async def get_usage_info(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency)
 ):
     """Retorna información de uso del plan actual."""
     return {

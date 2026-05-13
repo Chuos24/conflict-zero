@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import Cookies from 'js-cookie';
 import { Shield, Eye, EyeOff } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Loading from '@/components/ui/Loading';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,6 +45,10 @@ export default function LoginPage() {
     }
   };
 
+  if (loading) {
+    return <Loading message="Accediendo" fullScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e3] flex items-center justify-center p-8">
       <div className="w-full max-w-md">
@@ -61,16 +68,13 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                required
-              />
-            </div>
+            <Input
+              label="Email"
+              type="email"
+              value={email}
+              onChange={setEmail}
+              required
+            />
 
             <div>
               <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Contraseña</label>
@@ -92,13 +96,9 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#c9a050] text-[#0a0a0a] py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors disabled:opacity-50"
-            >
+            <Button type="submit" variant="primary" className="w-full py-4" disabled={loading}>
               {loading ? 'Accediendo...' : 'Acceder'}
-            </button>
+            </Button>
           </form>
 
           <div className="mt-8 pt-8 border-t border-[#1a1a1a] text-center">

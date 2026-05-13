@@ -5,6 +5,7 @@ from typing import List
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user, verify_token
+from app.core.rate_limit import rate_limit_dependency
 from app.models import User
 from app.services.verification import verification_service
 from app.schemas import (
@@ -24,6 +25,7 @@ security = HTTPBearer()
 async def verify_ruc(
     request_data: VerificationRequest,
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -86,6 +88,7 @@ async def verify_ruc(
 async def consulta_osce(
     ruc: str,
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -143,6 +146,7 @@ async def consulta_osce(
 )
 async def get_verification_history(
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db),
     limit: int = 50
 ):

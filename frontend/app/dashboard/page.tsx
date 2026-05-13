@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { Search, CheckCircle, MapPin, ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Loading from '@/components/ui/Loading';
 
 export default function DashboardPage() {
   const [ruc, setRuc] = useState('');
@@ -56,24 +59,25 @@ export default function DashboardPage() {
         </div>
 
         <div className="border border-[#1a1a1a] p-8 mb-8">
-          <form onSubmit={handleVerify} className="flex gap-4">
+          <form onSubmit={handleVerify} className="flex gap-4 items-end">
             <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Ingrese RUC (11 dígitos)"
+              <Input
+                label=""
                 value={ruc}
-                onChange={(e) => setRuc(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                className="w-full bg-transparent border border-[#2a2a2a] px-4 py-4 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
+                onChange={(value) => setRuc(value.replace(/\D/g, '').slice(0, 11))}
+                placeholder="Ingrese RUC (11 dígitos)"
                 maxLength={11}
+                className="w-full"
               />
             </div>
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={loading || ruc.length !== 11}
-              className="bg-[#c9a050] text-[#0a0a0a] px-8 py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors disabled:opacity-50"
+              className="px-8 py-3"
             >
               {loading ? 'Verificando...' : 'Verificar'}
-            </button>
+            </Button>
           </form>
 
           {error && (
@@ -81,7 +85,9 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {result && result.data && (
+        {loading && <Loading message="Verificando RUC" />}
+
+        {result && result.data && !loading && (
           <div className="border border-[#1a1a1a]">
             <div className="p-8 border-b border-[#1a1a1a]">
               <div className="flex items-start justify-between">

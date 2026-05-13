@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
+from app.core.rate_limit import rate_limit_dependency
 from app.models import User
 from app.services.compare_service import compare_rucs
 
@@ -57,6 +58,7 @@ class CompareResponse(BaseModel):
 async def compare_rucs_endpoint(
     request: CompareRequest,
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -105,7 +107,8 @@ async def compare_rucs_endpoint(
     description="Retorna los límites de comparación según el plan del usuario."
 )
 async def get_compare_limits(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency)
 ):
     """Retorna los límites de comparación para el usuario actual."""
     plan_limits = {

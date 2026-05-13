@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Cookies from 'js-cookie';
 import { Shield, Eye, EyeOff, Check } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Loading from '@/components/ui/Loading';
 
 const plans: Record<string, { name: string; price: number }> = {
   essential: { name: 'Essential', price: 400 },
@@ -66,6 +69,10 @@ export default function RegisterPage() {
     }
   };
 
+  if (loading) {
+    return <Loading message="Procesando" fullScreen />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e3] py-16 px-8">
       <div className="max-w-md mx-auto">
@@ -95,30 +102,23 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Nombre Completo *</label>
-              <input
-                type="text"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                required
-              />
-            </div>
+            <Input
+              label="Nombre Completo"
+              value={formData.full_name}
+              onChange={(value) => setFormData({ ...formData, full_name: value })}
+              required
+            />
+
+            <Input
+              label="Email Corporativo"
+              type="email"
+              value={formData.email}
+              onChange={(value) => setFormData({ ...formData, email: value })}
+              required
+            />
 
             <div>
-              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Email Corporativo *</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Contraseña *</label>
+              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Contraseña <span className="text-[#c9a050]">*</span></label>
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -138,27 +138,19 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Empresa *</label>
-              <input
-                type="text"
-                value={formData.company_name}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                required
-              />
-            </div>
+            <Input
+              label="Empresa"
+              value={formData.company_name}
+              onChange={(value) => setFormData({ ...formData, company_name: value })}
+              required
+            />
 
-            <div>
-              <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">RUC de la Empresa</label>
-              <input
-                type="text"
-                value={formData.ruc}
-                onChange={(e) => setFormData({ ...formData, ruc: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                maxLength={11}
-              />
-            </div>
+            <Input
+              label="RUC de la Empresa"
+              value={formData.ruc}
+              onChange={(value) => setFormData({ ...formData, ruc: value.replace(/\D/g, '').slice(0, 11) })}
+              maxLength={11}
+            />
 
             <div className="border border-[#1a1a1a] p-4 text-sm text-[#8a8a8a]">
               <div className="flex items-start gap-3">
@@ -172,13 +164,9 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[#c9a050] text-[#0a0a0a] py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors disabled:opacity-50"
-            >
+            <Button type="submit" variant="primary" className="w-full py-4" disabled={loading}>
               {loading ? 'Procesando...' : 'Enviar Solicitud'}
-            </button>
+            </Button>
           </form>
 
           <div className="mt-8 pt-8 border-t border-[#1a1a1a] text-center">
