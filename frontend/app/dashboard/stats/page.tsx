@@ -5,7 +5,8 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart
 } from 'recharts';
-import { TrendingUp, Activity, Clock, Database, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
+import { TrendingUp, Activity, Clock, Database, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 
 // UHNW Color Palette
 const COLORS = {
@@ -199,14 +200,7 @@ export default function StatsPage() {
   ] : [];
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e3] p-8 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-[#8a8a8a]">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          <span>Cargando estadísticas...</span>
-        </div>
-      </div>
-    );
+    return <Loading fullScreen message="Cargando estadísticas..." />;
   }
 
   if (error) {

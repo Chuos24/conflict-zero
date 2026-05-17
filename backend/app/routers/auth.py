@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.rate_limit import rate_limit_dependency
 from app.core.security import (
     verify_password, create_access_token, get_password_hash, get_current_active_user
 )
@@ -269,6 +270,7 @@ async def register_web(
 async def upgrade_plan(
     new_plan: str,
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -490,7 +492,8 @@ async def login_form(
     description="Obtiene los datos del usuario autenticado."
 )
 async def get_current_user_info(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency)
 ):
     """Retorna la información del usuario actual."""
     return current_user
@@ -665,6 +668,7 @@ async def reset_user_password(email: str, db: Session = Depends(get_db)):
 async def update_profile(
     update_data: UserUpdate,
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -734,6 +738,7 @@ async def update_profile(
 )
 async def regenerate_api_key(
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -763,7 +768,8 @@ async def regenerate_api_key(
     description="Retorna la API key del usuario autenticado (mascarada por seguridad)."
 )
 async def get_api_key(
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency)
 ):
     """
     Retorna la API key del usuario (solo los últimos 6 caracteres visibles).
@@ -993,6 +999,7 @@ class UserApprovalRequest(BaseModel):
 )
 async def get_pending_users_v2(
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """
@@ -1036,6 +1043,7 @@ async def approve_user_v2(
     user_id: str,
     request: UserApprovalRequest,
     current_user: User = Depends(get_current_active_user),
+    rate_limit: dict = Depends(rate_limit_dependency),
     db: Session = Depends(get_db)
 ):
     """

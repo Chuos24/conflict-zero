@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Shield, Mail, MapPin, Phone, Send } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -62,37 +64,26 @@ export default function ContactoPage() {
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Nombre</label>
-                  <input
-                    type="text"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                    required
-                  />
-                </div>
+                <Input
+                  label="Nombre"
+                  value={formData.nombre}
+                  onChange={(v) => setFormData({ ...formData, nombre: v })}
+                  required
+                />
 
-                <div>
-                  <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                    required
-                  />
-                </div>
+                <Input
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(v) => setFormData({ ...formData, email: v })}
+                  required
+                />
 
-                <div>
-                  <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Empresa</label>
-                  <input
-                    type="text"
-                    value={formData.empresa}
-                    onChange={(e) => setFormData({ ...formData, empresa: e.target.value })}
-                    className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                  />
-                </div>
+                <Input
+                  label="Empresa"
+                  value={formData.empresa}
+                  onChange={(v) => setFormData({ ...formData, empresa: v })}
+                />
 
                 <div>
                   <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">Mensaje</label>
@@ -105,13 +96,13 @@ export default function ContactoPage() {
                   />
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  className="w-full bg-[#c9a050] text-[#0a0a0a] py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors flex items-center justify-center gap-2"
+                  variant="primary"
+                  icon={<Send className="h-4 w-4" />}
                 >
-                  <Send className="h-4 w-4" />
                   Enviar Mensaje
-                </button>
+                </Button>
               </form>
             )}
           </div>

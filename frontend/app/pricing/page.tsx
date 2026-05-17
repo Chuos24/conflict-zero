@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Check, Shield, Lock, FileText, Phone } from 'lucide-react';
+import Button from '@/components/ui/Button';
 
 const plans = [
   {
@@ -83,12 +84,12 @@ export default function PricingPage() {
             <Link href="/login" className="text-sm tracking-wide text-[#8a8a8a] hover:text-[#e8e6e3] transition-colors">
               Acceso Clientes
             </Link>
-            <Link 
-              href="/register" 
-              className="text-sm tracking-wide border border-[#c9a050] text-[#c9a050] px-6 py-2 hover:bg-[#c9a050] hover:text-[#0a0a0a] transition-all"
+            <Button
+              onClick={() => window.location.href = '/register'}
+              variant="secondary"
             >
               Solicitar Acceso
-            </Link>
+            </Button>
           </div>
         </div>
       </header>

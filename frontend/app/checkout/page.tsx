@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Check, CreditCard, Shield, Zap, Building2 } from 'lucide-react';
 import Link from 'next/link';
+import Button from '@/components/ui/Button';
 
 interface Plan {
   id: string;
@@ -94,12 +95,9 @@ export default function CheckoutPage() {
           <p className="text-[#8a8a8a] mb-8">
             Tu plan {selectedPlanData?.name} ha sido activado. Ya puedes comenzar a usar todas las funcionalidades.
           </p>
-          <Link
-            href="/dashboard"
-            className="inline-block bg-[#c9a050] text-[#0a0a0a] px-8 py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors"
-          >
+          <Button onClick={() => window.location.href = '/dashboard'} variant="primary">
             Ir al Dashboard
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -163,12 +161,9 @@ export default function CheckoutPage() {
 
             {/* Continue Button */}
             <div className="text-center">
-              <button
-                onClick={handleContinue}
-                className="bg-[#c9a050] text-[#0a0a0a] px-12 py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors"
-              >
+              <Button onClick={handleContinue} variant="primary">
                 Continuar
-              </button>
+              </Button>
             </div>
           </>
         ) : (
@@ -277,26 +272,20 @@ export default function CheckoutPage() {
                 )}
 
                 <div className="flex items-center gap-4 mt-6">
-                  <button
+                  <Button
                     onClick={() => setStep('select')}
-                    className="text-sm text-[#5a5a5a] hover:text-[#e8e6e3] transition-colors"
+                    variant="secondary"
                   >
                     ← Volver
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     onClick={handlePayment}
                     disabled={processing}
-                    className="flex-1 bg-[#c9a050] text-[#0a0a0a] py-4 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    variant="primary"
+                    icon={processing ? <Zap className="h-4 w-4 animate-pulse" /> : undefined}
                   >
-                    {processing ? (
-                      <>
-                        <Zap className="h-4 w-4 animate-pulse" />
-                        Procesando...
-                      </>
-                    ) : (
-                      `Pagar $${selectedPlanData?.price}`
-                    )}
-                  </button>
+                    {processing ? 'Procesando...' : `Pagar $${selectedPlanData?.price}`}
+                  </Button>
                 </div>
               </div>
             </div>

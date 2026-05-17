@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Scale, ArrowLeft, Plus, X, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Scale, ArrowLeft, Plus, X, CheckCircle, AlertTriangle } from 'lucide-react';
+import Button from '@/components/ui/Button';
 import Link from 'next/link';
 
 interface RUCResult {
@@ -228,20 +229,14 @@ export default function ComparePage() {
                 <Plus className="h-4 w-4" /> Agregar RUC
               </button>
             )}
-            <button
+            <Button
               onClick={compareRUCs}
               disabled={loading}
-              className="flex-1 bg-[#c9a050] text-[#0a0a0a] py-3 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              variant="primary"
+              icon={loading ? <span className="animate-spin">⏳</span> : undefined}
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Comparando...
-                </>
-              ) : (
-                'Comparar'
-              )}
-            </button>
+              {loading ? 'Comparando...' : 'Comparar'}
+            </Button>
           </div>
         </div>
 

@@ -79,14 +79,15 @@
 **Prioridad**: Alta
 **Descripción**: Checkout actual es mock. Se creó webhook router pero falta integración real.
 
-### 6. Backend - Aplicar rate limiting en endpoints protegidos
+### 6. Backend - Aplicar rate limiting en endpoints protegidos ✅ COMPLETADO
 **Prioridad**: Media
 **Descripción**: Rate limiter creado pero no aplicado en los routers aún.
+**Status**: 100% - Aplicado en dashboard, compare, verification, auth, payments, admin
 
-### 7. Frontend - Usar componentes reutilizables en páginas existentes
+### 7. Frontend - Usar componentes reutilizables en páginas existentes ✅ PARCIAL
 **Prioridad**: Media
-**Descripción**: Button, Input, Loading creados pero las páginas existentes (dashboard, login, register, compare) aún usan JSX inline. Migrar a componentes reutilizables.
-**Status**: 0% - Pendiente
+**Descripción**: Button, Input, Loading creados pero las páginas existentes aún usaban JSX inline. Migrar a componentes reutilizables.
+**Status**: ~70% - checkout, contacto, pricing, dashboard/compare, dashboard/stats migrados. Quedan: dashboard/history, dashboard/settings, dashboard/api-keys
 
 ### 8. Tests E2E (Playwright/Cypress)
 **Prioridad**: Baja
