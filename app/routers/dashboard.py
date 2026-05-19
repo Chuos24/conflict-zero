@@ -103,3 +103,34 @@ async def get_usage_info(
         "remaining_requests": current_user.monthly_limit - current_user.monthly_requests,
         "reset_date": "Primer día del próximo mes"
     }
+
+@router.get("/stats")
+async def get_dashboard_stats(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get dashboard statistics for the current user."""
+    total_verifications = db.query(Verification).filter(
+        Verification.user_id == current_user.id
+    ).count()
+    
+    verifications = db.query(Verification).filter(
+        Verification.user_id == current_user.id
+    ).all()
+    average_score = sum([v.risk_score for v in verifications]) / max(len(verifications), 1) if verifications else 0
+    
+    from datetime import datetime, timedelta
+    seven_days_ago = datetime.utcnow() - timedelta(days=7)
+    recent_verifications_7d = db.query(Verification).filter(
+        Verification.user_id == current_user.id,
+        Verification.created_at >= seven_days_ago
+    ).count()
+    
+    return {
+        "total_verifications": total_verifications,
+        "average_score": round(average_score, 2),
+        "recent_verifications_7d": recent_verifications_7d,
+        "plan_type": current_user.plan_type,
+        "monthly_requests": current_user.monthly_requests,
+        "monthly_limit": current_user.monthly_limit
+    }
