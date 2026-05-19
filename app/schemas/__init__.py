@@ -27,8 +27,14 @@ class UserResponse(UserBase):
     plan_type: str
     monthly_requests: int
     monthly_limit: int
+    is_admin: bool = False
+    plan: Optional[str] = None
+    plan_activated_at: Optional[datetime] = None
+    plan_expires_at: Optional[datetime] = None
+    api_key: Optional[str] = None
     created_at: datetime
-    
+    updated_at: Optional[datetime] = None
+
     class Config:
         orm_mode = True
 
