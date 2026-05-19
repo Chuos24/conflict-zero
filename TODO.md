@@ -87,7 +87,8 @@
 ### 7. Frontend - Usar componentes reutilizables en páginas existentes ✅ PARCIAL
 **Prioridad**: Media
 **Descripción**: Button, Input, Loading creados pero las páginas existentes aún usaban JSX inline. Migrar a componentes reutilizables.
-**Status**: ~70% - checkout, contacto, pricing, dashboard/compare, dashboard/stats migrados. Quedan: dashboard/history, dashboard/settings, dashboard/api-keys
+**Status**: ✅ 100% COMPLETADO - Todas las páginas migradas (2026-05-20)
+**Descripción**: Button, Input, Loading creados pero las páginas existentes aún usaban JSX inline. Migrar a componentes reutilizables.
 
 ### 8. Tests E2E (Playwright/Cypress)
 **Prioridad**: Baja

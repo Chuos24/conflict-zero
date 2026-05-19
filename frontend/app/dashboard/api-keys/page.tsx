@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Key, Copy, Eye, EyeOff, RefreshCw, AlertCircle } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Loading from '@/components/ui/Loading';
 
 interface ApiKeyData {
   key: string;
@@ -106,16 +108,7 @@ export default function ApiKeysPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e3] p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-[#1a1a1a] w-64 mb-8"></div>
-            <div className="h-48 bg-[#1a1a1a]"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <Loading fullScreen message="Cargando API keys" />;
   }
 
   return (
@@ -191,26 +184,26 @@ export default function ApiKeysPage() {
                 </div>
 
                 <div className="pt-6 border-t border-[#1a1a1a]">
-                  <button
+                  <Button
+                    variant="danger"
                     onClick={regenerateKey}
                     disabled={regenerating}
-                    className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 transition-colors"
+                    icon={<RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />}
+                    className="text-sm normal-case tracking-normal"
                   >
-                    <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
                     {regenerating ? 'Regenerando...' : 'Regenerar API Key'}
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
               <div className="text-center py-12">
                 <p className="text-[#5a5a5a] mb-4">No tienes una API key activa</p>
-                <button
+                <Button
                   onClick={regenerateKey}
                   disabled={regenerating}
-                  className="bg-[#c9a050] text-[#0a0a0a] px-6 py-3 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors"
                 >
                   {regenerating ? 'Generando...' : 'Generar API Key'}
-                </button>
+                </Button>
               </div>
             )}
           </div>

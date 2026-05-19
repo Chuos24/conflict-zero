@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Settings, User, Building2, Bell, Shield, Save, CheckCircle } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Loading from '@/components/ui/Loading';
 
 interface UserProfile {
   email: string;
@@ -102,16 +105,7 @@ export default function SettingsPage() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#0a0a0a] text-[#e8e6e3] p-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="animate-pulse">
-            <div className="h-8 bg-[#1a1a1a] w-64 mb-8"></div>
-            <div className="h-96 bg-[#1a1a1a]"></div>
-          </div>
-        </div>
-      </div>
-    );
+    return <Loading fullScreen message="Cargando configuración" />;
   }
 
   return (
@@ -189,26 +183,21 @@ export default function SettingsPage() {
                   <p className="text-xs text-[#5a5a5a] mt-1">El email no puede ser modificado</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm text-[#8a8a8a] mb-2">Nombre Completo</label>
-                  <input
-                    type="text"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                  />
-                </div>
+                <Input
+                  label="Nombre Completo"
+                  value={formData.full_name}
+                  onChange={(v) => setFormData({ ...formData, full_name: v })}
+                />
               </div>
 
               <div className="mt-6">
-                <button
+                <Button
                   type="submit"
                   disabled={saving}
-                  className="flex items-center gap-2 bg-[#c9a050] text-[#0a0a0a] px-6 py-3 text-sm tracking-[0.1em] uppercase font-medium hover:bg-[#d4aa5a] transition-colors disabled:opacity-50"
+                  icon={<Save className="h-4 w-4" />}
                 >
-                  <Save className="h-4 w-4" />
                   {saving ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -223,25 +212,17 @@ export default function SettingsPage() {
             </div>
             <div className="p-6">
               <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm text-[#8a8a8a] mb-2">Nombre de la Empresa</label>
-                  <input
-                    type="text"
-                    value={formData.company_name}
-                    onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#8a8a8a] mb-2">RUC de la Empresa</label>
-                  <input
-                    type="text"
-                    value={formData.ruc}
-                    onChange={(e) => setFormData({ ...formData, ruc: e.target.value.replace(/\D/g, '').slice(0, 11) })}
-                    maxLength={11}
-                    className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                  />
-                </div>
+                <Input
+                  label="Nombre de la Empresa"
+                  value={formData.company_name}
+                  onChange={(v) => setFormData({ ...formData, company_name: v })}
+                />
+                <Input
+                  label="RUC de la Empresa"
+                  value={formData.ruc}
+                  onChange={(v) => setFormData({ ...formData, ruc: v.replace(/\D/g, '').slice(0, 11) })}
+                  maxLength={11}
+                />
               </div>
             </div>
           </div>

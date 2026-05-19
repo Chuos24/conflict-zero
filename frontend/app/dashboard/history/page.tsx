@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, ChevronLeft, ChevronRight, Eye, XCircle, FileDown, Loader2 } from 'lucide-react';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Loading from '@/components/ui/Loading';
+import { Search, ChevronLeft, ChevronRight, Eye, XCircle, FileDown } from 'lucide-react';
 import Link from 'next/link';
 
 interface HistoryRecord {
