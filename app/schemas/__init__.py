@@ -73,14 +73,14 @@ class SunatData(BaseModel):
 class OsceSanction(BaseModel):
     sanction_id: str
     description: str
-    date: datetime
+    date: Optional[str] = None  # Accept date strings like '2021-12-29'
     status: str
     entity: str
 
 class TceSanction(BaseModel):
     sanction_id: str
     description: str
-    date: datetime
+    date: Optional[str] = None  # Accept date strings
     status: str
     type: str
 
@@ -103,10 +103,10 @@ class VerificationResponse(BaseModel):
     score: int = Field(..., ge=0, le=100)
     risk_level: str  # low, medium, high, critical
     
-    # Detalles
+    # Detailles
     sunat_data: SunatData
     osce_sanctions: List[OsceSanction]
-    tce_sanctions: List[TceSanction]
+    tce_sanctions: List[TceSection]
     ml_analysis: MLAnalysis
     score_breakdown: ScoreBreakdown
     
