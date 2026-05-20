@@ -106,7 +106,7 @@ async def get_usage_info(
 
 @router.get("/stats")
 async def get_dashboard_stats(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get dashboard statistics for the current user."""
