@@ -62,7 +62,10 @@ class VerificationService:
         # Calcular score
         score_result = scoring_engine.calculate_total_score(
             ruc=ruc,
-            sunat_debt=external_data["sunat"].get("deuda_coactiva", 0),
+            razon_social=external_data.get("company_name", ""),
+            estado=external_data["sunat"].get("estado_tributario", "ACTIVO"),
+            condicion=external_data["sunat"].get("condicion", "HABIDO"),
+            deuda=external_data["sunat"].get("deuda_coactiva", 0),
             osce_sanctions=external_data["osce_sanctions"],
             tce_sanctions=external_data["tce_sanctions"]
         )
@@ -130,7 +133,7 @@ class VerificationService:
                 "total_score": score_result["total_score"]
             },
             
-            # Metadata
+            # Metadato
             "verification_date": datetime.now().isoformat(),
             "cached": False,
             "pdf_url": None,  # Generado asíncronamente si se solicita
@@ -196,7 +199,7 @@ class VerificationService:
         user: User,
         db: Session,
         limit: int = 50
-    ):
+    ) -> None:
         """Obtiene el historial de verificaciones de un usuario."""
         from app.models import VerificationRequest as VR
         
@@ -205,6 +208,7 @@ class VerificationService:
         ).order_by(
             VR.created_at.desc()
         ).limit(limit).all()
+
 
 # Instancia global
 verification_service = VerificationService()
