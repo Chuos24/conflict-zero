@@ -94,9 +94,9 @@ class VerificationService:
             # Sanciones OSCE
             "osce_sanctions": [
                 {
-                    "sanction_id": s.get("sanction_id", ""),
+                    "sanction_id": str(s.get("sanction_id", "")),  # Convertir a string
                     "description": s.get("description", ""),
-                    "date": s.get("date"),
+                    "date": s.get("date") if isinstance(s.get("date"), str) else str(s.get("date", ""))[:10] + "T00:00:00",  # Formato ISO
                     "status": s.get("status", ""),
                     "severity": s.get("severity", ""),
                     "entity": s.get("entity", "OSCE")
@@ -107,9 +107,9 @@ class VerificationService:
             # Sanciones TCE
             "tce_sanctions": [
                 {
-                    "sanction_id": s.get("sanction_id", ""),
+                    "sanction_id": str(s.get("sanction_id", "")),  # Convertir a string
                     "description": s.get("description", ""),
-                    "date": s.get("date"),
+                    "date": s.get("date") if isinstance(s.get("date"), str) else str(s.get("date", ""))[:10] + "T00:00:00",  # Formato ISO
                     "status": s.get("status", ""),
                     "type": s.get("type", ""),
                     "entity": s.get("entity", "TCE")
