@@ -106,7 +106,7 @@ class VerificationResponse(BaseModel):
     # Detailles
     sunat_data: SunatData
     osce_sanctions: List[OsceSanction]
-    tce_sanctions: List[TceSection]
+    tce_sanctions: List[TceSanction]
     ml_analysis: MLAnalysis
     score_breakdown: ScoreBreakdown
     
