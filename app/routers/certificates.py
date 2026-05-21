@@ -41,7 +41,7 @@ BASE_URL = os.environ.get('BASE_URL', 'https://czperu.com')
 # ============ PYDANTIC MODELS ============
 
 class GenerateCertificateRequest(BaseModel):
-    ruc: str = Field(..., min_length=11, max_length=11, pattern=r^'^\d{11}$')
+    ruc: str = Field(..., min_length=11, max_length=11, pattern=r'^\d{11}$')
     company_name: Optional[str] = None
     score: int = Field(..., ge=0, le=100)
     risk_level: str = Field(..., pattern=r'^(low|medium|high|critical)$')
