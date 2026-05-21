@@ -22,7 +22,7 @@ settings = get_settings()
 app = FastAPI(
     title="Conflict Zero API",
     description="Sistema de Verificación de Integridad Empresarial para Perú",
-    version="3.0.0",
+    version="3.0.1",
     docs_url="/docs",
     redoc_url="/redoc"
 )
