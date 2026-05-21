@@ -88,5 +88,5 @@ app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(network_router, prefix="/api/v1")
 
 # API v3 routers (new features)
-app.include_router(tags_router, prefix="/api/v3")
-app.include_router(templates_router, prefix="/api/v3")
+#app.include_router(tags_router, prefix="/api/v3")
+#app.include_router(templates_router, prefix="/api/v3")
