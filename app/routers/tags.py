@@ -20,7 +20,7 @@ PROFESSIONAL_PLANS = ["professional", "enterprise"]
 
 def _require_professional(user: User):
     if user.plan_type not in PROFESSIONAL_PLANS and not user.is_admin:
-        raise HTTPException(status_code=403, detail="Esta funciÃ³n requiere plan Professional o superior.")
+        raise HTTPException(status_code=403, detail="Esta funciÃ³n requiere plan Profesional o superior.")
 
 
 _tags_store: dict = {}
@@ -29,7 +29,7 @@ _verification_tags: dict = {}
 
 class TagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
-    color: Optional[str] = Field(default="#C5A059", pattern=r^"^#[0-9A-Fa-f]{6}$")
+    color: Optional[str] = Field(default="#C5A059", pattern=r"^#[0-9A-Fa-f]{6}$")
     description: Optional[str] = Field(default=None, max_length=200)
 
 
@@ -55,7 +55,7 @@ async def create_tag(data: TagCreate, current_user: User = Depends(get_current_a
         _tags_store[uid] = {}
     for t in _tags_store[uid].values():
         if t["name"].lower() == data.name.lower():
-            raise HTTPException(status_code=400, detail=f"Ya existe un tag con el nombre '{data.name}'")
+            raise HTTPException(status_code=400, detail=f"Ya existe un tag con el nombre '{ data.name }'")
     tag_id = str(uuid.uuid4())
     tag = {"id": tag_id, "name": data.name, "color": data.color or "#C5A059", "description": data.description, "created_at": datetime.utcnow().isoformat(), "user_id": uid}
     _tags_store[uid][tag_id] = tag
@@ -76,7 +76,7 @@ async def list_tags(current_user: User = Depends(get_current_active_user), db: S
 
 
 @router.delete("/{tag_id}")
-async def delete_tag(tag_id: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def delete_tag(tag_id: str, current_user: User = Depends(get_current_active_user)):
     _require_professional(current_user)
     uid = current_user.id
     if uid not in _tags_store or tag_id not in _tags_store[uid]:
@@ -84,11 +84,12 @@ async def delete_tag(tag_id: str, current_user: User = Depends(get_current_activ
     del _tags_store[uid][tag_id]
     for ver_id in (_verification_tags.get(uid) or {}):
         _verification_tags[uid][ver_id] = [t for t in _verification_tags[uid][ver_id] if t != tag_id]
-    return {"success": True, "message": "Tag eliminado"}
+    return {"success": True, "message": "Ta`ˆ”RX¯encontrado"}
+
 
 
 @router.post("/assign")
-async def assign_tag(data: AssignTagRequest, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def assign_tag(data: AssignTagRequest, current_user: User = Depends(get_current_active_user)):
     _require_professional(current_user)
     uid = current_user.id
     if uid not in _tags_store or data.tag_id not in _tags_store[uid]:
@@ -99,11 +100,11 @@ async def assign_tag(data: AssignTagRequest, current_user: User = Depends(get_cu
         _verification_tags[uid][data.verification_id] = []
     if data.tag_id not in _verification_tags[uid][data.verification_id]:
         _verification_tags[uid][data.verification_id].append(data.tag_id)
-    return {"success": True, "message": "Tag asignado", "verification_id": data.verification_id, "tag_id": data.tag_id}
+    return {"success": True, "message": "Ta`ˆ”RX¯asignado", "verification_id": data.verification_id, "tag_id": data.tag_id}
 
 
 @router.delete("/assign/{verification_id}/{tag_id}")
-async def remove_tag_from_verification(verification_id: str, tag_id: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def remove_tag_from_verification(verification_id: str, tag_id: str, current_user: User = Depends(get_current_active_user)):
     _require_professional(current_user)
     uid = current_user.id
     if uid in _verification_tags and verification_id in _verification_tags[uid]:
@@ -112,13 +113,14 @@ async def remove_tag_from_verification(verification_id: str, tag_id: str, curren
 
 
 @router.get("/verification/{verification_id}")
-async def get_tags_for_verification(verification_id: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def get_tags_for_verification(verification_id: str, current_user: User = Depends(get_current_active_user)):
     _require_professional(current_user)
     uid = current_user.id
     tag_ids = (_verification_tags.get(uid) or {}).get(verification_id, [])
     user_tags = _tags_store.get(uid, {})
     tags = [TagResponse(**user_tags[tid], usage_count=0) for tid in tag_ids if tid in user_tags]
     return {"verification_id": verification_id, "tags": tags}
+
 
 
 @router.get("/search")
