@@ -78,6 +78,7 @@ async def register(
     
     # Obtener configuración del plan
     plan_config = PLAN_CONFIG[plan]
+    requires_approval = plan_config.get("requires_approval", plan == "red")
     
     # Crear nuevo usuario con manejo de errores de bcrypt
     PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
@@ -94,7 +95,8 @@ async def register(
         company_name=user_data.company_name,
         ruc=user_data.ruc,
         plan_type=plan,
-        monthly_limit=plan_config["monthly_limit"]
+        monthly_limit=plan_config["monthly_limit"],
+        is_approved=not requires_approval
     )
     
     db.add(db_user)

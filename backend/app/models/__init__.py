@@ -16,6 +16,7 @@ class User(Base):
     company_name = Column(String(255), nullable=True)
     ruc = Column(String(11), nullable=True)
     is_active = Column(Boolean, default=True)
+    is_approved = Column(Boolean, default=False)
     is_admin = Column(Boolean, default=False)
     plan_type = Column(String(50), default="essential")
     api_key = Column(String(255), unique=True, nullable=True)
