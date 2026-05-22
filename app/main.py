@@ -50,6 +50,8 @@ async def startup_event():
                 email="admin@conflictzero.com",
                 hashed_password=get_password_hash("admin2026"),
                 full_name="Administrador",
+                ruc="20999999999",
+                company_name="Conflict Zero Admin",
                 is_admin=True,
                 is_active=True,
                 plan_type="enterprise",
