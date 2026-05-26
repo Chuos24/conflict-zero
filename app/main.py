@@ -12,7 +12,9 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router, invitations_router, certificates_router, features_router, tags_router, templates_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router, invitations_router, certificates_router, features_router
+from app.routers.tags import router as tags_router
+from app.routers.templates import router as templates_router
 from app.routers.payments_v2 import router as payments_v2_router
 import uuid
 from app.core.rate_limit import RateLimitHeadersMiddleware
