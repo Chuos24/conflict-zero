@@ -21,7 +21,7 @@ class TagResponse(BaseModel):
     created_at: str
     user_id: str
 
-@router.post("/api/v3/tags")
+@router.post("/tags")
 async def create_tag(data: TagCreate, uid: str = Depends(get_current_user)):
     import uuid
     tag_id = str(uuid.uuid4())
@@ -29,12 +29,12 @@ async def create_tag(data: TagCreate, uid: str = Depends(get_current_user)):
     tags_store[tag_id] = tag
     return TagResponse(**tag)
 
-@router.get("/api/v3/tags")
+@router.get("/tags")
 async def list_tags(uid: str = Depends(get_current_user)):
     user_tags = [t for t in tags_store.values() if t["user_id"] == uid]
     return [TagResponse(**t) for t in user_tags]
 
-@router.put("/api/v3/tags/{tag_id}")
+@router.put("/tags/{tag_id}")
 async def update_tag(tag_id: str, data: TagCreate, uid: str = Depends(get_current_user)):
     if tag_id not in tags_store:
         raise HTTPException(status_code=404, detail="Not found")
@@ -44,7 +44,7 @@ async def update_tag(tag_id: str, data: TagCreate, uid: str = Depends(get_curren
     tag.update({"name": data.name, "color": data.color or "#C5A059", "description": data.description})
     return TagResponse(**tag)
 
-@router.delete("/api/v3/tags/{tag_id}")
+@router.delete("/tags/{tag_id}")
 async def delete_tag(tag_id: str, uid: str = Depends(get_current_user)):
     if tag_id not in tags_store:
         raise HTTPException(status_code=404, detail="Not found")
@@ -54,13 +54,13 @@ async def delete_tag(tag_id: str, uid: str = Depends(get_current_user)):
     del tags_store[tag_id]
     return {"ok": True}
 
-@router.post("/api/v3/tags/{tag_id}/assign")
+@router.post("/tags/{tag_id}/assign")
 async def assign_tag(tag_id: str, ruc: str, uid: str = Depends(get_current_user)):
     if tag_id not in tags_store:
         raise HTTPException(status_code=404, detail="Not found")
     return {"ok": True, "ruc": ruc, "tag_id": tag_id}
 
-@router.get("/api/v3/tags/search")
+@router.get("/tags/search")
 async def search_tags(q: str, uid: str = Depends(get_current_user)):
     user_tags = [t for t in tags_store.values() if t["user_id"] == uid]
     results = [t for t in user_tags if q.lower() in t["name"].lower()]
