@@ -94,3 +94,5 @@ app.include_router(network_router, prefix="/api/v1")
 # API v3 routers (new features)
 app.include_router(tags_router, prefix="/api/v3")
 app.include_router(templates_router, prefix="/api/v3")# Render rebuild force - Tue May 26 15:49:54 CEST 2026
+
+# Force redeploy Tue Jun  2 13:30:56 UTC 2026
