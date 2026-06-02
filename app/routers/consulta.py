@@ -1538,3 +1538,45 @@ async def admin_list_ruc_cache(
         
     except Exception as e:
         return {"error": True, "message": str(e)}
+
+
+# ============================================================
+# ENDPOINT ALIAS: /consulta/ruc/{ruc} (Alternate route)
+# ============================================================
+@router.get(
+    "/ruc/{ruc}",
+    summary="Consulta RUC (Alias Route)",
+    description="Alias para /consulta-completa/{ruc}. Redirige a consulta completa."
+)
+async def consulta_ruc_alias(
+    ruc: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint alias que apunta a consulta_completa.
+    Mantiene compatibilidad con rutas alternativas.
+    """
+    # Validar RUC
+    if len(ruc) != 11 or not ruc.isdigit():
+        return {
+            "error": True,
+            "message": "RUC debe tener 11 dígitos numéricos",
+            "ruc": ruc
+        }
+    
+    # Delegar a consulta_completa
+    sunat_data = get_sunat_data_cascade(ruc, db)
+    es_ruc_real = bool(sunat_data.get("razon_social", "").strip()) and sunat_data.get("fuente") != "minimal_fallback"
+    
+    if not es_ruc_real:
+        return {
+            "error": True,
+            "message": "RUC inválido o no registrado en SUNAT",
+            "ruc": ruc,
+            "fuente": sunat_data.get("fuente", "unknown")
+        }
+    
+    return {
+        "ruc": ruc,
+        **sunat_data
+    }

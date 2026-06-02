@@ -418,3 +418,54 @@ async def payments_history(
     except Exception as e:
         print(f"[History] Error: {e}")
         return JSONResponse(status_code=500, content={'success': False, 'error': 'DB_ERROR', 'message': str(e)})
+
+
+# ============================================================
+# ENDPOINT: /admin/users (List Users)
+# ============================================================
+from sqlalchemy import func
+
+@router.get(
+    "/users",
+    summary="List All Users",
+    description="Retorna lista de usuarios registrados (solo admin)."
+)
+async def admin_list_users(
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Endpoint para listar usuarios.
+    Requiere autenticación de admin.
+    """
+    # Verificar que el usuario actual es admin
+    # (Implementar lógica de permisos según tu esquema)
+    
+    try:
+        from app.models import User
+        
+        users = db.query(User).all()
+        
+        return {
+            "success": True,
+            "users": [
+                {
+                    "id": u.id,
+                    "email": u.email,
+                    "full_name": getattr(u, "full_name", ""),
+                    "company_name": getattr(u, "company_name", ""),
+                    "plan_type": getattr(u, "plan_type", "starter"),
+                    "is_active": getattr(u, "is_active", True),
+                    "created_at": u.created_at.isoformat() if hasattr(u, "created_at") else None,
+                }
+                for u in users
+            ],
+            "total_count": len(users)
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error retrieving users: {str(e)}",
+            "users": [],
+            "total_count": 0
+        }

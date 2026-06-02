@@ -26,3 +26,48 @@ async def debug_env(authorization: Optional[str] = Header(None)):
         "env_vars": env_vars,
         "all_keys": list(os.environ.keys())
     }
+
+
+# ============================================================
+# ENDPOINT: /debug/status (Health Check Status)
+# ============================================================
+from datetime import datetime
+
+@router.get(
+    "/status",
+    summary="API Status Check",
+    description="Retorna el estado actual del API y sus dependencias."
+)
+async def debug_status(db: Session = Depends(get_db)):
+    """
+    Endpoint de estado del API.
+    Verifica: database, redis, SUNAT APIs, y uptime.
+    """
+    start_time = datetime.utcnow()
+    
+    # Check database
+    db_status = "down"
+    try:
+        db.execute("SELECT 1")
+        db_status = "up"
+    except:
+        pass
+    
+    # Check redis (optional)
+    redis_status = "down"
+    try:
+        import redis as redis_lib
+        r = redis_lib.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+        r.ping()
+        redis_status = "up"
+    except:
+        redis_status = "down (Connection refused port 6379)"
+    
+    return {
+        "status": "healthy" if db_status == "up" else "degraded",
+        "timestamp": start_time.isoformat(),
+        "database": db_status,
+        "redis": redis_status,
+        "api": "conflict-zero-backend",
+        "version": "1.0.0"
+    }

@@ -74,3 +74,72 @@ async def get_my_payments(
         "count": len(payments),
         "plan_type": user.plan_type
     }
+
+
+# ============================================================
+# ENDPOINT: /payments/plans (Available Plans)
+# ============================================================
+@router.get(
+    "/plans",
+    summary="Available Payment Plans",
+    description="Retorna los planes de suscripción disponibles."
+)
+async def get_payment_plans():
+    """
+    Endpoint para obtener planes disponibles.
+    """
+    plans = [
+        {
+            "id": "essential",
+            "name": "Essential",
+            "description": "Plan básico para pequeñas empresas",
+            "price": 29.99,
+            "currency": "USD",
+            "billing_cycle": "monthly",
+            "features": [
+                "5 verificaciones RUC por mes",
+                "Reporte básico",
+                "Email support"
+            ],
+            "active": True
+        },
+        {
+            "id": "professional",
+            "name": "Professional",
+            "description": "Plan profesional con más capacidad",
+            "price": 99.99,
+            "currency": "USD",
+            "billing_cycle": "monthly",
+            "features": [
+                "50 verificaciones RUC por mes",
+                "Reporte avanzado",
+                "Tags y categorización",
+                "Priority email support",
+                "API access"
+            ],
+            "active": True
+        },
+        {
+            "id": "enterprise",
+            "name": "Enterprise",
+            "description": "Plan empresarial con capacidad ilimitada",
+            "price": 299.99,
+            "currency": "USD",
+            "billing_cycle": "monthly",
+            "features": [
+                "Verificaciones ilimitadas",
+                "Reporte personalizado",
+                "Tags, categorización y templates",
+                "24/7 phone support",
+                "API access sin límites",
+                "Compliance dashboard"
+            ],
+            "active": True
+        }
+    ]
+    
+    return {
+        "success": True,
+        "plans": plans,
+        "count": len(plans)
+    }
