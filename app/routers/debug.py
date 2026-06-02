@@ -2,6 +2,8 @@ import os
 from fastapi import APIRouter, Header, Depends
 from fastapi.responses import JSONResponse
 from typing import Optional
+from app.core.database import get_db
+from sqlalchemy.orm import Session
 
 ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
 
