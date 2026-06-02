@@ -262,3 +262,4 @@ class PaymentManual(Base):
     
     # user = relationship("User", back_populates="payments")
 
+from app.models.tag import Tag, RUCTag
