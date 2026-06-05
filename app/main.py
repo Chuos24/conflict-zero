@@ -14,6 +14,7 @@ from app.core.security import get_password_hash
 from app.models import User
 from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router, invitations_router, certificates_router, features_router
 from app.routers.tags import router as tags_router
+from app.routers.tags_v1 import router as tags_v1_router
 from app.routers.templates import router as templates_router
 from app.routers.payments_v2 import router as payments_v2_router
 import uuid
@@ -23,7 +24,7 @@ settings = get_settings()
 
 app = FastAPI(
     title="Conflict Zero API",
-    description="Sistema de Verificación de Integridad Empresarial para Perú",
+    description="Sistema de Verificacion de Integridad Empresarial para Peru",
     version="3.0.1",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -93,6 +94,7 @@ app.include_router(network_router, prefix="/api/v1")
 
 # API v3 routers (new features)
 app.include_router(tags_router, prefix="/api/v3")
+app.include_router(tags_v1_router, prefix="/api/v1")
 app.include_router(templates_router, prefix="/api/v3")# Render rebuild force - Tue May 26 15:49:54 CEST 2026
 
 # Force redeploy Tue Jun  2 13:30:56 UTC 2026
