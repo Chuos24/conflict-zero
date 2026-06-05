@@ -29,6 +29,7 @@ class User(Base):
     
     # Relationships
     verification_requests = relationship("VerificationRequest", back_populates="user")
+    tags = relationship("Tag", back_populates="user", cascade="all, delete-orphan")
 
 class VerificationRequest(Base):
     __tablename__ = "verification_requests"
@@ -214,7 +215,7 @@ class Invitation(Base):
 
 
 # ============================================================================
-# CERTIFICATES: Certificados de verificación generados
+# CERTIFICATES: Certificados de verificacion generados
 # ============================================================================
 
 class Certificate(Base):
