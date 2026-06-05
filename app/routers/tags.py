@@ -1,4 +1,4 @@
-"""Tags Router - Categorización de RUCs para Professional+"""
+"""Tags Router - Categorizacion de RUCs para Professional+"""
 
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
@@ -10,9 +10,8 @@ from sqlalchemy import and_
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models import User, Tag, RUCTag
-from app.models.user import Plan
 
-router = APIRouter(prefix="/tags", tags=["Tags & Categorización"])
+router = APIRouter(prefix="/tags", tags=["Tags & Categorizacion"])
 
 
 # ============================================================
@@ -22,14 +21,14 @@ router = APIRouter(prefix="/tags", tags=["Tags & Categorización"])
 class TagCreate(BaseModel):
     """Schema para crear un tag"""
     name: str = Field(..., min_length=1, max_length=50, description="Nombre del tag")
-    color: Optional[str] = Field(default="#C5A059", regex="^#[0-9A-F]{6}$", description="Color hex (ej: #C5A059)")
-    description: Optional[str] = Field(None, max_length=500, description="Descripción del tag")
+    color: Optional[str] = Field(default="#C5A059", pattern="^#[0-9A-F]{6}$", description="Color hex (ej: #C5A059)")
+    description: Optional[str] = Field(None, max_length=500, description="Descripcion del tag")
 
 
 class TagUpdate(BaseModel):
     """Schema para actualizar un tag"""
     name: Optional[str] = Field(None, min_length=1, max_length=50)
-    color: Optional[str] = Field(None, regex="^#[0-9A-F]{6}$")
+    color: Optional[str] = Field(None, pattern="^#[0-9A-F]{6}$")
     description: Optional[str] = Field(None, max_length=500)
 
 
@@ -49,7 +48,7 @@ class TagResponse(BaseModel):
 
 class RUCTagCreate(BaseModel):
     """Schema para asignar tag a RUC"""
-    ruc: str = Field(..., min_length=11, max_length=11, description="RUC de 11 dígitos")
+    ruc: str = Field(..., min_length=11, max_length=11, description="RUC de 11 digitos")
     tag_id: str = Field(..., description="ID del tag")
     notes: Optional[str] = Field(None, max_length=500, description="Notas adicionales")
 
@@ -73,11 +72,11 @@ class RUCTagResponse(BaseModel):
 
 def check_plan_professional(user: User):
     """Verifica que el usuario tenga plan Professional o superior"""
-    allowed_plans = [Plan.PROFESSIONAL, Plan.ENTERPRISE]
-    if user.plan not in allowed_plans:
+    allowed_plans = {"professional", "enterprise"}
+    if user.plan_type not in allowed_plans:
         raise HTTPException(
             status_code=403,
-            detail="Esta función solo está disponible para planes Professional+"
+            detail="Esta funcion solo esta disponible para planes Professional+"
         )
 
 
@@ -94,7 +93,7 @@ async def create_tag(
     """Crea un nuevo tag para categorizar RUCs"""
     check_plan_professional(user)
     
-    # Verificar que el nombre sea único para este usuario
+    # Verificar que el nombre sea unico para este usuario
     existing = db.query(Tag).filter(
         and_(Tag.user_id == user.id, Tag.name == data.name)
     ).first()
@@ -144,7 +143,7 @@ async def get_tag(
     user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Obtiene los detalles de un tag específico"""
+    """Obtiene los detalles de un tag especifico"""
     check_plan_professional(user)
     
     tag = db.query(Tag).filter(
@@ -265,7 +264,7 @@ async def assign_tag_to_ruc(
     if not tag:
         raise HTTPException(status_code=404, detail="Tag no encontrado")
     
-    # Verificar que no exista ya la asociación
+    # Verificar que no exista ya la asociacion
     existing = db.query(RUCTag).filter(
         and_(
             RUCTag.user_id == user.id,
@@ -277,7 +276,7 @@ async def assign_tag_to_ruc(
     if existing:
         raise HTTPException(status_code=400, detail="Este RUC ya tiene asignado este tag")
     
-    # Crear asociación
+    # Crear asociacion
     ruc_tag = RUCTag(
         user_id=user.id,
         tag_id=tag_id,
@@ -335,7 +334,7 @@ async def remove_tag_from_ruc(
     ).first()
     
     if not ruc_tag:
-        raise HTTPException(status_code=404, detail="Asociación no encontrada")
+        raise HTTPException(status_code=404, detail="Asociacion no encontrada")
     
     db.delete(ruc_tag)
     db.commit()
