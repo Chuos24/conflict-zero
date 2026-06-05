@@ -1,6 +1,6 @@
 """
 Features Router - Conflict Zero
-Implementa: Search History, Tags/Categorización, Templates para Licitaciones.
+Implementa: Search History, Tags/Categorizacion, Templates para Licitaciones.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -19,9 +19,9 @@ from app.models import User, VerificationRequest
 router = APIRouter(tags=["Features"])
 
 
-# ─
+# -
 # HELPER: Verificar plan Professional+
-# ─
+# -
 
 def _require_professional(user: User):
     """Requiere plan Professional o Enterprise."""
@@ -32,16 +32,16 @@ def _require_professional(user: User):
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "error": "PLAH_REQUIRED",
-                "message": "Esta función requiere el plan Professional o superior.",
+                "message": "Esta funcion requiere el plan Professional o superior.",
                 "required_plan": "professional",
                 "current_plan": plan
             }
         )
 
 
-# ─
-# 1. SEARCH HISTORY — todos los planes
-# ─
+# -
+# 1. SEARCH HISTORY - todos los planes
+# -
 
 @router.get("/history/search", summary="Buscar en historial de verificaciones")
 async def search_history(
@@ -118,7 +118,7 @@ async def search_history(
     }
 
 
-@router.get("/history/stats", summary="Estadísticas del historial")
+@router.get("/history/stats", summary="Estadisticas del historial")
 async def history_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -144,88 +144,15 @@ async def history_stats(
     }
 
 
-# ─
-# 2. TAGS / CATEGORIZACIÓN — Professional+
-# ─
-
-_user_tags: Dict[str, Dict[str, List[str]]] = {}
-
-
-class TagRequest(BaseModel):
-    ruc: str = Field(..., min_length=11, max_length=11)
-    tags: List[str] = Field(..., min_items=1, max_items=10)
-
-
-class TagRemoveRequest(BaseModel):
-    ruc: str = Field(..., min_length=11, max_length=11)
-    tag: str
-
-
-@router.get("/tags", summary="Listar todos los tags del usuario")
-async def list_tags(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    _require_professional(current_user)
-    user_tags = _user_tags.get(str(current_user.id), {})
-    return {"success": True, "tags": [{"ruc": ruc, "tags": tags} for ruc, tags in user_tags.items()]}
-
-
-@router.get("/tags/{ruc}", summary="Tags de un RUC específico")
-async def get_tags_for_ruc(ruc: str, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    _require_professional(current_user)
-    user_tags = _user_tags.get(str(current_user.id), {})
-    return {"success": True, "ruc": ruc, "tags": user_tags.get(ruc, [])}
-
-
-@router.post("/tags", summary="Asignar tags a un RUC")
-async def assign_tags(request: TagRequest, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    _require_professional(current_user)
-    uid = str(current_user.id)
-    if uid not in _user_tags:
-        _user_tags[uid] = {}
-    normalized = list({t.strip().lower() for t in request.tags if t.strip()})[:10]
-    existing = _user_tags[uid].get(request.ruc, [])
-    merged = list(set(existing + normalized))[:10]
-    _user_tags[uid][request.ruc] = merged
-    return {"success": True, "ruc": request.ruc, "tags": merged, "message": f"{len(normalized)} tag(s) asignados a RUC {request.ruc}"}
-
-
-@router.delete("/tags", summary="Eliminar un tag de un RUC")
-async def remove_tag(request: TagRemoveRequest, current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)):
-    _require_professional(current_user)
-    uid = str(current_user.id)
-    user_tags = _user_tags.get(uid, {})
-    current_tags = user_tags.get(request.ruc, [])
-    tag_normalized = request.tag.strip().lower()
-    if tag_normalized not in current_tags:
-        raise HTTPException(status_code=404, detail=f"Tag '{request.tag}' no encontrado en RUC {request.ruc}")
-    current_tags.remove(tag_normalized)
-    _user_tags[uid][request.ruc] = current_tags
-    return {"success": True, "ruc": request.ruc, "removed_tag": tag_normalized, "remaining_tags": current_tags}
-
-
-@router.get("/tags/search/{tag}", summary="Buscar RUCs por tag")
-async def search_by_tag(tag: str, current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)):
-    _require_professional(current_user)
-    uid = str(current_user.id)
-    user_tags = _user_tags.get(uid, {})
-    tag_normalized = tag.strip().lower()
-    matches = [{"ruc": ruc, "tags": tags} for ruc, tags in user_tags.items() if tag_normalized in tags]
-    return {"success": True, "tag": tag_normalized, "matches": matches, "total": len(matches)}
-
-
-# ─
-# 3. TEMPLATES PARA LICITACIONES — Professional+
-# ─
+# -
+# 3. TEMPLATES PARA LICITACIONES - Professional+
+# -
 
 SYSTEM_TEMPLATES = [
-    {"id": "tpl_obras_publicas", "name": "Obras Públicas — Estándar", "description": "Template para procesos de selección de obras públicas. Incluye criterios OSCE y score mínimo recomendado.", "category": "obras", "type": "system", "criteria": {"score_minimo": 70, "risk_levels_permitidos": ["low", "medium"], "max_sanciones_osce": 0, "max_sanciones_tce": 1, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": "HABIDO"}, "fields": [{"key": "objeto_licitacion", "label": "Objeto de la Licitación", "type": "text", "required": True}, {"key": "valor_referencial", "label": "Valor Referencial (S/)", "type": "number", "required": True}, {"key": "plazo_ejecucion", "label": "Plazo de Ejecución (días)", "type": "number", "required": True}, {"key": "entidad_convocante", "label": "Entidad Convocante", "type": "text", "required": True}, {"key": "numero_expediente", "label": "Nú Expediente", "type": "text", "required": False}], "created_at": "2026-01-01T00:00:00"},
-    {"id": "tpl_bienes_servicios", "name": "Bienes y Servicios — General", "description": "Template estándar para adquisición de bienes y servicios. Criterios flexibles para proveedores.", "category": "bienes", "type": "system", "criteria": {"score_minimo": 60, "risk_levels_permitidos": ["low", "medium", "high"], "max_sanciones_osce": 2, "max_sanciones_tce": 2, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": None}, "fields": [{"key": "descripcion_bien", "label": "Descripción del Bien/Servicio", "type": "text", "required": True}, {"key": "cantidad", "label": "Cantidad", "type": "number", "required": True}, {"key": "precio_unitario", "label": "Precio Unitario Referencial (S/)", "type": "number", "required": True}, {"key": "entidad_convocante", "label": "Entidad Convocante", "type": "text", "required": True}, {"key": "lugar_entrega", "label": "Lugar de Entrega", "type": "text", "required": False}], "created_at": "2026-01-01T00:00:00"},
-    {"id": "tpl_consultoria", "name": "Consultoría — Alta Integridad", "description": "Template estricto para servicios de consultoría. Score mínimo alto y ceros tolerancia a sanciones.", "category": "consultoria", "type": "system", "criteria": {"score_minimo": 80, "risk_levels_permitidos": ["low"], "max_sanciones_osce": 0, "max_sanciones_tce": 0, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": "HABIDO"}, "fields": [{"key": "tipo_consultoria", "label": "Tipo de Consultoría", "type": "text", "required": True}, {"key": "alcance", "label": "Alcance del Servicio", "type": "textarea", "required": True}, {"key": "monto_contrato", "label": "Monto del Contrato (S/)", "type": "number", "required": True}, {"key": "entidad_convocante", "label": "Entidad Convocante", "type": "text", "required": True}], "created_at": "2026-01-01T00:00:00"},
-    {"id": "tpl_due_diligence", "name": "Due Diligence — Inversión Privada", "description": "Template para evaluación de socios comerciales e inversiones. Enfoque en ML score y red de conexiones.", "category": "privado", "type": "system", "criteria": {"score_minimo": 75, "risk_levels_permitidos": ["low", "medium"], "max_sanciones_osce": 0, "max_sanciones_tce": 0, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": "HABIDO"}, "fields": [{"key": "nombre_proyecto", "label": "Nombre del Proyecto / Inversión", "type": "text", "required": True}, {"key": "monto_inversion", "label": "Monto de Inversión (USD)", "type": "number", "required": True}, {"key": "rol_empresa", "label": "Rol de la Empresa Evaluada", "type": "text", "required": True}], "created_at": "2026-01-01T00:00:00"}
+    {"id": "tpl_obras_publicas", "name": "Obras Publicas - Estandar", "description": "Template para procesos de seleccion de obras publicas. Incluye criterios OSCE y score minimo recomendado.", "category": "obras", "type": "system", "criteria": {"score_minimo": 70, "risk_levels_permitidos": ["low", "medium"], "max_sanciones_osce": 0, "max_sanciones_tce": 1, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": "HABIDO"}, "fields": [{"key": "objeto_licitacion", "label": "Objeto de la Licitacion", "type": "text", "required": True}, {"key": "valor_referencial", "label": "Valor Referencial (S/)", "type": "number", "required": True}, {"key": "plazo_ejecucion", "label": "Plazo de Ejecucion (dias)", "type": "number", "required": True}, {"key": "entidad_convocante", "label": "Entidad Convocante", "type": "text", "required": True}, {"key": "numero_expediente", "label": "Nu Expediente", "type": "text", "required": False}], "created_at": "2026-01-01T00:00:00"},
+    {"id": "tpl_bienes_servicios", "name": "Bienes y Servicios - General", "description": "Template estandar para adquisicion de bienes y servicios. Criterios flexibles para proveedores.", "category": "bienes", "type": "system", "criteria": {"score_minimo": 60, "risk_levels_permitidos": ["low", "medium", "high"], "max_sanciones_osce": 2, "max_sanciones_tce": 2, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": None}, "fields": [{"key": "descripcion_bien", "label": "Descripcion del Bien/Servicio", "type": "text", "required": True}, {"key": "cantidad", "label": "Cantidad", "type": "number", "required": True}, {"key": "precio_unitario", "label": "Precio Unitario Referencial (S/)", "type": "number", "required": True}, {"key": "entidad_convocante", "label": "Entidad Convocante", "type": "text", "required": True}, {"key": "lugar_entrega", "label": "Lugar de Entrega", "type": "text", "required": False}], "created_at": "2026-01-01T00:00:00"},
+    {"id": "tpl_consultoria", "name": "Consultoria - Alta Integridad", "description": "Template estricto para servicios de consultoria. Score minimo alto y ceros tolerancia a sanciones.", "category": "consultoria", "type": "system", "criteria": {"score_minimo": 80, "risk_levels_permitidos": ["low"], "max_sanciones_osce": 0, "max_sanciones_tce": 0, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": "HABIDO"}, "fields": [{"key": "tipo_consultoria", "label": "Tipo de Consultoria", "type": "text", "required": True}, {"key": "alcance", "label": "Alcance del Servicio", "type": "textarea", "required": True}, {"key": "monto_contrato", "label": "Monto del Contrato (S/)", "type": "number", "required": True}, {"key": "entidad_convocante", "label": "Entidad Convocante", "type": "text", "required": True}], "created_at": "2026-01-01T00:00:00"},
+    {"id": "tpl_due_diligence", "name": "Due Diligence - Inversion Privada", "description": "Template para evaluacion de socios comerciales e inversiones. Enfoque en ML score y red de conexiones.", "category": "privado", "type": "system", "criteria": {"score_minimo": 75, "risk_levels_permitidos": ["low", "medium"], "max_sanciones_osce": 0, "max_sanciones_tce": 0, "estado_sunat_requerido": "ACTIVO", "condicion_sunat_requerida": "HABIDO"}, "fields": [{"key": "nombre_proyecto", "label": "Nombre del Proyecto / Inversion", "type": "text", "required": True}, {"key": "monto_inversion", "label": "Monto de Inversion (USD)", "type": "number", "required": True}, {"key": "rol_empresa", "label": "Rol de la Empresa Evaluada", "type": "text", "required": True}], "created_at": "2026-01-01T00:00:00"}
 ]
 
 _user_templates: Dict[str, List[Dict]] = {}
@@ -245,7 +172,7 @@ class ApplyTemplateRequest(BaseModel):
     field_values: Dict[str, Any] = Field(default_factory=dict)
 
 
-@router.get("/templates", summary="Listar templates de licitación")
+@router.get("/templates", summary="Listar templates de licitacion")
 async def list_templates(
     category: Optional[str] = Query(None),
     type: Optional[str] = Query(None, description="system|custom|all"),
@@ -284,7 +211,7 @@ async def create_template(request: CreateTemplateRequest, current_user: User = D
     if uid not in _user_templates:
         _user_templates[uid] = []
     if len(_user_templates[uid]) >= 20:
-        raise HTTPException(status_code=400, detail="Máximo 20 templates personalizados por usuario")
+        raise HTTPException(status_code=400, detail="Maximo 20 templates personalizados por usuario")
     template = {"id": f"tpl_custom_{uuid.uuid4().hex[8:]}", "name": request.name, "description": request.description, "category": request.category, "type": "custom", "criteria": request.criteria, "fields": request.fields, "created_by": uid, "created_at": datetime.utcnow().isoformat()}
     _user_templates[uid].append(template)
     return {"success": True, "template": template, "message": f"Template '{request.name}' creado exitosamente"}
@@ -313,13 +240,13 @@ async def apply_template(request: ApplyTemplateRequest, current_user: User = Dep
     passed_all = True
     score_min = criteria.get("score_minimo", 0)
     score_ok = last_verification.score >= score_min
-    checks.append({"criterion": "Score mínimo", "required": f">= {score_min}", "actual": last_verification.score, "passed": score_ok})
+    checks.append({"criterion": "Score minimo", "required": f">= {score_min}", "actual": last_verification.score, "passed": score_ok})
     if not score_ok: passed_all = False
     allowed_risks = criteria.get("risk_levels_permitidos", ["low", "medium", "high", "critical"])
     risk_ok = last_verification.risk_level in allowed_risks
     checks.append({"criterion": "Nivel de riesgo permitido", "required": ", ".join(allowed_risks), "actual": last_verification.risk_level, "passed": risk_ok})
     if not risk_ok: passed_all = False
-    return {"success": True, "eligible": passed_all, "ruc": request.ruc, "template": {"id": template["id"], "name": template["name"]}, "verification_date": last_verification.created_at.isoformat() if last_verification.created_at else None, "score": last_verification.score, "risk_level": last_verification.risk_level, "criteria_evaluation": checks, "field_values": request.field_values, "summary": (f"✉ {request.ruc} CUMPLE los requisitos" if passed_all else f"❌ {request.ruc} NO comple todos los requisitos")}
+    return {"success": True, "eligible": passed_all, "ruc": request.ruc, "template": {"id": template["id"], "name": template["name"]}, "verification_date": last_verification.created_at.isoformat() if last_verification.created_at else None, "score": last_verification.score, "risk_level": last_verification.risk_level, "criteria_evaluation": checks, "field_values": request.field_values, "summary": (f"- {request.ruc} CUMPLE los requisitos" if passed_all else f"- {request.ruc} NO comple todos los requisitos")}
 
 
 @router.delete("/templates/{template_id}", summary="Eliminar template personalizado")
