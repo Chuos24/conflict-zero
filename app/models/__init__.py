@@ -263,4 +263,17 @@ class PaymentManual(Base):
     
     # user = relationship("User", back_populates="payments")
 
+# ============================================================================
+# USER TAG MAP: Mapa companyId -> [tags] por usuario (compat frontend v1)
+# ============================================================================
+
+class UserTagMap(Base):
+    __tablename__ = "user_tag_maps"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    data = Column(JSON, default=dict)  # { companyId: [tag, ...], ... }
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 from app.models.tag import Tag, RUCTag
