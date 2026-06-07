@@ -408,6 +408,90 @@ class EmailService:
             html_content=html_content
         )
     
+    async def send_supplier_alert_email(
+        self,
+        to_email: str,
+        company_name: str,
+        supplier_ruc: str,
+        supplier_name: str,
+        change_type: str,
+        previous_status: str,
+        new_status: str,
+        severity: str
+    ) -> Dict[str, Any]:
+        """Alerta cuando un proveedor cambia de estado (high/critical)"""
+        
+        severity_colors = {
+            'critical': '#8B0000',
+            'high': '#B87333',
+            'medium': UHNW_COLORS['gold'],
+            'low': UHNW_COLORS['light_gray']
+        }
+        
+        severity_labels = {
+            'critical': 'CRÍTICO',
+            'high': 'ALTO',
+            'medium': 'MEDIO',
+            'low': 'BAJO'
+        }
+        
+        color = severity_colors.get(severity, UHNW_COLORS['gold'])
+        label = severity_labels.get(severity, 'ALERTA')
+        
+        content = f"""
+        <div class="title" style="color: {color};">⚠ Alerta de Proveedor</div>
+        
+        <div class="text">
+            Estimado equipo de <strong>{company_name}</strong>,<br><br>
+            Le informamos que uno de sus proveedores ha cambiado de estado. Recomendamos revisar la relación comercial.
+        </div>
+        
+        <div class="highlight" style="border-left-color: {color};">
+            <div class="highlight-label">Nivel de Riesgo</div>
+            <div class="highlight-value" style="color: {color};">{label}</div>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-label">Proveedor</div>
+            <div class="info-value">{supplier_name} (RUC: {supplier_ruc})</div>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-label">Tipo de Cambio</div>
+            <div class="info-value">{change_type}</div>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-label">Estado Anterior</div>
+            <div class="info-value">{previous_status}</div>
+        </div>
+        
+        <div class="info-box">
+            <div class="info-label">Estado Actual</div>
+            <div class="info-value" style="color: {color};">{new_status}</div>
+        </div>
+        
+        <div class="divider"></div>
+        
+        <div class="text">
+            Recomendamos verificar el estado actual de este proveedor en su dashboard:
+        </div>
+        
+        <a href="https://czperu.com/dashboard.html" class="cta-button">Ver Dashboard</a>
+        
+        <div class="text" style="margin-top: 30px; font-size: 12px; color: {UHNW_COLORS['light_gray']};">
+            Esta alerta se genera automáticamente cuando detectamos cambios significativos en el estado de sus proveedores.
+        </div>
+        """
+        
+        html_content = self._get_base_template(content, f"Alerta de Proveedor - {supplier_name}")
+        
+        return self._send_email(
+            to_email=to_email,
+            subject=f"⚠ Alerta {label}: {supplier_name} - Conflict Zero",
+            html_content=html_content
+        )
+
     def _send_email(self, to_email: str, subject: str, html_content: str) -> Dict[str, Any]:
         """Enviar email via SendGrid"""
         
@@ -460,6 +544,9 @@ async def send_low_credit_alert(to_email: str, company_name: str, queries_used: 
 async def send_monthly_report(to_email: str, company_name: str, month: str, stats: Dict[str, Any]):
     return email_service.send_monthly_report(to_email, company_name, month, stats)
 
+async def send_supplier_alert_email(to_email: str, company_name: str, supplier_ruc: str, supplier_name: str, change_type: str, previous_status: str, new_status: str, severity: str):
+    return email_service.send_supplier_alert_email(to_email, company_name, supplier_ruc, supplier_name, change_type, previous_status, new_status, severity)
+
 async def send_admin_notification(applicant_data: Dict[str, Any]):
     return email_service.send_admin_notification(applicant_data)
 
@@ -469,5 +556,6 @@ __all__ = [
     'send_welcome_email',
     'send_low_credit_alert',
     'send_monthly_report',
+    'send_supplier_alert_email',
     'send_admin_notification'
 ]

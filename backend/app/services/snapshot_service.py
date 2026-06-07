@@ -11,8 +11,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
-from app.models import CompanySnapshot, SupplierAlert
+from app.models import CompanySnapshot, SupplierAlert, User
 from app.core.database import SessionLocal
+from app.services.email_service import email_service
 
 
 class SnapshotService:
@@ -266,7 +267,23 @@ class AlertService:
         self.db.commit()
         self.db.refresh(alert)
         
-        # TODO: Enviar email si es high/critical
+        # Enviar email si es high/critical
+        if severity in ['high', 'critical']:
+            try:
+                user = self.db.query(User).filter(User.id == user_id).first()
+                if user and user.email:
+                    email_service.send_supplier_alert_email(
+                        to_email=user.email,
+                        company_name=user.company_name or user.full_name or "Empresa",
+                        supplier_ruc=supplier_ruc,
+                        supplier_name=supplier_name,
+                        change_type=change_type,
+                        previous_status=previous_status,
+                        new_status=new_status,
+                        severity=severity
+                    )
+            except Exception as e:
+                print(f"[AlertService] Error enviando email de alerta: {e}")
         
         return alert
     
