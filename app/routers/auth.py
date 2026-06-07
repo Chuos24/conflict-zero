@@ -23,7 +23,9 @@ from pydantic import BaseModel, EmailStr, Field
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
-ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
+ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN')
+FOUNDER_EMAIL = os.environ.get('FOUNDER_EMAIL', 'founder@conflictzero.com')
+FOUNDER_PASSWORD = os.environ.get('FOUNDER_PASSWORD')
 
 # Schema para registro desde el frontend web
 class FrontendRegisterRequest(BaseModel):
@@ -275,7 +277,7 @@ async def login(
     
     # Auto-crear founder si no existe (solo para demo)
     PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
-    if not user and login_data.email == "founder@conflictzero.com" and login_data.password == "CZ2025!":
+    if not user and FOUNDER_PASSWORD and login_data.email == FOUNDER_EMAIL and login_data.password == FOUNDER_PASSWORD:
         import uuid
         user = User(
             id=str(uuid.uuid4()),
@@ -310,8 +312,8 @@ async def login(
     if user.hashed_password.startswith("temp:"):
         stored_temp = user.hashed_password[5:]  # Remover prefijo "temp:"
         is_valid = (login_data.password == stored_temp)
-    elif is_founder and login_data.password == "CZ2025!":
-        # Founder siempre válido con CZ2025! - Override total para demo
+    elif is_founder and FOUNDER_PASSWORD and login_data.password == FOUNDER_PASSWORD:
+        # Founder válido con contraseña desde variable de entorno
         is_valid = True
         # Actualizar hash si no coincide
         if user.hashed_password != PRECOMPUTED_HASH:
@@ -425,14 +427,14 @@ async def create_founder_endpoint(authorization: Optional[str] = Header(None), d
     if existing:
         return {"message": "Usuario founder ya existe", "email": existing.email}
     
-    # Hash pre-calculado de "CZ2025!" - generado localmente
+    # Hash pre-calculado del founder - generado localmente
     PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
     
     # Crear founder
     founder = User(
         id=str(uuid.uuid4()),
         email="founder@conflictzero.com",
-        hashed_password=PRECOMPUTED_HASH,  # Usar hash pre-calculado
+        hashed_password=PRECOMPUTED_HASH,
         full_name="Conflict Zero Founder",
         company_name="Conflict Zero Inc.",
         ruc="20100000001",
@@ -448,8 +450,7 @@ async def create_founder_endpoint(authorization: Optional[str] = Header(None), d
     
     return {
         "message": "Usuario founder creado exitosamente",
-        "email": founder.email,
-        "password": "CZ2025!"
+        "email": founder.email
     }
 
 
@@ -491,7 +492,7 @@ async def reset_founder_password(authorization: Optional[str] = Header(None), db
             detail="Usuario founder no encontrado"
         )
     
-    # Hash pre-calculado de "CZ2025!"
+    # Hash pre-calculado del founder
     PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
     founder.hashed_password = PRECOMPUTED_HASH
     db.commit()
@@ -499,7 +500,6 @@ async def reset_founder_password(authorization: Optional[str] = Header(None), db
     return {
         "message": "Contraseña del founder reseteada exitosamente",
         "email": founder.email,
-        "password": "CZ2025!",
         "action": "Intenta hacer login ahora"
     }
 
@@ -733,7 +733,7 @@ async def generate_admin_token(
     ```bash
     curl -X POST https://conflict-zero-api.onrender.com/api/v1/auth/admin/token \
       -H "Content-Type: application/json" \
-      -d '{"email":"founder@conflictzero.com","password":"CZ2025!"}'
+      -d '{"email":"<founder_email>","password":"<founder_password>"}'
     ```
     """
     # Buscar usuario
@@ -757,13 +757,13 @@ async def generate_admin_token(
     is_valid = False
     
     try:
-        if login_data.email == "founder@conflictzero.com" and login_data.password == "CZ2025!":
+        if FOUNDER_PASSWORD and login_data.email == FOUNDER_EMAIL and login_data.password == FOUNDER_PASSWORD:
             if user.hashed_password == PRECOMPUTED_HASH:
                 is_valid = True
         else:
             is_valid = verify_password(login_data.password, user.hashed_password)
     except:
-        if login_data.email == "founder@conflictzero.com" and login_data.password == "CZ2025!" and user.hashed_password == PRECOMPUTED_HASH:
+        if FOUNDER_PASSWORD and login_data.email == FOUNDER_EMAIL and login_data.password == FOUNDER_PASSWORD and user.hashed_password == PRECOMPUTED_HASH:
             is_valid = True
     
     if not is_valid:
