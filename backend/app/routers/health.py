@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 from app.core.cache import cache
 from app.core.database import engine
@@ -11,7 +11,7 @@ settings = get_settings()
 router = APIRouter(tags=["Salud"])
 
 # Start time para calcular uptime
-START_TIME = datetime.utcnow()
+START_TIME = datetime.now(timezone.utc)
 
 # Archivo de métricas de SLA
 SLA_METRICS_FILE = "/tmp/sla_metrics.json"
@@ -38,7 +38,7 @@ def update_sla_metrics(is_healthy: bool):
     if is_healthy:
         metrics["successful_checks"] += 1
     else:
-        metrics["last_downtime"] = datetime.utcnow().isoformat()
+        metrics["last_downtime"] = datetime.now(timezone.utc).isoformat()
     
     if metrics["total_checks"] > 0:
         metrics["uptime_percentage"] = (
@@ -63,7 +63,7 @@ async def health_check():
     health_status = {
         "status": "healthy",
         "version": settings.VERSION,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "services": {},
         "sla": {}
     }
@@ -90,7 +90,7 @@ async def health_check():
         # Redis no afecta SLA - es opcional
     
     # Uptime
-    uptime = datetime.utcnow() - START_TIME
+    uptime = datetime.now(timezone.utc) - START_TIME
     health_status["sla"]["uptime_seconds"] = int(uptime.total_seconds())
     health_status["sla"]["uptime_formatted"] = str(uptime).split('.')[0]
     
@@ -112,13 +112,13 @@ async def health_check():
 async def status_page():
     """Endpoint de status para transparencia pública."""
     sla_metrics = get_sla_metrics()
-    uptime = datetime.utcnow() - START_TIME
+    uptime = datetime.now(timezone.utc) - START_TIME
     
     return {
         "service": "Conflict Zero API",
         "status": "operational",
         "version": settings.VERSION,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime": {
             "current_session": str(uptime).split('.')[0],
             "percentage": round(sla_metrics.get("uptime_percentage", 100.0), 3)
