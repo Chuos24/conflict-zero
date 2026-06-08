@@ -27,6 +27,9 @@ class User(Base):
     
     # Relationships
     verification_requests = relationship("VerificationRequest", back_populates="user")
+    supplier_alerts = relationship("SupplierAlert", back_populates="user")
+    # subscription = relationship("Subscription", back_populates="user", uselist=False)
+    # payments = relationship("Payment", back_populates="user")
 
 class VerificationRequest(Base):
     __tablename__ = "verification_requests"
@@ -184,3 +187,6 @@ class SupplierAlert(Base):
     email_sent_at = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="supplier_alerts")
