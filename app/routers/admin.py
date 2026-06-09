@@ -1,27 +1,20 @@
-"""
-Admin Router - Payment System + Plan Activation
-Endpoints para gestión de pagos manuales y activación de planes
-"""
-
-from fastapi import APIRouter, Header, Depends
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from datetime import datetime, timedelta
-import os
-import jwt
-
-# Database
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from app.core.database import get_db, SessionLocal
+import os
+from app.db import get_db
 from app.models import User
-from app.core.security import get_current_user
+from app.core.config import ADMIN_TOKEN
 
-router = APIRouter(prefix="/admin", tags=["Admin"])
+router = APIRouter(prefix="/admin", tags=["admin"])
 
-# Config
-ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
-JWT_SECRET = os.environ.get('JWT_SECRET', 'conflict-zero-secret-key-2024')
-
-
-# ============ PYDANTIC MODELS ============
+@router.post("/users/{user_id}/promote")
+async def promote_user(user_id: str, token: str = Query(...), db: Session = Depends(get_db)):
+    """Promote user to admin."""
+    if token != os.environ.get('ADMIN_TOKEN', ADMIN_TOKEN):
+        raise HTTPException(401, "Invalid token")
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
+    user.is_admin = True
+    db.commit()
+    return {"success": True, "email": user.email, "is_admin": True}
