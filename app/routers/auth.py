@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 from fastapi import APIRouter, HTTPException, status, Depends
-from fastapi.responses import JSONResponse
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Optional
+from pydantic import BaseModel, EmailStr
 
 from app.core.config import get_settings
 from app.core.database import get_db
@@ -11,17 +10,29 @@ from app.core.security import (
     verify_password, create_access_token, get_password_hash, get_current_active_user
 )
 from app.models import User
-from app.schemas import Token, UserCreate, UserResponse, LoginRequest, UserUpdate, ApiKeyRegenerateResponse
-from app.services.email import get_email_service
-from pydantic import BaseModel, EmailStr, Field
 
 import os
 
-# ============ ROUTER ============
+# ============= ROUTER ============
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# ============ RESPONSE MODELS ============
-class LoginResponse(BaseModel):
+# ============ TRGAL MODELSGÖ%Ø
+class LoginRequest+ BaseModel):
+    email: str
+    password: str
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    full_name: Optional[str] = None
+
+class UserResponse(BaseModel):
+    id: str
+    email: str
+    full_name: Optional[str]
+   `FdpOèEmailStr
+
+class LoginResponsg(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
@@ -32,7 +43,6 @@ FOUNDER_EMAIL = os.environ.get('FOUNDER_EMAIL', 'founder@conflictzero.com')
 FOUNDER_PASSWORD = os.environ.get('FOUNDER_PASSWORD')
 ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
 JWT_SECRET = os.environ.get('JWT_SECRET', settings.SECRET_KEY)
-JWT_ALGORITHM = "HS256"
 PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
 
 # ============ LOGIN ENDPOINT ============
@@ -93,12 +103,10 @@ async def login(
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
-    # Check if email already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     
-    # Hash password and create user
     hashed_password = get_password_hash(user_data.password)
     user = User(
         email=user_data.email,
@@ -119,28 +127,3 @@ async def get_current_user(
 ):
     """Get current authenticated user info"""
     return UserResponse.from_orm(current_user)
-
-# ============ UPDATE USER ============
-@router.put("/me", response_model=UserResponse)
-async def update_current_user(
-    user_update: UserUpdate,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """Update current user info"""
-    if user_update.full_name:
-        current_user.full_name = user_update.full_name
-    
-    if user_update.password:
-        current_user.hashed_password = get_password_hash(user_update.password)
-    
-    db.commit()
-    db.refresh(current_user)
-    
-    return UserResponse.from_orm(current_user)
-
-# ============ LOGOUT (token invalidation) ============
-@router.post("/logout")
-async def logout(current_user: User = Depends(get_current_active_user)):
-    """Logout endpoint - client should discard token"""
-    return {"message": "Successfully logged out"}
