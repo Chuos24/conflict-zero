@@ -13,11 +13,11 @@ from app.models import User
 
 import os
 
-# ============= ROUTER ============
+# ============ ROUTER ============
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# ============ TRGAL MODELSGÖ%Ø
-class LoginRequest+ BaseModel):
+# ============ MODELS ============
+class LoginRequest(BaseModel):
     email: str
     password: str
 
@@ -30,9 +30,11 @@ class UserResponse(BaseModel):
     id: str
     email: str
     full_name: Optional[str]
-   `FdpOèEmailStr
 
-class LoginResponsg(BaseModel):
+    class Config:
+        from_attributes = True
+
+class LoginResponse(BaseModel):
     access_token: str
     token_type: str
     user: UserResponse
@@ -58,7 +60,7 @@ async def login(
     # Check if founder login
     if email == FOUNDER_EMAIL and FOUNDER_PASSWORD:
         if password == FOUNDER_PASSWORD:
-            # Create or get founder user
+            # Create or get founder
             user = db.query(User).filter(User.email == FOUNDER_EMAIL).first()
             if not user:
                 user = User(
