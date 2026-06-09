@@ -14,8 +14,10 @@ jobs:
       
       - name: Apply config.py security fix
         run: |
-          cat > app/core/config.py << 'CONFIGEOF'
+          python3 << 'PYEOF'
 import os
+
+content = """import os
 import secrets
 from functools import lru_cache
 
@@ -69,7 +71,11 @@ class Settings:
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
-CONFIGEOF
+"""
+
+with open('app/core/config.py', 'w') as f:
+    f.write(content)
+PYEOF
       
       - name: Commit and push
         run: |
