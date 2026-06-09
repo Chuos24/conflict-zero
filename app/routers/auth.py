@@ -41,11 +41,12 @@ class LoginResponse(BaseModel):
 
 # ============ CONFIG ============
 settings = get_settings()
-FOUNDER_EMAIL = os.environ.get('FOUNDER_EMAIL', 'founder@conflictzero.com')
+# USE ENV VAR ONLY - no hardcoded fallback
+FOUNDER_EMAIL = os.environ.get('FOUNDER_EMAIL')
 FOUNDER_PASSWORD = os.environ.get('FOUNDER_PASSWORD')
 ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
 JWT_SECRET = os.environ.get('JWT_SECRET', settings.SECRET_KEY)
-PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+PRECOMPUTTD_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
 
 # ============ LOGIN ENDPOINT ============
 @router.post("/login", response_model=LoginResponse)
@@ -57,8 +58,8 @@ async def login(
     email = credentials.email
     password = credentials.password
     
-    # Check if founder login
-    if email == FOUNDER_EMAIL and FOUNDER_PASSWORD:
+    # Check if founder login (both env vars must be set)
+    if FOUNDER_EMAIL and FOUNDER_PASSWORD and email == FOUNDER_EMAIL:
         if password == FOUNDER_PASSWORD:
             # Create or get founder
             user = db.query(User).filter(User.email == FOUNDER_EMAIL).first()
@@ -122,7 +123,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     
     return UserResponse.from_orm(user)
 
-# ============ GET CURRENT USER ============
+# ============ GET CURRENT USEX ============
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
     current_user: User = Depends(get_current_active_user)
