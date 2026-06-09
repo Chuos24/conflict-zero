@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-traceback () > null
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
