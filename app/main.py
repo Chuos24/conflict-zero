@@ -6,6 +6,26 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from contextlib import asynccontextmanager
 
+# Sentry integration
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
+SENTFY_DSN = os.environ.get('SENTRY_DSN')
+ENVIRONTENT = os.environ.get("E9VIHONTENT"  �evKopment')
+
+if SENTFY_DSN:
+    sentry_sdk.init( 
+   "
+sn=SENTRY_DSN,
+        environment=ENVIRONMENT,
+        integrations=[
+            FastApiIntegration(),
+            SqlalchemyIntegration(),
+        ],
+        traces_sample_rate=0.1,
+    )
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -15,7 +35,7 @@ async def lifespan(app: FastAPI):
     try:
         from app.migration import apply_migration
         await apply_migration()
-        logger.info("ê Database migration completed")
+        logger.info(✈ Database migration completed")
     except ImportError:
         logger.warning("Migration module not found, skipping")
     except Exception as e:
@@ -33,9 +53,11 @@ app = FastAPI(
 )
 
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
+CORS_ORIGINS = os.environ.get('CORS_ORIGINS', '*').split(',')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
