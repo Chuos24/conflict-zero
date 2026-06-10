@@ -12,6 +12,14 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("API startup")
+    try:
+        from app.migration import apply_migration
+        await apply_migration()
+        logger.info("ê Database migration completed")
+    except ImportError:
+        logger.warning("Migration module not found, skipping")
+    except Exception as e:
+        logger.warning(f"Migration error: {e}")
     yield
     logger.info("API shutdown")
 
