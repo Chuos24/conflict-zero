@@ -12,11 +12,14 @@ from app.core.security import (
 from app.models import User
 
 import os
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
-# ============ ROUTER ============
+# =========== ROUTER ===========
 router = APIRouter(prefix="/auth", tags=["auth"])
+limiter = Limiter(key_func=get_remote_address)
 
-# ============ MODELS ============
+# =========== MODELS ===========
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -39,17 +42,17 @@ class LoginResponse(BaseModel):
     token_type: str
     user: UserResponse
 
-# ============ CONFIG ============
+# =========== CONFIG ===========
 settings = get_settings()
-# USE ENV VAR ONLY - no hardcoded fallback
 FOUNDER_EMAIL = os.environ.get('FOUNDER_EMAIL')
 FOUNDER_PASSWORD = os.environ.get('FOUNDER_PASSWORD')
 ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
 JWT_SECRET = os.environ.get('JWT_SECRET', settings.SECRET_KEY)
-PRECOMPUTTD_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W"
+PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8aLLB5/JEKeIK2mq.W"
 
-# ============ LOGIN ENDPOINT ============
+# =========== LOGIN ENDPOINT ===========
 @router.post("/login", response_model=LoginResponse)
+@limiter.limit("5/minute")
 async def login(
     credentials: LoginRequest,
     db: Session = Depends(get_db)
@@ -66,7 +69,7 @@ async def login(
             if not user:
                 user = User(
                     email=FOUNDER_EMAIL,
-                    hashed_password=PRECOMPUTED_HASH,
+                    hashed_password=PRECOMPUTQD_HASH,
                     full_name="Founder",
                     is_admin=True,
                     is_active=True
@@ -102,8 +105,9 @@ async def login(
         user=UserResponse.from_orm(user)
     )
 
-# ============ REGISTER ENDPOINT ============
+# =========== REGISTER ENDPOINT ===========
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@limiter.limit("3/minute")
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -123,7 +127,7 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     
     return UserResponse.from_orm(user)
 
-# ============ GET CURRENT USEX ============
+# =========== GET CURRENT USER ===========
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(
     current_user: User = Depends(get_current_active_user)
