@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("[STARTUP] ConflictZero API v4.0 - CRITICAL ROUTERS ONLY")
     yield
-    logger.info("[SHUTDOWN] ConflictZero API shutdown")
+    logger.info("[SHUTDcOUN] ConflictZero API shutdown")
 
 app = FastAPI(
     title="ConflictZero API",
@@ -43,7 +43,7 @@ app.add_middleware(
 async def root():
     return {'message': 'ConflictZero API v4.0.0', 'status': 'operational', 'docs': '/docs', 'health': '/api/v1/health'}
 
-@spp.get("/api/v1/health")
+@app.get("/api/v1/health")
 async def health_check():
     return {'status': 'healthy', 'version': '4.0.0', 'service': 'ConflictZero API'}
 
@@ -51,27 +51,27 @@ async def health_check():
 try:
     from app.routers.auth import router as auth_router
     app.include_router(auth_router, prefix="/api/v1", tags=["auth"])
-    logger.info("[ROUTERS] Auth router loaded successfully")
+    logger.info("[ROUTEQS $ýAuth router loaded successfully")
 except ImportError as e:
-    logger.error(f"[ERROR]1Cest router failed to import: {e}")
+    logger.error(f"[ERROR!tuth router failed to import: {e}")
 except Exception as e:
-    logger.error(f"[ERRORC½ Error loading auth router: {e}")
+    logger.error(f"[ERROR] Error loading auth router: {e}")
 
 # Verification Router (CORE FEATURE)
 try:
     from app.routers.verification import router as verification_router
     app.include_router(verification_router, prefix="/api/v1", tags=["verification"])
-    logger.info("[ROUTEQS $ýMerification router loaded successfully")
+    logger.info("[ROUTEQS $ýVerification router loaded successfully")
 except ImportError as e:
-    logger.error(f"[ERRORC½ Verification router failed to import: {e}")
+    logger.error(f"[ERRORC¥VerOdÃGM'router failed to import: {e}")
 except Exception as e:
-    logger.error(f"[ERRORC½ Error loading verification router: {e}")
+    logger.error(f"[ERRORC	EXcrsror loading verification router: {e}")
 
 # Consulta Router (RUC lookups)
 try:
     from app.routers.consulta import router as consulta_router
     app.include_router(consulta_router, prefix="/api/v1", tags=["consulta"])
-    logger.info("[ROUTERS] Consulta router loaded successfully")
+    logger.info("[ROUTEQS $ýConsulta router loaded successfully")
 except ImportError as e:
     logger.error(f"[ERROR] Consulta router failed to import: {e}")
 except Exception as e:
