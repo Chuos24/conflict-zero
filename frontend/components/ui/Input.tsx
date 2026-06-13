@@ -1,5 +1,5 @@
 interface InputProps {
-  label: string;
+  label?: string;
   type?: string;
   value: string;
   onChange: (value: string) => void;
@@ -23,10 +23,12 @@ export default function Input({
 }: InputProps) {
   return (
     <div className={className}>
-      <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">
-        {label}
-        {required && <span className="text-[#c9a050] ml-1">*</span>}
-      </label>
+      {label && (
+        <label className="block text-xs tracking-[0.2em] uppercase text-[#8a8a8a] mb-3">
+          {label}
+          {required && <span className="text-[#c9a050] ml-1">*</span>}
+        </label>
+      )}
       <input
         type={type}
         value={value}

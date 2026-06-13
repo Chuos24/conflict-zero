@@ -199,8 +199,8 @@ export default function HistoryPage() {
             <Input
               placeholder="Buscar por RUC o razón social..."
               value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
+              onChange={(value) => {
+                setSearchTerm(value);
                 setCurrentPage(1);
               }}
               className="pl-10 w-72"
