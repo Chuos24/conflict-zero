@@ -92,8 +92,8 @@
 
 ### 8. Tests E2E (Playwright/Cypress)
 **Prioridad**: Baja
-**Descripción**: Tests unitarios del backend creados, faltan tests E2E del frontend.
-**Status**: 0% - Pendiente
+**Descripción**: Smoke tests expandidos: dashboard protegido, legal pages, contacto. Todos pasan en Chromium, Firefox, WebKit.
+**Status**: 100% COMPLETADO - 15 tests E2E pasando en 3 navegadores (2026-06-13)
 
 ---
 
