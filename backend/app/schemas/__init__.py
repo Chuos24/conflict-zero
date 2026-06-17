@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, validator, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
@@ -29,8 +29,7 @@ class UserResponse(UserBase):
     monthly_limit: int
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============== Auth Schemas ==============
 
@@ -109,8 +108,7 @@ class VerificationResponse(BaseModel):
     pdf_url: Optional[str] = None
     cached: bool = False
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class VerificationHistory(BaseModel):
     id: UUID
@@ -120,8 +118,7 @@ class VerificationHistory(BaseModel):
     risk_level: str
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============== API Key Schemas ==============
 
@@ -137,8 +134,7 @@ class ApiKeyResponse(BaseModel):
     created_at: datetime
     expires_at: Optional[datetime] = None
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ApiKeyListItem(BaseModel):
     id: UUID
@@ -148,8 +144,7 @@ class ApiKeyListItem(BaseModel):
     usage_count: int
     created_at: datetime
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class ApiKeyRegenerateResponse(BaseModel):
     api_key: str

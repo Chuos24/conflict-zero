@@ -7,7 +7,7 @@ para construir dataset de time-series para ML futuro.
 
 import hashlib
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 
@@ -77,7 +77,7 @@ class SnapshotService:
             if ultimo_pago_str:
                 try:
                     sunat_ultimo_pago = datetime.strptime(ultimo_pago_str, "%Y-%m-%d")
-                    dias_ultimo_pago = (datetime.utcnow() - sunat_ultimo_pago).days
+                    dias_ultimo_pago = (datetime.now(timezone.utc) - sunat_ultimo_pago).days
                 except:
                     pass
         
@@ -100,7 +100,7 @@ class SnapshotService:
             if ultima_sancion:
                 try:
                     osce_ultima_sancion_fecha = datetime.strptime(ultima_sancion, "%Y-%m-%d")
-                    dias_ultima_sancion_osce = (datetime.utcnow() - osce_ultima_sancion_fecha).days
+                    dias_ultima_sancion_osce = (datetime.now(timezone.utc) - osce_ultima_sancion_fecha).days
                 except:
                     pass
         
@@ -123,7 +123,7 @@ class SnapshotService:
         # Crear snapshot
         snapshot = CompanySnapshot(
             ruc=ruc,
-            snapshot_date=datetime.utcnow(),
+            snapshot_date=datetime.now(timezone.utc),
             
             # SUNAT
             sunat_status=sunat_status,
@@ -174,7 +174,7 @@ class SnapshotService:
         Returns:
             Lista de snapshots ordenados por fecha
         """
-        from_date = datetime.utcnow() - timedelta(days=days)
+        from_date = datetime.now(timezone.utc) - timedelta(days=days)
         
         return self.db.query(CompanySnapshot).filter(
             CompanySnapshot.ruc == ruc,

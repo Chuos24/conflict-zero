@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -14,8 +14,7 @@ class PlanBase(BaseModel):
     highlighted: Optional[bool] = False
 
 class PlanResponse(PlanBase):
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PlansList(BaseModel):
     plans: List[PlanResponse]
@@ -25,7 +24,7 @@ class PlansList(BaseModel):
 class SubscriptionBase(BaseModel):
     user_id: UUID
     plan_id: str
-    status: str = Field(..., regex="^(active|cancelled|past_due|paused)$")
+    status: str = Field(..., pattern=r"^(active|cancelled|past_due|paused)$")
     current_period_start: datetime
     current_period_end: datetime
     cancel_at_period_end: bool = False
@@ -43,8 +42,7 @@ class SubscriptionResponse(SubscriptionBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============== Payment Schemas ==============
 
@@ -52,8 +50,8 @@ class PaymentBase(BaseModel):
     subscription_id: UUID
     amount: float
     currency: str = "PEN"
-    status: str = Field(..., regex="^(pending|completed|failed|refunded)$")
-    payment_method: str = Field(..., regex="^(stripe|culqi|yape|plin)$")
+    status: str = Field(..., pattern=r"^(pending|completed|failed|refunded)$")
+    payment_method: str = Field(..., pattern=r"^(stripe|culqi|yape|plin)$")
     provider_payment_id: Optional[str] = None
 
 class PaymentCreate(BaseModel):
@@ -66,8 +64,7 @@ class PaymentResponse(PaymentBase):
     id: UUID
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============== Webhook Schemas ==============
 
@@ -84,7 +81,7 @@ class WebhookResponse(BaseModel):
 # ============== Compare Request Schemas ==============
 
 class CompareRequest(BaseModel):
-    rucs: List[str] = Field(..., min_items=2, max_items=10)
+    rucs: List[str] = Field(..., min_length=2, max_length=10)
     
     @validator('rucs')
     def validate_rucs(cls, v):
@@ -110,13 +107,12 @@ class CompareResponse(BaseModel):
     highest_risk: Optional[str] = None
     lowest_risk: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ============== System Log Schemas ==============
 
 class SystemLogBase(BaseModel):
-    level: str = Field(..., regex="^(debug|info|warning|error|critical)$")
+    level: str = Field(..., pattern=r"^(debug|info|warning|error|critical)$")
     message: str
     source: Optional[str] = None
     meta_data: Optional[dict] = None
@@ -125,8 +121,7 @@ class SystemLogResponse(SystemLogBase):
     id: UUID
     created_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class SystemLogList(BaseModel):
     logs: List[SystemLogResponse]
