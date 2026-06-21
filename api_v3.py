@@ -10,7 +10,7 @@ import uuid
 import random
 import asyncio
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Request, Depends, Header
@@ -1601,8 +1601,8 @@ def create_jwt_token(user_id: int, email: str, ruc: str) -> str:
         'user_id': user_id,
         'email': email,
         'ruc': ruc,
-        'exp': datetime.utcnow() + timedelta(days=7),
-        'iat': datetime.utcnow()
+        'exp': datetime.now(timezone.utc) + timedelta(days=7),
+        'iat': datetime.now(timezone.utc)
     }
     return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
 

@@ -2,7 +2,7 @@
 Autenticación y gestión de usuarios - Conflict Zero API
 DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -788,7 +788,7 @@ async def generate_admin_token(
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": 24 * 60 * 60,  # 24 horas en segundos
-        "expires_at": (datetime.utcnow() + access_token_expires).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + access_token_expires).isoformat(),
         "user": {
             "email": user.email,
             "is_admin": user.is_admin,

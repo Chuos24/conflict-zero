@@ -6,7 +6,7 @@ Ejecutado cada 30 minutos vía cron
 import requests
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Configuración
 API_BASE = "https://conflict-zero-api.onrender.com/api/v1"
@@ -24,7 +24,7 @@ def check_health():
         uptime_pct = sla_metrics.get("uptime_percentage", 0)
         
         result = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": "healthy" if is_healthy else "degraded",
             "uptime_percentage": uptime_pct,
             "sla_breach": uptime_pct < SLA_THRESHOLD,
@@ -44,7 +44,7 @@ def check_health():
         
     except Exception as e:
         error_result = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "status": "error",
             "error": str(e),
             "sla_breach": True
@@ -53,7 +53,7 @@ def check_health():
         return error_result
 
 if __name__ == "__main__":
-    print(f"[{datetime.utcnow().isoformat()}] Iniciando health check...")
+    print(f"[{datetime.now(timezone.utc).isoformat()}] Iniciando health check...")
     result = check_health()
     print(f"Status: {result['status']}")
     print(f"Uptime: {result.get('uptime_percentage', 'N/A')}%")
