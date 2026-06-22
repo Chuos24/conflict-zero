@@ -68,6 +68,11 @@ cron:
     buildCommand: pip install -r requirements.txt
     startCommand: python scripts/sync_osce_risk_daily.py
     
+  - name: conflict-zero-network-monitor
+    schedule: "0 6 * * *"  # 6 AM UTC = 1 AM Lima - Re-verificación diaria de Mi Red
+    buildCommand: pip install -r requirements.txt
+    startCommand: python scripts/cron_daily_network_check.py
+    
   - name: conflict-zero-health-check
     schedule: "*/30 * * * *"  # Cada 30 minutos
     buildCommand: pip install -r requirements.txt
