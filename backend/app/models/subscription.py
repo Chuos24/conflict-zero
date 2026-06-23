@@ -14,7 +14,7 @@ class Subscription(Base):
     status = Column(String(20), default="active")  # active, cancelled, past_due, paused
     
     # Billing period
-    current_period_start = Column(DateTime, default=datetime.utcnow)
+    current_period_start = Column(DateTime, default=datetime.now(timezone.utc))
     current_period_end = Column(DateTime, nullable=True)
     cancel_at_period_end = Column(Boolean, default=False)
     
@@ -25,8 +25,8 @@ class Subscription(Base):
     culqi_customer_id = Column(String(255), nullable=True)
     
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("User", back_populates="subscription")
@@ -52,8 +52,8 @@ class Payment(Base):
     receipt_url = Column(String(500), nullable=True)
     
     # Metadata
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
     # Relationships
     subscription = relationship("Subscription", back_populates="payments")

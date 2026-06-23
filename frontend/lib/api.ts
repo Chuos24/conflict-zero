@@ -77,4 +77,31 @@ export const dashboard = {
     api.get('/dashboard/usage'),
 };
 
+// Network / Mi Red - Supplier Watchlist
+export const network = {
+  // Listar proveedores monitoreados
+  list: () =>
+    api.get('/network/'),
+  
+  // Agregar proveedor a watchlist
+  add: (ruc: string, supplier_name?: string, notes?: string) =>
+    api.post('/network/add', { ruc, supplier_name, notes }),
+  
+  // Quitar proveedor de watchlist
+  remove: (ruc: string) =>
+    api.delete(`/network/${ruc}`),
+  
+  // Obtener alertas
+  alerts: (unread_only: boolean = false) =>
+    api.get('/network/alerts', { params: { unread_only } }),
+  
+  // Marcar alerta como leída
+  markAlertRead: (alert_id: string) =>
+    api.patch(`/network/alerts/${alert_id}/read`),
+  
+  // Marcar múltiples alertas como leídas
+  markMultipleRead: (alert_ids: string[]) =>
+    api.post('/network/alerts/mark-read', { alert_ids }),
+};
+
 export default api;

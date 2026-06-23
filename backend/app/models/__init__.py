@@ -22,8 +22,8 @@ class User(Base):
     api_key = Column(String(255), unique=True, nullable=True)
     monthly_requests = Column(Integer, default=0)
     monthly_limit = Column(Integer, default=1000)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
     # Relationships
     verification_requests = relationship("VerificationRequest", back_populates="user")
@@ -62,7 +62,7 @@ class VerificationRequest(Base):
     # Metadata
     raw_data = Column(JSON, default=dict)
     pdf_url = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("User", back_populates="verification_requests")
@@ -77,7 +77,7 @@ class ApiKey(Base):
     is_active = Column(Boolean, default=True)
     last_used_at = Column(DateTime, nullable=True)
     usage_count = Column(Integer, default=0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
     expires_at = Column(DateTime, nullable=True)
 
 class SystemLog(Base):
@@ -88,7 +88,7 @@ class SystemLog(Base):
     message = Column(Text, nullable=False)
     source = Column(String(100), nullable=True)
     meta_data = Column(JSON, default=dict)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
 
 
 # ============================================================================
@@ -105,7 +105,7 @@ class CompanySnapshot(Base):
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     ruc = Column(String(11), nullable=False, index=True)
-    snapshot_date = Column(DateTime, default=datetime.utcnow, index=True)
+    snapshot_date = Column(DateTime, default=datetime.now(timezone.utc), index=True)
     
     # --- Datos SUNAT (Time-Series) ---
     sunat_status = Column(String(20), nullable=True)  # ACTIVO, SUSPENDIDO, etc.
@@ -133,7 +133,7 @@ class CompanySnapshot(Base):
     source_api = Column(String(50), nullable=True)  # 'sunat', 'osce', 'decolecta', 'manual'
     query_id = Column(String(36), ForeignKey("verification_requests.id"), nullable=True)
     raw_data_hash = Column(String(64), nullable=True)  # Para detectar cambios
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
     
     # Índice compuesto para consultas ML: RUC + fecha
     __table_args__ = (
@@ -151,7 +151,7 @@ class MlTrainingLog(Base):
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     model_version = Column(String(20), nullable=False)
-    training_date = Column(DateTime, default=datetime.utcnow)
+    training_date = Column(DateTime, default=datetime.now(timezone.utc))
     dataset_size = Column(Integer, nullable=False)  # Número de snapshots usados
     accuracy = Column(Float, nullable=True)  # Precisión del modelo
     precision = Column(Float, nullable=True)
@@ -186,7 +186,7 @@ class SupplierAlert(Base):
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
     
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
     
     # Relationships
     user = relationship("User", back_populates="supplier_alerts")

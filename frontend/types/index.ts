@@ -88,3 +88,41 @@ export interface RecentSearch {
   score: number;
   searched_at: string;
 }
+
+// Network / Mi Red - Supplier Watchlist types
+export interface Supplier {
+  id: string;
+  ruc: string;
+  supplier_name: string;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  score: number;
+  added_at: string;
+  last_checked: string | null;
+  osce_sanciones: number;
+  tce_sanciones: number;
+}
+
+export interface SupplierAlert {
+  id: string;
+  supplier_ruc: string;
+  supplier_name: string | null;
+  change_type: string;
+  previous_status: string | null;
+  new_status: string | null;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  is_read: boolean;
+  email_sent: boolean;
+  created_at: string;
+}
+
+export interface NetworkListResponse {
+  suppliers: Supplier[];
+  total: number;
+  alerts_unread: number;
+}
+
+export interface AlertsResponse {
+  alerts: SupplierAlert[];
+  total: number;
+  unread_count: number;
+}
