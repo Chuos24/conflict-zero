@@ -77,7 +77,8 @@
 
 ### 5. Frontend - Integrar checkout con pasarela real (Stripe/Culqi)
 **Prioridad**: Alta
-**Descripción**: Checkout actual es mock. Se creó webhook router pero falta integración real.
+**Descripción**: Checkout actual es mock. Webhooks implementados y listos para conectar. Falta configurar API keys de Stripe/Culqi.
+**Status**: Webhooks 100% implementados (2026-07-06)
 
 ### 6. Backend - Aplicar rate limiting en endpoints protegidos ✅ COMPLETADO
 **Prioridad**: Media
@@ -107,10 +108,17 @@
 **Status**: Parcialmente resuelto
 **Descripción**: Cuando la API no responde, el fallback no tiene fechas detalladas. Considerar cache local.
 
+### 3. SQLite `users.is_approved` faltante (LOCAL)
+**Status**: ✅ RESUELTO (2026-07-06)
+**Descripción**: Base de datos SQLite local no tenía columna `is_approved`. Causaba error en startup.
+**Solución**: Migración alembic `2f66a034fd23` aplicada exitosamente.
+
 ---
 
 ## ✅ COMPLETADAS RECIENTEMENTE
 
+- [x] **Backend: Migración DB `is_approved`** - Columna faltante en SQLite local agregada via alembic (2026-07-06)
+- [x] **Backend: Webhooks implementados** - Handlers funcionales con actualización de DB y emails (2026-07-06)
 - [x] Endpoint `/compare` para comparar múltiples RUCs (2-10 según plan)
 - [x] Stats page conectada a API real (`/dashboard/stats`)
 - [x] Compare page conectada a API real (`/compare`)
@@ -142,9 +150,10 @@
 
 ## 📞 CONTACTOS/ACCESOS NECESARIOS
 
-- GitHub: Configurar GH_TOKEN para ejecutar workflows remotamente
+- GitHub: Configurar GH_TOKEN para ejecutar workflows remotamente (36 commits locales sin push)
 - Render: API key ya configurada en .env.infrastructure
 - Vercel: Auto-deploy en push a main
+- Stripe/Culqi: API keys para activar pagos reales
 
 ---
 
