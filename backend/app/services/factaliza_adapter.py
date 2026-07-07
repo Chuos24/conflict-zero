@@ -7,7 +7,7 @@ import os
 import httpx
 import asyncio
 from typing import Dict, Optional, Any
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Configuración
 FACTALIZA_TOKEN = os.environ.get(
@@ -15,6 +15,9 @@ FACTALIZA_TOKEN = os.environ.get(
     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MDY0OCIsImh0dHA6Ly9zY2hlbWFzLm1pY3Jvc29mdC5jb20vd3MvMjAwOC8wNi9pZGVudGl0eS9jbGFpbXMvcm9sZSI6ImNvbnN1bHRvciJ9.d_-YT6RuTIrq-RZj1TO6Q6r3EG2NL4MRO9odkcaGDYA'
 )
 FACTALIZA_BASE_URL = "https://api.factiliza.com/v1"
+
+# Cache TTL (default: 7 días)
+CACHE_TTL_DAYS = int(os.environ.get('RUC_CACHE_TTL_DAYS', '7'))
 
 # Rate limiting
 MAX_REQUESTS_PER_MINUTE = 30
@@ -194,37 +197,201 @@ class FactalizaAdapter:
             'timestamp_consulta': datetime.now().isoformat()
         }
 
+
+# ============================================================================
+# CACHE FUNCTIONS
+# ============================================================================
+
+def get_db_session():
+    """Obtiene una sesión de DB para operaciones síncronas."""
+    from app.core.database import SessionLocal
+    db = SessionLocal()
+    try:
+        return db
+    except Exception:
+        db.close()
+        raise
+
+
+def get_cached_ruc(ruc: str) -> Optional[Dict[str, Any]]:
+    """
+    Busca un RUC en el cache de PostgreSQL.
+    Retorna los datos cacheados si existen y no han expirado.
+    """
+    from app.models import RucCache
+    
+    db = None
+    try:
+        db = get_db_session()
+        cache_entry = db.query(RucCache).filter(
+            RucCache.ruc == ruc,
+            RucCache.is_valid == True,
+            RucCache.expires_at > datetime.now(timezone.utc)
+        ).first()
+        
+        if cache_entry:
+            # Actualizar estadísticas de uso
+            cache_entry.hit_count += 1
+            cache_entry.last_hit_at = datetime.now(timezone.utc)
+            db.commit()
+            
+            print(f"[Cache] ✓ Hit para RUC {ruc} (hits: {cache_entry.hit_count}, fuente: {cache_entry.source})")
+            return cache_entry.cached_data
+        
+        return None
+        
+    except Exception as e:
+        print(f"[Cache] ⚠ Error leyendo cache: {e}")
+        return None
+    finally:
+        if db:
+            db.close()
+
+
+def save_ruc_cache(ruc: str, data: Dict[str, Any], source: str = "factaliza") -> bool:
+    """
+    Guarda datos de un RUC en el cache de PostgreSQL.
+    Si ya existe, actualiza los datos.
+    """
+    from app.models import RucCache
+    
+    db = None
+    try:
+        db = get_db_session()
+        
+        # Buscar entrada existente
+        cache_entry = db.query(RucCache).filter(RucCache.ruc == ruc).first()
+        
+        expires_at = datetime.now(timezone.utc) + timedelta(days=CACHE_TTL_DAYS)
+        
+        if cache_entry:
+            # Actualizar entrada existente
+            cache_entry.cached_data = data
+            cache_entry.source = source
+            cache_entry.updated_at = datetime.now(timezone.utc)
+            cache_entry.expires_at = expires_at
+            cache_entry.is_valid = True
+            print(f"[Cache] ✓ Actualizado RUC {ruc} (TTL: {CACHE_TTL_DAYS} días)")
+        else:
+            # Crear nueva entrada
+            cache_entry = RucCache(
+                ruc=ruc,
+                cached_data=data,
+                source=source,
+                expires_at=expires_at
+            )
+            db.add(cache_entry)
+            print(f"[Cache] ✓ Guardado RUC {ruc} (TTL: {CACHE_TTL_DAYS} días)")
+        
+        db.commit()
+        return True
+        
+    except Exception as e:
+        print(f"[Cache] ⚠ Error guardando cache: {e}")
+        if db:
+            db.rollback()
+        return False
+    finally:
+        if db:
+            db.close()
+
+
+def invalidate_ruc_cache(ruc: str) -> bool:
+    """
+    Invalida el cache de un RUC específico.
+    Útil cuando sabemos que los datos han cambiado.
+    """
+    from app.models import RucCache
+    
+    db = None
+    try:
+        db = get_db_session()
+        cache_entry = db.query(RucCache).filter(RucCache.ruc == ruc).first()
+        
+        if cache_entry:
+            cache_entry.is_valid = False
+            db.commit()
+            print(f"[Cache] ✓ Invalidado RUC {ruc}")
+            return True
+        
+        return False
+        
+    except Exception as e:
+        print(f"[Cache] ⚠ Error invalidando cache: {e}")
+        return False
+    finally:
+        if db:
+            db.close()
+
+
 # Instancia global
 factaliza = FactalizaAdapter()
 
 async def consultar_con_fallback(ruc: str, use_cache: bool = True) -> Dict[str, Any]:
     """
     Consulta RUC con estrategia cascada:
-    1. Intentar Factaliza API
-    2. Si falla (rate limit/error): Usar PostgreSQL cache
-    3. Si no existe en BD: Usar Mock
+    1. Intentar cache de PostgreSQL (si use_cache=True)
+    2. Intentar Factaliza API
+    3. Si falla (rate limit/error): Usar PostgreSQL cache (incluso si expiró)
+    4. Si no existe en BD: Usar Mock
     """
-    # Intentar Factaliza primero
+    # Paso 1: Intentar cache válido
+    if use_cache:
+        cached = get_cached_ruc(ruc)
+        if cached:
+            return cached
+    
+    # Paso 2: Intentar Factaliza API
     try:
         print(f"[Factaliza] Consultando RUC {ruc}...")
         data = await factaliza.consultar_ruc(ruc)
         if data:
             print(f"[Factaliza] ✓ Datos recibidos para {ruc}")
-            # TODO: Guardar en PostgreSQL para cache
+            # Guardar en cache
+            save_ruc_cache(ruc, data, source="factaliza")
             return data
     except Exception as e:
         error_msg = str(e)
         print(f"[Factaliza] ⚠ Error: {error_msg}")
         
         if "RATE_LIMIT" in error_msg:
-            print(f"[Factaliza] → Usando cache por rate limit")
+            print(f"[Factaliza] → Rate limit alcanzado, buscando cache...")
         else:
-            print(f"[Factaliza] → Usando cache por error de conexión")
+            print(f"[Factaliza] → Error de conexión, buscando cache...")
+        
+        # Paso 3: Intentar cache expirado como fallback
+        if use_cache:
+            db = None
+            try:
+                from app.models import RucCache
+                from app.core.database import SessionLocal
+                db = SessionLocal()
+                cache_entry = db.query(RucCache).filter(
+                    RucCache.ruc == ruc,
+                    RucCache.is_valid == True
+                ).first()
+                
+                if cache_entry:
+                    print(f"[Cache] ✓ Usando cache expirado para RUC {ruc} (última actualización: {cache_entry.updated_at})")
+                    return cache_entry.cached_data
+            except Exception as cache_err:
+                print(f"[Cache] ⚠ Error leyendo cache fallback: {cache_err}")
+            finally:
+                if db:
+                    db.close()
     
-    # TODO: Buscar en PostgreSQL cache
-    # Por ahora, usar mock como fallback
+    # Paso 4: Usar mock como último recurso
     print(f"[Fallback] Usando mock para {ruc}")
-    return await factaliza.consultar_ruc_mock(ruc)
+    mock_data = await factaliza.consultar_ruc_mock(ruc)
+    # No guardar mocks en cache para no contaminar datos reales
+    return mock_data
 
 # Exportar
-__all__ = ['FactalizaAdapter', 'factaliza', 'consultar_con_fallback']
+__all__ = [
+    'FactalizaAdapter', 
+    'factaliza', 
+    'consultar_con_fallback',
+    'get_cached_ruc',
+    'save_ruc_cache',
+    'invalidate_ruc_cache'
+]

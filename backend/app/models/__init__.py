@@ -220,3 +220,41 @@ class UserSupplier(Base):
         # Un usuario no puede agregar el mismo RUC dos veces
         {'sqlite_autoincrement': True},
     )
+
+
+# ============================================================================
+# CACHE: RUC Cache para Factaliza y otras APIs externas
+# ============================================================================
+
+class RucCache(Base):
+    """
+    Cache de consultas RUC para reducir llamadas a APIs externas.
+    TTL configurable (default: 7 días).
+    """
+    __tablename__ = "ruc_cache"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ruc = Column(String(11), nullable=False, index=True, unique=True)
+    
+    # Datos cacheados (formato interno normalizado)
+    cached_data = Column(JSON, nullable=False, default=dict)
+    
+    # Fuente original de los datos
+    source = Column(String(50), nullable=False, default="unknown")  # 'factaliza', 'peruapi', 'mock'
+    
+    # TTL y metadata
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=False)
+    
+    # Estadísticas de uso
+    hit_count = Column(Integer, default=0)
+    last_hit_at = Column(DateTime, nullable=True)
+    
+    # Estado
+    is_valid = Column(Boolean, default=True)  # False si se invalida manualmente
+    
+    __table_args__ = (
+        # Índice para buscar caches expirados
+        {'sqlite_autoincrement': True},
+    )
