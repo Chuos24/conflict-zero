@@ -28,6 +28,7 @@ class User(Base):
     # Relationships
     verification_requests = relationship("VerificationRequest", back_populates="user")
     supplier_alerts = relationship("SupplierAlert", back_populates="user")
+    suppliers = relationship("UserSupplier", back_populates="user")
     # subscription = relationship("Subscription", back_populates="user", uselist=False)
     # payments = relationship("Payment", back_populates="user")
 
@@ -190,3 +191,32 @@ class SupplierAlert(Base):
     
     # Relationships
     user = relationship("User", back_populates="supplier_alerts")
+
+
+class UserSupplier(Base):
+    """
+    Relación usuario-proveedor para el sistema "Mi Red" (Watchlist).
+    """
+    __tablename__ = "user_suppliers"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    ruc = Column(String(11), nullable=False, index=True)
+    supplier_name = Column(String(255), nullable=True)
+    notes = Column(Text, nullable=True)
+    added_at = Column(DateTime, default=datetime.now(timezone.utc))
+    last_checked_at = Column(DateTime, nullable=True)
+    
+    # Score cacheado del último check
+    last_score = Column(Integer, nullable=True)
+    last_risk_level = Column(String(20), nullable=True)
+    last_osce_sanciones = Column(Integer, nullable=True)
+    last_tce_sanciones = Column(Integer, nullable=True)
+    
+    # Relationships
+    user = relationship("User", back_populates="suppliers")
+    
+    __table_args__ = (
+        # Un usuario no puede agregar el mismo RUC dos veces
+        {'sqlite_autoincrement': True},
+    )
