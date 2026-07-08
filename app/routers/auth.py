@@ -4,7 +4,7 @@ Autenticación y gestión de usuarios - Conflict Zero API
 DEPLOY_TIMESTAMP: 2026-03-30T01-20-00Z
 """
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -71,6 +71,7 @@ PRECOMPUTED_HASH = "$2b$12$PJ4/k8AoeCNga7nxWgKyOOuzsae3wQchxQg8alLB5/JEKeIK2mq.W
 @router.post("/login", response_model=LoginResponse)
 @limiter.limit("5/minute")
 async def login(
+    request: Request,
     credentials: LoginRequest,
     db: Session = Depends(get_db)
 ):
@@ -125,7 +126,7 @@ async def login(
 # =========== REGISTER ENDPOINT ===========
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
-async def register(user_data: UserCreate, db: Session = Depends(get_db)):
+async def register(request: Request, user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:

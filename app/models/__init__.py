@@ -137,33 +137,7 @@ class CompanySnapshot(Base):
         {'mysql_charset': 'utf8mb4'},
     )
 
-
-class MlTrainingLog(Base):
-    """
-    Log de entrenamientos de modelos ML.
-    Placeholder para cuando activemos ML en Mes 3-6.
-    """
-    __tablename__ = "ml_training_logs"
-    
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    model_version = Column(String(20), nullable=False)
-    training_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    dataset_size = Column(Integer, nullable=False)  # Número de snapshots usados
-    accuracy = Column(Float, nullable=True)  # Precisión del modelo
-    precision = Column(Float, nullable=True)
-    recall = Column(Float, nullable=True)
-    f1_score = Column(Float, nullable=True)
-    feature_importance = Column(JSON, default=dict)  # Qué features pesan más
-    model_path = Column(String(500), nullable=True)  # S3/local path al .pkl
-    is_active = Column(Boolean, default=False)  # Este modelo está en producción?
-    notes = Column(Text, nullable=True)
-
-
 class SupplierAlert(Base):
-    """
-    Alertas automáticas cuando un proveedor cambia de estado.
-    Valor inmediato sin ser ML (detección de cambio simple).
-    """
     __tablename__ = "supplier_alerts"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -171,15 +145,108 @@ class SupplierAlert(Base):
     supplier_ruc = Column(String(11), nullable=False, index=True)
     supplier_name = Column(String(255), nullable=True)
     
-    # Cambio detectado
-    change_type = Column(String(50), nullable=False)  # 'osce_inhabilitado', 'sunat_deuda', etc.
+    change_type = Column(String(50), nullable=False)
     previous_status = Column(String(255), nullable=True)
     new_status = Column(String(255), nullable=True)
-    severity = Column(String(20), default="medium")  # low, medium, high, critical
+    severity = Column(String(20), default="medium")
     
-    # Estado de la alerta
     is_read = Column(Boolean, default=False)
     email_sent = Column(Boolean, default=False)
     email_sent_at = Column(DateTime, nullable=True)
     
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class NetworkWatchlist(Base):
+    __tablename__ = "network_watchlist"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    ruc = Column(String(11), nullable=False, index=True)
+    alias = Column(String(255), nullable=False)
+    last_score = Column(Integer, nullable=True)
+    last_status = Column(String(50), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class NetworkAlert(Base):
+    __tablename__ = "network_alerts"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    ruc = Column(String(11), nullable=False, index=True)
+    alert_type = Column(String(50), nullable=False)
+    old_status = Column(String(255), nullable=True)
+    new_status = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    read_at = Column(DateTime, nullable=True)
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), nullable=False, index=True)
+    name = Column(String(255), nullable=True)
+    ruc = Column(String(11), nullable=True, index=True)
+    company = Column(String(255), nullable=True)
+    invited_by = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(64), unique=True, nullable=False, index=True)
+    status = Column(String(20), default="pending")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    accepted_by = Column(String(36), ForeignKey("users.id"), nullable=True)
+    notes = Column(Text, nullable=True)
+
+
+class Certificate(Base):
+    __tablename__ = "certificates"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    code = Column(String(16), unique=True, nullable=False, index=True)
+    ruc = Column(String(11), nullable=False, index=True)
+    company_name = Column(String(255), nullable=True)
+    score = Column(Integer, nullable=False)
+    risk_level = Column(String(20), nullable=False)
+    
+    sunat_status = Column(String(50), nullable=True)
+    osce_sanciones_count = Column(Integer, default=0)
+    tce_sanciones_count = Column(Integer, default=0)
+    
+    generated_by = Column(String(36), ForeignKey("users.id"), nullable=False)
+    generated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=True)
+    pdf_url = Column(String(500), nullable=True)
+    status = Column(String(20), default="active")
+    
+    verification_data = Column(JSON, default=dict)
+
+
+class PaymentManual(Base):
+    __tablename__ = "payments_manual"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    
+    amount = Column(Float, nullable=False)
+    currency = Column(String(3), default="PEN")
+    method = Column(String(20), nullable=False)
+    reference = Column(String(100), nullable=False)
+    payment_date = Column(String(10), nullable=True)
+    notes = Column(Text, nullable=True)
+    
+    created_by = Column(String(50), default="admin")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class UserTagMap(Base):
+    __tablename__ = "user_tag_maps"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    data = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+from app.models.tag import Tag, RUCTag
