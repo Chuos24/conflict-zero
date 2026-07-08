@@ -22,7 +22,33 @@ router = APIRouter(tags=["Consulta Completa"])
 def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
     """Obtiene datos de SUNAT desde la base de datos local como fallback."""
     try:
-        # Buscar en tabla de sanciones OSCE
+        # PRIMERO: Buscar en ruc_cache (tabla de respaldo prioritaria)
+        query_cache = text("""
+            SELECT ruc, razon_social, nombre_comercial, estado, condicion,
+                   direccion, departamento, provincia, distrito, ubigeo
+            FROM ruc_cache 
+            WHERE ruc = :ruc 
+            LIMIT 1
+        """)
+        cache_result = db.execute(query_cache, {"ruc": ruc}).fetchone()
+        
+        if cache_result:
+            return {
+                "ruc": ruc,
+                "razon_social": cache_result[1],
+                "nombre": cache_result[2] or cache_result[1],
+                "estado": cache_result[3] or "ACTIVO",
+                "condicion": cache_result[4] or "HABIDO",
+                "direccion": cache_result[5] or "",
+                "departamento": cache_result[6] or "",
+                "provincia": cache_result[7] or "",
+                "distrito": cache_result[8] or "",
+                "ubigeo": cache_result[9] or "",
+                "fuente": "ruc_cache",
+                "success": True
+            }
+        
+        # SEGUNDO: Buscar en tabla de sanciones OSCE
         query = text("""
             SELECT DISTINCT nombre, ruc 
             FROM osce_sanciones_detalle 
@@ -47,7 +73,7 @@ def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
                 "success": True
             }
         
-        # Si no está en OSCE, buscar en tabla osce_risk_data
+        # TERCERO: Buscar en tabla osce_risk_data
         query2 = text("""
             SELECT ruc, nombre_razon_social
             FROM osce_risk_data
@@ -79,6 +105,86 @@ def get_sunat_fallback(ruc: str, db) -> Dict[str, Any]:
         "ruc": ruc,
         "razon_social": "",
         "nombre": "",
+        "estado": "ACTIVO",
+        "condicion": "HABIDO",
+        "direccion": "",
+        "departamento": "",
+        "provincia": "",
+        "distrito": "",
+        "ubigeo": "",
+        "fuente": "minimal_fallback",
+        "success": True
+    }
+
+# ============================================================================
+# SUNAT API CASCADE - Cleaned up 2026-04-18
+# Priority: Factaliza → APIPeru.dev → Perú API → apis.net.pe → DB fallback
+# Removed: BuscarUC (expired token), SUNAT scraping (fragile)
+# ============================================================================
+
+def _got_name(d: dict) -> bool:
+    """Check if API response has a real company name."""
+    return bool(d.get("success") and d.get("razon_social", "").strip())
+
+
+def get_sunat_data_cascade(ruc: str, db) -> Dict[str, Any]:
+    """
+    Attempts to get SUNAT data using multiple APIs in priority order.
+    Returns the first successful response with a company name.
+    """
+    # 1. FACTALIZA - Primary source (Consultor #40648)
+    result = call_factiliza_api(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] Factaliza failed ({result.get('fuente')}), trying APIPeru.dev...")
+    
+    # 2. APIPERU.DEV - Alternative (requires token)
+    result = call_apiperu_dev(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] APIPeru.dev failed ({result.get('fuente')}), trying Perú API...")
+    
+    # 3. PERU API - Another alternative (requires token)
+    result = call_peru_api(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] Perú API failed ({result.get('fuente')}), trying apis.net.pe...")
+    
+    # 4. APIS.NET.PE - Free, always available but rate-limited
+    result = call_apis_net_pe(ruc, db)
+    if _got_name(result):
+        return result
+    print(f"[CASCADE] apis.net.pe failed ({result.get('fuente')}), using DB fallback...")
+    
+    # 5. DB LOCAL FALLBACK - Last resort
+    result = get_sunat_fallback(ruc, db)
+    if _got_name(result):
+        return result
+    
+    # 6. OSCE DB FALLBACK - Use OSCE sanctions data if available
+    from app.services.osce_datos_abiertos import osce_datos_abiertos
+    osce_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
+    if osce_data and osce_data.get("nombre"):
+        return {
+            "ruc": ruc,
+            "razon_social": osce_data.get("nombre", ""),
+            "nombre": osce_data.get("nombre", ""),
+            "estado": "ACTIVO",
+            "condicion": "HABIDO",
+            "direccion": "",
+            "departamento": "",
+            "provincia": "",
+            "distrito": "",
+            "ubigeo": "",
+            "fuente": "osce_db_fallback",
+            "success": True
+        }
+    
+    # 7. MINIMAL FALLBACK - Return empty but valid structure
+    return {
+        "ruc": ruc,
+        "razon_social": f"RUC {ruc}",
+        "nombre": f"RUC {ruc}",
         "estado": "ACTIVO",
         "condicion": "HABIDO",
         "direccion": "",
@@ -145,21 +251,19 @@ def call_factiliza_api(ruc: str, db) -> Dict[str, Any]:
         return {"fuente": "not_configured", "ruc": ruc}
     
     try:
-        url = "https://api.factiliza.com/api/ruc"
+        url = f"https://api.factiliza.com/v1/ruc/info/{ruc}"
         headers = {
             "User-Agent": "ConflictZero-API/1.0",
             "Accept": "application/json",
-            "Content-Type": "application/json",
             "Authorization": f"Bearer {token}"
         }
-        payload = {"ruc": ruc}
-        
+
         print(f"[FACTILIZA] Calling for RUC: {ruc}")
-        response = requests.post(url, headers=headers, json=payload, timeout=15)
+        response = requests.get(url, headers=headers, timeout=15)
         data = response.json()
-        
-        print(f"[FACTILIZA] Response success: {data.get('success')}")
-        
+
+        print(f"[FACTILIZA] Response status: {data.get('status')} success: {data.get('success')}")
+
         if data.get("success") and data.get("data"):
             d = data["data"]
             return {
@@ -177,12 +281,126 @@ def call_factiliza_api(ruc: str, db) -> Dict[str, Any]:
                 "success": True
             }
         else:
-            print(f"[FACTILIZA] Error: {data.get('message', 'Unknown error')}")
+            print(f"[FACTILIZA] Error: {data.get('message', data.get('error', 'Unknown error'))}")
             return {"fuente": "factiliza_failed", "ruc": ruc}
             
     except Exception as e:
         print(f"[FACTILIZA] Exception: {e}")
         return {"fuente": "factiliza_error", "ruc": ruc}
+
+# Función apis.net.pe - fuente adicional gratuita
+def call_apis_net_pe(ruc: str, db) -> Dict[str, Any]:
+    """Llama a apis.net.pe como fuente alternativa gratuita."""
+    token = os.environ.get("APIS_NET_PE_TOKEN")
+    
+    # Token por defecto (gratuito con límite)
+    if not token:
+        token = "apis-token-1.aTSI1T-ce2Rg8L7NZ42T0-ljQ8jV-EG"
+    
+    try:
+        url = f"https://api.apis.net.pe/v2/sunat/ruc/full?numero={ruc}"
+        headers = {
+            "User-Agent": "ConflictZero-API/1.0",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}"
+        }
+        
+        print(f"[APIS_NET_PE] Calling for RUC: {ruc}")
+        response = requests.get(url, headers=headers, timeout=15)
+        
+        if response.status_code == 200:
+            d = response.json()
+            return {
+                "ruc": ruc,
+                "razon_social": d.get("razonSocial", "").strip() or d.get("nombre", "").strip(),
+                "nombre": d.get("razonSocial", "").strip() or d.get("nombre", "").strip(),
+                "estado": d.get("estado", "ACTIVO").upper(),
+                "condicion": d.get("condicion", "HABIDO").upper(),
+                "direccion": d.get("direccion", "").strip(),
+                "departamento": d.get("departamento", ""),
+                "provincia": d.get("provincia", ""),
+                "distrito": d.get("distrito", ""),
+                "ubigeo": d.get("ubigeo", ""),
+                "fuente": "apis_net_pe",
+                "success": True
+            }
+        else:
+            print(f"[APIS_NET_PE] Error: HTTP {response.status_code}")
+            return {"fuente": "apis_net_pe_failed", "ruc": ruc}
+            
+    except Exception as e:
+        print(f"[APIS_NET_PE] Exception: {e}")
+        return {"fuente": "apis_net_pe_error", "ruc": ruc}
+
+
+# Función scraping SUNAT - último recurso
+def call_sunat_scraping(ruc: str, db) -> Dict[str, Any]:
+    """Scraping de SUNAT como último recurso."""
+    try:
+        print(f"[SUNAT_SCRAPING] Intentando scraping para RUC: {ruc}")
+        
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'es-PE,es;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+        })
+        
+        # Paso 1: Obtener cookie de sesión
+        init_url = "https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/jcrS00Alias"
+        r1 = session.get(init_url, timeout=30)
+        
+        if r1.status_code != 200:
+            print(f"[SUNAT_SCRAPING] Error inicial: {r1.status_code}")
+            return {"fuente": "sunat_scraping_failed", "ruc": ruc}
+        
+        # Paso 2: Realizar consulta
+        consulta_url = "https://e-consultaruc.sunat.gob.pe/cl-ti-itmrconsruc/jcrS00Alias"
+        data = {"accion": "consPorRuc", "razSoc": "", "nroRuc": ruc, "nrodoc": "", "contexto": "ti-it", "search1": ruc, "codigo": "", "tipdoc": "1"}
+        
+        r2 = session.post(consulta_url, data=data, timeout=30)
+        
+        if r2.status_code == 200 and "razonSocial" in r2.text.lower():
+            # Parsear HTML para extraer datos
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(r2.text, 'html.parser')
+            
+            # Buscar razón social
+            razon_social = ""
+            estado = "ACTIVO"
+            condicion = "HABIDO"
+            
+            # Intentar extraer de diferentes formatos
+            for tag in soup.find_all(['h4', 'h3', 'h2', 'span', 'div']):
+                text = tag.get_text().strip()
+                if len(text) > 10 and ruc in text:
+                    razon_social = text.replace(ruc, "").strip(" -")
+                    break
+            
+            if razon_social:
+                return {
+                    "ruc": ruc,
+                    "razon_social": razon_social,
+                    "nombre": razon_social,
+                    "estado": estado,
+                    "condicion": condicion,
+                    "direccion": "",
+                    "departamento": "",
+                    "provincia": "",
+                    "distrito": "",
+                    "ubigeo": "",
+                    "fuente": "sunat_scraping",
+                    "success": True
+                }
+        
+        print(f"[SUNAT_SCRAPING] No se pudo extraer datos del HTML")
+        return {"fuente": "sunat_scraping_failed", "ruc": ruc}
+        
+    except Exception as e:
+        print(f"[SUNAT_SCRAPING] Exception: {e}")
+        return {"fuente": "sunat_scraping_error", "ruc": ruc}
 
 # Función APIPeru.dev - alternativa confiable (POST)
 def call_apiperu_dev(ruc: str, db) -> Dict[str, Any]:
@@ -311,74 +529,57 @@ async def consulta_completa(
             "ruc": ruc
         }
     
-    # Llamada a Factiliza.com (primera opción)
-    sunat_data = call_factiliza_api(ruc, db)
+    # Use cleaned cascade: Factaliza → APIPeru.dev → Perú API → apis.net.pe → DB fallback
+    sunat_data = get_sunat_data_cascade(ruc, db)
     
-    # Si Factiliza falla o no está configurado, intentar APIPeru.dev
-    if not sunat_data.get("success"):
-        print(f"[CONSULTA] Factiliza falló, intentando APIPeru.dev...")
-        sunat_data = call_apiperu_dev(ruc, db)
-    
-    # Si APIPeru.dev falla o no está configurado, intentar Perú API
-    if not sunat_data.get("success"):
-        print(f"[CONSULTA] APIPeru.dev falló, intentando Perú API...")
-        sunat_data = call_peru_api(ruc, db)
-    
-    # Si Perú API también falla, intentar BuscarUC
-    if sunat_data.get("fuente") == "minimal_fallback":
-        print(f"[CONSULTA] Perú API falló, intentando BuscarUC...")
-        buscaruc_data = call_buscaruc_api(ruc, db)
-        if buscaruc_data.get("fuente") != "minimal_fallback":
-            sunat_data = buscaruc_data
-    
-    # Si BuscarUC falla O devuelve datos incompletos (sin razón social), usar fallback
-    buscaruc_failed = sunat_data.get("error") or not sunat_data.get("razon_social")
-    
-    if buscaruc_failed:
-        from app.services.osce_datos_abiertos import osce_datos_abiertos
-        osce_db_data = osce_datos_abiertos.get_sanciones_from_db(ruc)
-        
-        razon_social_fallback = None
-        if osce_db_data and osce_db_data.get("nombre"):
-            razon_social_fallback = osce_db_data.get("nombre")
-        elif sunat_data.get("razon_social"):
-            # Usar lo que vino de BuscarUC aunque sea incompleto
-            razon_social_fallback = sunat_data.get("razon_social")
-        else:
-            razon_social_fallback = f"RUC {ruc}"
-        
-        if osce_db_data:
-            # Usar datos de OSCE como fallback
-            sunat_data = {
+    # FIX CRÍTICO: Rechazar RUCs inválidos (ninguna fuente real devolvió datos)
+    es_ruc_real = bool(sunat_data.get("razon_social", "").strip()) and sunat_data.get("fuente") != "minimal_fallback"
+    if not es_ruc_real:
+        return {
+            "ruc": ruc,
+            "razon_social": sunat_data.get("razon_social", "No disponible"),
+            "estado": "DESCONOCIDO",
+            "condicion": "DESCONOCIDO",
+            "score": 15,
+            "risk_level": "RECHAZADO",
+            "risk_emoji": "⛔",
+            "risk_description": "RUC no verificable o empresa inexistente en registros oficiales",
+            "sunat": {
                 "ruc": ruc,
-                "razon_social": razon_social_fallback,
-                "nombre": osce_db_data.get("nombre", ""),
-                "estado": sunat_data.get("estado", "ACTIVO"),
-                "condicion": sunat_data.get("condicion", "HABIDO"),
-                "direccion": sunat_data.get("direccion", ""),
-                "departamento": sunat_data.get("departamento", ""),
-                "provincia": sunat_data.get("provincia", ""),
-                "distrito": sunat_data.get("distrito", ""),
-                "ubigeo": sunat_data.get("ubigeo", ""),
-                "success": True,
-                "fuente": "osce_db_fallback"
-            }
-        else:
-            # Último fallback: usar lo que tengamos de BuscarUC o solo el RUC
-            sunat_data = {
-                "ruc": ruc,
-                "razon_social": razon_social_fallback,
-                "nombre": sunat_data.get("nombre", ""),
-                "estado": sunat_data.get("estado", "ACTIVO"),
-                "condicion": sunat_data.get("condicion", "HABIDO"),
-                "direccion": sunat_data.get("direccion", ""),
-                "departamento": sunat_data.get("departamento", ""),
-                "provincia": sunat_data.get("provincia", ""),
-                "distrito": sunat_data.get("distrito", ""),
-                "ubigeo": sunat_data.get("ubigeo", ""),
-                "success": True,
-                "fuente": "ruc_only"
-            }
+                "razon_social": "No disponible",
+                "estado": "DESCONOCIDO",
+                "condicion": "DESCONOCIDO",
+                "direccion": ""
+            },
+            "sanciones": [],
+            "sanciones_osce": [],
+            "sanciones_rnp_tce": [],
+            "total_registros": 0,
+            "fuentes": {
+                "sunat": False,
+                "osce": 0,
+                "rnp_tce": 0
+            },
+            "score_breakdown": {
+                "sunat": 0,
+                "osce": 0,
+                "tce": 0,
+                "ml": 0
+            },
+            "score_details": {
+                "sunat_score": 0,
+                "osce_score": 0,
+                "tce_score": 0,
+                "ml_score": 0
+            },
+            "fuente_datos": sunat_data.get("fuente", "unknown"),
+            "ml_analysis": {
+                "risk_detected": True,
+                "risk_factors": ["RUC no encontrado en fuentes oficiales"],
+                "confidence": 1.0
+            },
+            "valid": False
+        }
     
     # Consultar sanciones OSCE (datos reales de CONOSCE)
     osce_sanciones = scraping_service.get_osce_sanctions(ruc)
@@ -451,15 +652,8 @@ async def consulta_sunat(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": "RUC inválido"}
     
-    # Intentar Factiliza primero, luego APIPeru.dev, luego Perú API, luego BuscarUC
-    data = call_factiliza_api(ruc, db)
-    if not data.get("success"):
-        data = call_apiperu_dev(ruc, db)
-    if not data.get("success"):
-        data = call_peru_api(ruc, db)
-    if data.get("fuente") == "minimal_fallback":
-        data = call_buscaruc_api(ruc, db)
-    
+    # Use cleaned cascade
+    data = get_sunat_data_cascade(ruc, db)
     return data
 
 
@@ -473,7 +667,7 @@ async def consulta_score(ruc: str, db: Session = Depends(get_db)):
     if len(ruc) != 11 or not ruc.isdigit():
         return {"error": True, "message": "RUC inválido"}
     
-    sunat_data = call_buscaruc_api(ruc, db)
+    sunat_data = get_sunat_data_cascade(ruc, db)
     
     if sunat_data.get("error"):
         return sunat_data
@@ -1166,3 +1360,223 @@ async def legalbot_validate_get(
 
 
 # Deploy force Fri Mar 28 03:30:00 AM CST 2026 - LegalBot Universal V2.0
+
+
+@router.get(
+    "/debug/consulta-fuentes/{ruc}",
+    summary="Debug - Probar todas las fuentes de datos",
+    description="Endpoint de debug para verificar qué fuentes de datos funcionan para un RUC."
+)
+async def debug_consulta_fuentes(ruc: str, db: Session = Depends(get_db)):
+    """Debug endpoint para probar todas las fuentes de datos."""
+    resultados = {}
+    
+    # Probar Factiliza
+    try:
+        f = call_factiliza_api(ruc, db)
+        resultados['factiliza'] = {
+            'success': f.get('success', False),
+            'razon_social': f.get('razon_social', '')[:50],
+            'fuente': f.get('fuente')
+        }
+    except Exception as e:
+        resultados['factiliza'] = {'error': str(e)}
+    
+    # Probar apis.net.pe
+    try:
+        a = call_apis_net_pe(ruc, db)
+        resultados['apis_net_pe'] = {
+            'success': a.get('success', False),
+            'razon_social': a.get('razon_social', '')[:50],
+            'fuente': a.get('fuente')
+        }
+    except Exception as e:
+        resultados['apis_net_pe'] = {'error': str(e)}
+    
+    # Probar APIPeru.dev
+    try:
+        ap = call_apiperu_dev(ruc, db)
+        resultados['apiperu_dev'] = {
+            'success': ap.get('success', False),
+            'razon_social': ap.get('razon_social', '')[:50],
+            'fuente': ap.get('fuente')
+        }
+    except Exception as e:
+        resultados['apiperu_dev'] = {'error': str(e)}
+    
+    # Probar Perú API
+    try:
+        p = call_peru_api(ruc, db)
+        resultados['peru_api'] = {
+            'success': p.get('success', False),
+            'razon_social': p.get('razon_social', '')[:50],
+            'fuente': p.get('fuente')
+        }
+    except Exception as e:
+        resultados['peru_api'] = {'error': str(e)}
+    
+    # Probar BuscarUC
+    try:
+        b = call_buscaruc_api(ruc, db)
+        resultados['buscaruc'] = {
+            'success': b.get('success', False),
+            'razon_social': b.get('razon_social', '')[:50],
+            'fuente': b.get('fuente')
+        }
+    except Exception as e:
+        resultados['buscaruc'] = {'error': str(e)}
+    
+    # Probar Scraping SUNAT
+    try:
+        s = call_sunat_scraping(ruc, db)
+        resultados['sunat_scraping'] = {
+            'success': s.get('success', False),
+            'razon_social': s.get('razon_social', '')[:50],
+            'fuente': s.get('fuente')
+        }
+    except Exception as e:
+        resultados['sunat_scraping'] = {'error': str(e)}
+    
+    return {
+        "ruc": ruc,
+        "resultados": resultados,
+        "alguna_funciono": any(r.get('success') for r in resultados.values() if 'success' in r)
+    }
+
+
+@router.post(
+    "/admin/add-ruc",
+    summary="Admin - Agregar RUC manualmente",
+    description="Permite agregar un RUC a la base de datos local cuando no está en Factiliza."
+)
+async def admin_add_ruc(
+    ruc: str,
+    razon_social: str,
+    estado: str = "ACTIVO",
+    condicion: str = "HABIDO",
+    db: Session = Depends(get_db)
+):
+    """
+    Agrega un RUC manualmente a la tabla ruc_cache.
+    Útil cuando Factiliza no tiene el RUC pero tú sí conoces los datos.
+    """
+    # Validar RUC
+    if len(ruc) != 11 or not ruc.isdigit():
+        return {"error": True, "message": "RUC debe tener 11 dígitos numéricos"}
+    
+    if not razon_social or len(razon_social) < 3:
+        return {"error": True, "message": "Razón social es requerida"}
+    
+    try:
+        query = text("""
+            INSERT INTO ruc_cache (ruc, razon_social, estado, condicion, fuente, updated_at)
+            VALUES (:ruc, :razon_social, :estado, :condicion, 'manual', NOW())
+            ON CONFLICT (ruc) DO UPDATE SET
+                razon_social = EXCLUDED.razon_social,
+                estado = EXCLUDED.estado,
+                condicion = EXCLUDED.condicion,
+                fuente = 'manual',
+                updated_at = NOW()
+            RETURNING ruc, razon_social
+        """)
+        
+        result = db.execute(query, {
+            "ruc": ruc,
+            "razon_social": razon_social.upper(),
+            "estado": estado.upper(),
+            "condicion": condicion.upper()
+        }).fetchone()
+        
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": "RUC agregado/actualizado correctamente",
+            "ruc": result[0],
+            "razon_social": result[1]
+        }
+        
+    except Exception as e:
+        db.rollback()
+        return {"error": True, "message": f"Error al agregar RUC: {str(e)}"}
+
+
+@router.get(
+    "/admin/list-ruc-cache",
+    summary="Admin - Listar RUCs en caché",
+    description="Lista todos los RUCs almacenados en la tabla ruc_cache."
+)
+async def admin_list_ruc_cache(
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """Lista los RUCs almacenados en caché."""
+    try:
+        query = text("""
+            SELECT ruc, razon_social, estado, fuente, created_at
+            FROM ruc_cache
+            ORDER BY created_at DESC
+            LIMIT :limit
+        """)
+        
+        results = db.execute(query, {"limit": limit}).fetchall()
+        
+        return {
+            "success": True,
+            "count": len(results),
+            "rucs": [
+                {
+                    "ruc": r[0],
+                    "razon_social": r[1],
+                    "estado": r[2],
+                    "fuente": r[3],
+                    "created_at": str(r[4])
+                }
+                for r in results
+            ]
+        }
+        
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
+# ============================================================
+# ENDPOINT ALIAS: /consulta/ruc/{ruc} (Alternate route)
+# ============================================================
+@router.get(
+    "/ruc/{ruc}",
+    summary="Consulta RUC (Alias Route)",
+    description="Alias para /consulta-completa/{ruc}. Redirige a consulta completa."
+)
+async def consulta_ruc_alias(
+    ruc: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Endpoint alias que apunta a consulta_completa.
+    Mantiene compatibilidad con rutas alternativas.
+    """
+    # Validar RUC
+    if len(ruc) != 11 or not ruc.isdigit():
+        return {
+            "error": True,
+            "message": "RUC debe tener 11 dígitos numéricos",
+            "ruc": ruc
+        }
+    
+    # Delegar a consulta_completa
+    sunat_data = get_sunat_data_cascade(ruc, db)
+    es_ruc_real = bool(sunat_data.get("razon_social", "").strip()) and sunat_data.get("fuente") != "minimal_fallback"
+    
+    if not es_ruc_real:
+        return {
+            "error": True,
+            "message": "RUC inválido o no registrado en SUNAT",
+            "ruc": ruc,
+            "fuente": sunat_data.get("fuente", "unknown")
+        }
+    
+    return {
+        "ruc": ruc,
+        **sunat_data
+    }

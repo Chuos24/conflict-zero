@@ -62,7 +62,10 @@ class VerificationService:
         # Calcular score
         score_result = scoring_engine.calculate_total_score(
             ruc=ruc,
-            sunat_debt=external_data["sunat"].get("deuda_coactiva", 0),
+            razon_social=external_data.get("company_name", ""),
+            estado=external_data["sunat"].get("estado_tributario", "ACTIVO"),
+            condicion=external_data["sunat"].get("condicion", "HABIDO"),
+            deuda=external_data["sunat"].get("deuda_coactiva", 0),
             osce_sanctions=external_data["osce_sanctions"],
             tce_sanctions=external_data["tce_sanctions"]
         )
@@ -91,9 +94,9 @@ class VerificationService:
             # Sanciones OSCE
             "osce_sanctions": [
                 {
-                    "sanction_id": s.get("sanction_id", ""),
+                    "sanction_id": str(s.get("sanction_id", "")),  # Convertir a string
                     "description": s.get("description", ""),
-                    "date": s.get("date"),
+                    "date": s.get("date") if isinstance(s.get("date"), str) else str(s.get("date", ""))[:10] + "T00:00:00",  # Formato ISO
                     "status": s.get("status", ""),
                     "severity": s.get("severity", ""),
                     "entity": s.get("entity", "OSCE")
@@ -104,9 +107,9 @@ class VerificationService:
             # Sanciones TCE
             "tce_sanctions": [
                 {
-                    "sanction_id": s.get("sanction_id", ""),
+                    "sanction_id": str(s.get("sanction_id", "")),  # Convertir a string
                     "description": s.get("description", ""),
-                    "date": s.get("date"),
+                    "date": s.get("date") if isinstance(s.get("date"), str) else str(s.get("date", ""))[:10] + "T00:00:00",  # Formato ISO
                     "status": s.get("status", ""),
                     "type": s.get("type", ""),
                     "entity": s.get("entity", "TCE")
@@ -123,14 +126,14 @@ class VerificationService:
             
             # Desglose del score
             "score_breakdown": {
-                "sunat_contribution": score_result["breakdown"]["sunat_contribution"],
+                "sunat_contribution": score_result["breakdown"].get("sunat_estado_contribution", 0) + score_result["breakdown"].get("sunat_condicion_contribution", 0),
                 "osce_contribution": score_result["breakdown"]["osce_contribution"],
-                "tce_contribution": score_result["breakdown"]["tce_contribution"],
+                "tce_contribution": score_result["breakdown"].get("tce_contribution", 0),  # RNP data
                 "ml_contribution": score_result["breakdown"]["ml_contribution"],
                 "total_score": score_result["total_score"]
             },
             
-            # Metadata
+            # Metadato
             "verification_date": datetime.now().isoformat(),
             "cached": False,
             "pdf_url": None,  # Generado asíncronamente si se solicita
@@ -163,7 +166,7 @@ class VerificationService:
             
             # SUNAT
             sunat_debt=result["sunat_data"]["debt_amount"],
-            sunat_score_contribution=result["score_breakdown"]["sunat_contribution"],
+            sunat_score_contribution=result["score_breakdown"].get("sunat_contribution", 0),
             
             # OSCE
             osce_sanctions_count=len(result["osce_sanctions"]),
@@ -172,7 +175,7 @@ class VerificationService:
             
             # TCE
             tce_sanctions_count=len(result["tce_sanctions"]),
-            tce_score_contribution=result["score_breakdown"]["tce_contribution"],
+            tce_score_contribution=result["score_breakdown"].get("tce_contribution", 0),
             tce_sanctions_details=result["tce_sanctions"],
             
             # ML
@@ -196,7 +199,7 @@ class VerificationService:
         user: User,
         db: Session,
         limit: int = 50
-    ):
+    ) -> None:
         """Obtiene el historial de verificaciones de un usuario."""
         from app.models import VerificationRequest as VR
         
@@ -205,6 +208,7 @@ class VerificationService:
         ).order_by(
             VR.created_at.desc()
         ).limit(limit).all()
+
 
 # Instancia global
 verification_service = VerificationService()

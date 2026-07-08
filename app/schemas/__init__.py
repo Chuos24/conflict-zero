@@ -27,8 +27,14 @@ class UserResponse(UserBase):
     plan_type: str
     monthly_requests: int
     monthly_limit: int
+    is_admin: bool = False
+    plan: Optional[str] = None
+    plan_activated_at: Optional[datetime] = None
+    plan_expires_at: Optional[datetime] = None
+    api_key: Optional[str] = None
     created_at: datetime
-    
+    updated_at: Optional[datetime] = None
+
     class Config:
         orm_mode = True
 
@@ -67,14 +73,14 @@ class SunatData(BaseModel):
 class OsceSanction(BaseModel):
     sanction_id: str
     description: str
-    date: datetime
+    date: Optional[str] = None  # Accept date strings like '2021-12-29'
     status: str
     entity: str
 
 class TceSanction(BaseModel):
     sanction_id: str
     description: str
-    date: datetime
+    date: Optional[str] = None  # Accept date strings
     status: str
     type: str
 
@@ -97,7 +103,7 @@ class VerificationResponse(BaseModel):
     score: int = Field(..., ge=0, le=100)
     risk_level: str  # low, medium, high, critical
     
-    # Detalles
+    # Detailles
     sunat_data: SunatData
     osce_sanctions: List[OsceSanction]
     tce_sanctions: List[TceSanction]

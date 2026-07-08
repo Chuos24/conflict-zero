@@ -20,6 +20,7 @@ export default function DashboardLayout({
 
   const navItems = [
     { href: '/dashboard', label: 'Verificar', icon: Search },
+    { href: '/dashboard/network', label: 'Mi Red', icon: Network },
     { href: '/dashboard/stats', label: 'Estadísticas', icon: BarChart3 },
     { href: '/dashboard/history', label: 'Historial', icon: History },
     { href: '/dashboard/compare', label: 'Comparar', icon: Scale },

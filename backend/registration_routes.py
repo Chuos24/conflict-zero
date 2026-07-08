@@ -2,7 +2,7 @@
 Extension de endpoints para Conflict Zero
 Agrega el endpoint de notificacion de registro
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 import os
@@ -36,27 +36,21 @@ async def notify_registration(request: RegistrationNotificationRequest):
         
         # Intentar enviar email usando el servicio de email existente
         email_sent = False
+        error_msg = None
+        
         try:
             import httpx
             
             # Usar SendGrid si está configurado
             sendgrid_key = os.environ.get('SENDGRID_API_KEY', '')
             
-            if sendgrid_key:
+            if sendgrid_key and sendgrid_key.startswith('SG.'):
                 headers = {
                     "Authorization": f"Bearer {sendgrid_key}",
                     "Content-Type": "application/json"
                 }
                 
-                email_data = {
-                    "personalizations": [{
-                        "to": [{"email": dest_email}]
-                    }],
-                    "from": {"email": "noreply@czperu.com", "name": "Conflict Zero"},
-                    "subject": f"Nueva Solicitud de Registro - {request.razon_social}",
-                    "content": [{
-                        "type": "text/plain",
-                        "value": f"""NUEVA SOLICITUD DE REGISTRO - CONFLICT ZERO
+                email_content = f"""NUEVA SOLICITUD DE REGISTRO - CONFLICT ZERO
 
 DATOS DE LA EMPRESA:
 • Razón Social: {request.razon_social}
@@ -73,6 +67,8 @@ DATOS DEL REPRESENTANTE:
 PLAN SOLICITADO:
 • {request.plan_solicitado.upper()}
 
+═══════════════════════════════════════════════════
+
 ACCIÓN REQUERIDA:
 Crear cuenta de usuario en el panel de administración.
 URL: https://www.czperu.com/admin-v3.html
@@ -80,10 +76,20 @@ URL: https://www.czperu.com/admin-v3.html
 --
 Conflict Zero - Estándar de Verificación Institucional
 """
+                
+                email_data = {
+                    "personalizations": [{
+                        "to": [{"email": dest_email}]
+                    }],
+                    "from": {"email": "noreply@czperu.com", "name": "Conflict Zero"},
+                    "subject": f"Nueva Solicitud de Registro - {request.razon_social}",
+                    "content": [{
+                        "type": "text/plain",
+                        "value": email_content
                     }]
                 }
                 
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     resp = await client.post(
                         "https://api.sendgrid.com/v3/mail/send",
                         headers=headers,
@@ -91,13 +97,16 @@ Conflict Zero - Estándar de Verificación Institucional
                     )
                     if resp.status_code == 202:
                         email_sent = True
-                        print(f"[EMAIL] Enviado a {dest_email}")
+                        print(f"[EMAIL] Enviado exitosamente a {dest_email}")
                     else:
-                        print(f"[EMAIL] Error: {resp.status_code} - {resp.text}")
+                        error_msg = f"SendGrid error: {resp.status_code}"
+                        print(f"[EMAIL] Error: {resp.status_code} - {resp.text[:200]}")
             else:
-                print("[EMAIL] SENDGRID_API_KEY no configurado")
+                error_msg = "SENDGRID_API_KEY no configurada"
+                print("[EMAIL] SENDGRID_API_KEY no configurada")
                 
         except Exception as e:
+            error_msg = str(e)
             print(f"[EMAIL] Error enviando: {e}")
         
         return {
@@ -108,7 +117,8 @@ Conflict Zero - Estándar de Verificación Institucional
                 "razon_social": request.razon_social,
                 "plan": request.plan_solicitado,
                 "email_sent": email_sent,
-                "admin_email": dest_email
+                "admin_email": dest_email,
+                "error": error_msg
             }
         }
         
@@ -121,6 +131,28 @@ Conflict Zero - Estándar de Verificación Institucional
                 "ruc": request.ruc,
                 "razon_social": request.razon_social,
                 "plan": request.plan_solicitado,
-                "email_sent": False
+                "email_sent": False,
+                "error": str(e)
             }
         }
+
+
+# Función para registrar las rutas en la app principal
+def register_routes(app, prefix="/api/v3"):
+    """Registrar las rutas de registro en la aplicación FastAPI"""
+    app.include_router(router, prefix=prefix)
+    print(f"✅ Registration routes registradas en {prefix}")
+
+
+# Auto-registro si hay una app global disponible
+try:
+    # Intentar importar la app global si existe
+    import sys
+    for module_name in list(sys.modules.keys()):
+        if 'api_v3' in module_name or 'main' in module_name:
+            module = sys.modules.get(module_name)
+            if hasattr(module, 'app'):
+                register_routes(module.app)
+                break
+except:
+    pass

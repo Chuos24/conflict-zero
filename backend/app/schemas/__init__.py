@@ -165,3 +165,14 @@ class HealthCheck(BaseModel):
     database: str
     redis: str
     timestamp: datetime
+
+# ============== Network (Mi Red) Schemas ==============
+# Importados desde network.py para mantener organización
+from .network import (
+    SupplierWatchlistCreate,
+    SupplierWatchlistResponse,
+    SupplierAlertResponse,
+    SupplierAlertUpdate,
+    NetworkStatsResponse,
+    NetworkSummaryResponse
+)

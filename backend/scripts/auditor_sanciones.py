@@ -24,7 +24,7 @@ def auditar_sanciones():
             # 1. Sanciones marcadas como VIGENTES pero con fecha_fin en el pasado
             # (Deberían ser VENCIDAS automáticamente)
             resultado1 = conn.execute(text("""
-                SELECT ruc, numero_resolucion, fecha_fin, estado, nombre
+                SELECT ruc, numero_resolucion, fecha_fin, estado, entidad, motivo
                 FROM osce_sanciones_detalle
                 WHERE estado = 'VIGENTE'
                   AND fecha_fin IS NOT NULL
@@ -38,7 +38,7 @@ def auditar_sanciones():
                     'cantidad': len(resultado1),
                     'descripcion': 'Sanciones con fecha fin pasada pero aún marcadas como VIGENTES',
                     'ejemplos': [
-                        {'ruc': r[0], 'resolucion': r[1], 'fecha_fin': str(r[2]), 'nombre': r[4]}
+                        {'ruc': r[0], 'resolucion': r[1], 'fecha_fin': str(r[2]), 'entidad': r[4], 'motivo': r[5]}
                         for r in resultado1[:5]  # Top 5
                     ],
                     'accion': 'Ejecutar script de sincronización para auto-corregir'
@@ -46,7 +46,7 @@ def auditar_sanciones():
             
             # 2. Sanciones VENCIDAS recientemente (< 6 meses) — revisar si aplican recuperación
             resultado2 = conn.execute(text("""
-                SELECT ruc, numero_resolucion, fecha_fin, estado, nombre, motivo
+                SELECT ruc, numero_resolucion, fecha_fin, estado, entidad, motivo
                 FROM osce_sanciones_detalle
                 WHERE estado = 'VENCIDA'
                   AND fecha_fin IS NOT NULL
@@ -61,7 +61,7 @@ def auditar_sanciones():
                     'cantidad': len(resultado2),
                     'descripcion': 'Sanciones vencidas en los últimos 6 meses que podrían necesitar nota de recuperación',
                     'ejemplos': [
-                        {'ruc': r[0], 'resolucion': r[1], 'fecha_fin': str(r[2]), 'nombre': r[4]}
+                        {'ruc': r[0], 'resolucion': r[1], 'fecha_fin': str(r[2]), 'entidad': r[4]}
                         for r in resultado2[:3]
                     ],
                     'accion': 'Verificar si hay resoluciones judiciales que modificaron fechas'
@@ -70,7 +70,7 @@ def auditar_sanciones():
             # 3. Sanciones con fecha_fin NULL pero marcadas como VENCIDAS
             # (Inconsistencia de datos)
             resultado3 = conn.execute(text("""
-                SELECT ruc, numero_resolucion, estado, nombre
+                SELECT ruc, numero_resolucion, estado, entidad, motivo
                 FROM osce_sanciones_detalle
                 WHERE estado = 'VENCIDA'
                   AND fecha_fin IS NULL
@@ -83,7 +83,7 @@ def auditar_sanciones():
                     'cantidad': len(resultado3),
                     'descripcion': 'Sanciones VENCIDAS sin fecha_fin (inconsistencia)',
                     'ejemplos': [
-                        {'ruc': r[0], 'resolucion': r[1], 'nombre': r[3]}
+                        {'ruc': r[0], 'resolucion': r[1], 'entidad': r[3]}
                         for r in resultado3[:5]
                     ],
                     'accion': 'Investigar y completar fecha_fin manualmente'
@@ -91,7 +91,7 @@ def auditar_sanciones():
             
             # 4. RUCs con múltiples sanciones vigentes (casos complejos)
             resultado4 = conn.execute(text("""
-                SELECT ruc, COUNT(*) as cantidad, MAX(nombre) as nombre
+                SELECT ruc, COUNT(*) as cantidad, MAX(entidad) as entidad
                 FROM osce_sanciones_detalle
                 WHERE estado = 'VIGENTE'
                 GROUP BY ruc
@@ -106,7 +106,7 @@ def auditar_sanciones():
                     'cantidad': len(resultado4),
                     'descripcion': 'RUCs con más de 2 sanciones vigentes (revisar si no son duplicados)',
                     'ejemplos': [
-                        {'ruc': r[0], 'cantidad': r[1], 'nombre': r[2]}
+                        {'ruc': r[0], 'cantidad': r[1], 'entidad': r[2]}
                         for r in resultado4
                     ],
                     'accion': 'Verificar si son sanciones independientes o duplicados'

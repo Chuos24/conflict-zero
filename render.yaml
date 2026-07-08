@@ -15,6 +15,7 @@ services:
     
     # Auto-restart en caso de falla
     autoDeploy: true
+    # Force deploy trigger - updated 2026-05-02
     
     # Environment Variables (se configuran en dashboard)
     envVars:
@@ -48,6 +49,8 @@ services:
         value: HS256
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 30
+      - key: SENTRY_DSN
+        value: https://9b8e0de098e39cc1d43e7b77b2b5821d@o4511252074594304.ingest.de.sentry.io/4511252170408016
 
   # Redis para cache (opcional pero recomendado)
   - type: redis
@@ -77,6 +80,11 @@ cron:
     schedule: "*/30 * * * *"  # Cada 30 minutos
     buildCommand: pip install -r requirements.txt
     startCommand: python scripts/health_check_monitor.py
+    
+  - name: network-monitor-daily
+    schedule: "0 6 * * *"  # 6 AM UTC = 1 AM Lima
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m app.jobs.network_monitor
 
 # Static Site para status page (opcional)
 staticSites:

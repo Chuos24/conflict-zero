@@ -102,6 +102,9 @@ async def health_check():
     health_status["sla"]["guarantee"] = "99.9%"
     health_status["sla"]["max_monthly_downtime_minutes"] = 43
     
+    # DEBUG MARKER - para verificar que estamos ejecutando el código correcto
+    health_status["debug"] = {"main_py": True, "timestamp": "2026-04-14-v3-fixed"}
+    
     return health_status
 
 @router.get(
