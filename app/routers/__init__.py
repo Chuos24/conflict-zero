@@ -15,5 +15,6 @@ from app.routers.certificates import router as certificates_router
 from app.routers.features import router as features_router
 from app.routers.tags import router as tags_router
 from app.routers.templates import router as templates_router
+from app.routers.payments_admin import router as payments_admin_router
 
-__all__ = ["auth_router", "verification_router", "dashboard_router", "health_router", "consulta_router", "debug_router", "compare_router", "payments_router", "payments_v2_router", "admin_router", "notifications_router", "network_router", "invitations_router", "certificates_router", "features_router", "tags_router", "templates_router"]
+__all__ = ["auth_router", "verification_router", "dashboard_router", "health_router", "consulta_router", "debug_router", "compare_router", "payments_router", "payments_v2_router", "admin_router", "notifications_router", "network_router", "invitations_router", "certificates_router", "features_router", "tags_router", "templates_router", "payments_admin_router"]

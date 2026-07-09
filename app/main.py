@@ -10,7 +10,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, network_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, payments_v2_router, admin_router, notifications_router, network_router, invitations_router, certificates_router, features_router, tags_router, templates_router, payments_admin_router
 import uuid
 
 logging.basicConfig(level=logging.INFO)
@@ -41,7 +41,16 @@ app.include_router(verification_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
+app.include_router(payments_v2_router, prefix="/api/v1")
+app.include_router(payments_admin_router, prefix="/api/v1")
 app.include_router(network_router, prefix="/api/v1")
+app.include_router(invitations_router, prefix="/api/v1")
+app.include_router(certificates_router, prefix="/api/v1")
+app.include_router(features_router, prefix="/api/v1")
+app.include_router(tags_router, prefix="/api/v1")
+app.include_router(templates_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")
+app.include_router(notifications_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

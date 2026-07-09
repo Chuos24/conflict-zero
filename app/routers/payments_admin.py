@@ -202,7 +202,7 @@ async def pending_activations(
                 "company_name": u.company_name,
                 "ruc": u.ruc,
                 "plan": u.plan_type,
-                "status": u.status
+                "status": u.is_active
             }
             for u in unactivated
         ],
