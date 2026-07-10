@@ -11,7 +11,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime, timezone
 
-from app.core.database import SessionLocal
+from app.core.database import SessionLocal, get_db
 from app.core.security import verify_token
 from app.models import User, UserSupplier, SupplierAlert, CompanySnapshot
 from app.services.snapshot_service import SnapshotService
@@ -25,14 +25,6 @@ router = APIRouter(
     tags=["network"],
     responses={401: {"description": "Unauthorized"}},
 )
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def get_current_user(

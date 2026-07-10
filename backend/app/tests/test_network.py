@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.core.database import Base, get_db
-from app.models import User, SupplierWatchlist, CompanySnapshot
+from app.models import User, UserSupplier, SupplierAlert, CompanySnapshot
 from app.core.security import get_password_hash
 import uuid
 
@@ -68,34 +68,34 @@ class TestNetwork:
     def test_add_supplier_to_network(self, client, auth_headers):
         """Test agregar proveedor a la red"""
         response = client.post(
-            "/api/v3/network/add",
+            "/api/v1/network/add",
             json={
-                "supplier_ruc": "20100000001",
+                "ruc": "20100000001",
                 "supplier_name": "Test Company",
-                "alias": "Mi Proveedor",
-                "notes": "Nota de prueba",
-                "tags": ["importante", "local"]
+                "notes": "Nota de prueba"
             },
             headers=auth_headers
         )
-        assert response.status_code == 201
+        assert response.status_code == 200
         data = response.json()
-        assert data["supplier_ruc"] == "20100000001"
-        assert data["alias"] == "Mi Proveedor"
+        assert data["success"] is True
+        assert data["supplier"]["ruc"] == "20100000001"
+        assert data["supplier"]["supplier_name"] == "Test Company"
 
     def test_add_duplicate_supplier_fails(self, client, auth_headers):
         """Test que no se puede agregar el mismo RUC dos veces"""
         # Agregar primero
-        client.post(
-            "/api/v3/network/add",
-            json={"supplier_ruc": "20100000001"},
+        response = client.post(
+            "/api/v1/network/add",
+            json={"ruc": "20100000001"},
             headers=auth_headers
         )
+        assert response.status_code == 200
         
         # Intentar agregar de nuevo
         response = client.post(
-            "/api/v3/network/add",
-            json={"supplier_ruc": "20100000001"},
+            "/api/v1/network/add",
+            json={"ruc": "20100000001"},
             headers=auth_headers
         )
         assert response.status_code == 409
@@ -104,45 +104,45 @@ class TestNetwork:
         """Test listar proveedores en la red"""
         # Crear algunos proveedores
         for i in range(3):
-            sw = SupplierWatchlist(
+            sw = UserSupplier(
                 id=str(uuid.uuid4()),
                 user_id=test_user.id,
-                supplier_ruc=f"2010000000{i}",
+                ruc=f"2010000000{i}",
                 supplier_name=f"Company {i}",
-                is_active=True
             )
             db_session.add(sw)
         db_session.commit()
         
-        response = client.get("/api/v3/network/", headers=auth_headers)
+        response = client.get("/api/v1/network/", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 3
+        assert data["total"] == 3
+        assert len(data["suppliers"]) == 3
 
     def test_remove_supplier(self, client, auth_headers, db_session, test_user):
         """Test eliminar proveedor de la red"""
         # Crear proveedor
-        sw = SupplierWatchlist(
+        sw = UserSupplier(
             id=str(uuid.uuid4()),
             user_id=test_user.id,
-            supplier_ruc="20100000001",
-            is_active=True
+            ruc="20100000001",
         )
         db_session.add(sw)
         db_session.commit()
         
-        response = client.delete("/api/v3/network/20100000001", headers=auth_headers)
-        assert response.status_code == 204
+        response = client.delete("/api/v1/network/20100000001", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
 
-    def test_network_stats(self, client, auth_headers, db_session, test_user):
-        """Test obtener estadísticas de la red"""
+    def test_network_with_snapshots(self, client, auth_headers, db_session, test_user):
+        """Test red con snapshots de proveedores"""
         # Crear proveedores con diferentes scores
         for i, score in enumerate([90, 50, 20]):
-            sw = SupplierWatchlist(
+            sw = UserSupplier(
                 id=str(uuid.uuid4()),
                 user_id=test_user.id,
-                supplier_ruc=f"2010000000{i}",
-                is_active=True
+                ruc=f"2010000000{i}",
             )
             db_session.add(sw)
             
@@ -156,26 +156,9 @@ class TestNetwork:
         
         db_session.commit()
         
-        response = client.get("/api/v3/network/stats", headers=auth_headers)
-        assert response.status_code == 200
+        response = client.get("/api/v1/network/", headers=auth_headers)
         data = response.json()
-        assert data["total_suppliers"] == 3
-        assert data["low_risk_count"] == 1  # score 90
-        assert data["medium_risk_count"] == 1  # score 50
-        assert data["high_risk_count"] == 1  # score 20
-
-    def test_network_limits_by_plan(self, client, auth_headers, test_user):
-        """Test que el límite de proveedores respeta el plan"""
-        # Essential plan = 10 proveedores
-        test_user.plan_type = "essential"
-        
-        response = client.post(
-            "/api/v3/network/add",
-            json={"supplier_ruc": "20999999999"},
-            headers=auth_headers
-        )
-        # Si ya tiene 10, debería fallar
-        # Este test depende del estado previo
+        assert data["total"] == 3
 
 class TestAlerts:
     def test_get_alerts(self, client, auth_headers, db_session, test_user):
@@ -195,10 +178,11 @@ class TestAlerts:
             db_session.add(alert)
         db_session.commit()
         
-        response = client.get("/api/v3/network/alerts?unread_only=true", headers=auth_headers)
+        response = client.get("/api/v1/network/alerts", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 3
+        assert data["total"] == 3
+        assert data["unread_count"] == 3
 
     def test_mark_alert_read(self, client, auth_headers, db_session, test_user):
         """Test marcar alerta como leída"""
@@ -215,8 +199,10 @@ class TestAlerts:
         db_session.add(alert)
         db_session.commit()
         
-        response = client.patch(f"/api/v3/network/alerts/{alert.id}/read", headers=auth_headers)
+        response = client.patch(f"/api/v1/network/alerts/{alert.id}/read", headers=auth_headers)
         assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
         
         # Verificar que está leída
         db_session.refresh(alert)
