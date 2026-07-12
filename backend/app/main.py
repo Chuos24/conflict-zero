@@ -17,7 +17,7 @@ from app.core.config import get_settings
 from app.core.database import engine, Base, SessionLocal
 from app.core.security import get_password_hash
 from app.models import User
-from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, webhooks_router, network_router
+from app.routers import auth_router, verification_router, dashboard_router, health_router, consulta_router, debug_router, compare_router, payments_router, admin_router, notifications_router, webhooks_router, network_router, certificates_router, invitations_router, payments_admin_router
 import uuid
 
 settings = get_settings()
@@ -133,6 +133,9 @@ app.include_router(compare_router, prefix="/api/v1")
 app.include_router(payments_router, prefix="/api/v1")
 app.include_router(network_router, prefix="/api/v1")
 app.include_router(webhooks_router, prefix="/api/v1")
+app.include_router(certificates_router, prefix="/api/v1")
+app.include_router(invitations_router, prefix="/api/v1")
+app.include_router(payments_admin_router, prefix="/api/v1")
 
 # Routers v3 (para compatibilidad con frontend)
 app.include_router(auth_router, prefix="/api/v3")

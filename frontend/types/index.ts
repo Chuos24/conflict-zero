@@ -126,3 +126,28 @@ export interface AlertsResponse {
   total: number;
   unread_count: number;
 }
+
+// Certificates types
+export interface Certificate {
+  id: string;
+  code: string;
+  ruc: string;
+  company_name?: string;
+  score: number;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  status: 'active' | 'expired' | 'revoked';
+  generated_at: string;
+  expires_at?: string;
+  pdf_url?: string;
+}
+
+export interface GenerateCertificateRequest {
+  ruc: string;
+  company_name?: string;
+  score: number;
+  risk_level: 'low' | 'medium' | 'high' | 'critical';
+  sunat_status?: string;
+  osce_sanctions_count?: number;
+  tce_sanctions_count?: number;
+  verification_data?: Record<string, unknown>;
+}

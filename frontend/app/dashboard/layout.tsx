@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
-import { Shield, Search, BarChart3, History, Scale, Settings, Key, LogOut, Network } from 'lucide-react';
+import { Shield, Search, BarChart3, History, Scale, Settings, Key, LogOut, Network, FileText } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -21,6 +21,7 @@ export default function DashboardLayout({
   const navItems = [
     { href: '/dashboard', label: 'Verificar', icon: Search },
     { href: '/dashboard/network', label: 'Mi Red', icon: Network },
+    { href: '/dashboard/certificates', label: 'Certificados', icon: FileText },
     { href: '/dashboard/stats', label: 'Estadísticas', icon: BarChart3 },
     { href: '/dashboard/history', label: 'Historial', icon: History },
     { href: '/dashboard/compare', label: 'Comparar', icon: Scale },
