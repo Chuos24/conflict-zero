@@ -5,6 +5,7 @@ Generación de certificados digitales con sello GOLD/SILVER/BRONZE/RECHAZADO
 """
 import uuid
 from datetime import datetime, timedelta
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field

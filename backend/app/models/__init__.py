@@ -25,6 +25,10 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
     
+    status = Column(String(20), default="active")
+    plan_activated_at = Column(DateTime, nullable=True)
+    plan_expires_at = Column(DateTime, nullable=True)
+    
     # Relationships
     verification_requests = relationship("VerificationRequest", back_populates="user")
     supplier_alerts = relationship("SupplierAlert", back_populates="user")
@@ -222,9 +226,56 @@ class UserSupplier(Base):
     )
 
 
-# ============================================================================
-# CACHE: RUC Cache para Factaliza y otras APIs externas
-# ============================================================================
+class Certificate(Base):
+    """
+    Certificados digitales emitidos para empresas verificadas.
+    """
+    __tablename__ = "certificates"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ruc = Column(String(11), nullable=False, index=True)
+    company_name = Column(String(255), nullable=True)
+    score = Column(Float, default=0.0)
+    tier = Column(String(20), nullable=False, default="BRONZE")  # GOLD, SILVER, BRONZE, RECHAZADO
+    plan_type = Column(String(50), default="essential")
+    cert_slug = Column(String(50), unique=True, nullable=False, index=True)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+    expires_at = Column(DateTime, nullable=True)
+
+
+class Invitation(Base):
+    """
+    Invitaciones para Mi Red (Professional/Enterprise).
+    """
+    __tablename__ = "invitations"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    invitador_ruc = Column(String(11), nullable=False, index=True)
+    email = Column(String(255), nullable=False)
+    token = Column(String(255), unique=True, nullable=False, index=True)
+    ruc_invitado = Column(String(11), nullable=True)
+    usada = Column(Boolean, default=False)
+    usada_por = Column(String(36), nullable=True)
+    expira = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
+
+class PaymentManual(Base):
+    """
+    Pagos manuales registrados por admin (transferencia, Yape, Plin, etc.).
+    """
+    __tablename__ = "payments_manual"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), default="PEN")
+    method = Column(String(50), nullable=False)  # transferencia, yape, plin, deposito, efectivo
+    reference = Column(String(255), nullable=False)
+    payment_date = Column(DateTime, nullable=False)
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.now(timezone.utc))
+
 
 class RucCache(Base):
     """
