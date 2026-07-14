@@ -15,7 +15,7 @@ router = APIRouter(prefix="/compare", tags=["Comparación"])
 
 
 class CompareRequest(BaseModel):
-    rucs: List[str] = Field(..., min_items=2, max_items=10, description="Lista de RUCs a comparar (2-10)")
+    rucs: List[str] = Field(..., min_length=2, max_length=10, description="Lista de RUCs a comparar (2-10)")
 
 
 class CompareResult(BaseModel):

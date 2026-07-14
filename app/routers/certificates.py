@@ -8,7 +8,7 @@ Incluye generación de PDF con QR code embebido.
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import uuid
@@ -63,8 +63,7 @@ class CertificateResponse(BaseModel):
     expires_at: Optional[str] = None
     pdf_url: Optional[str] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ============ HELPERS ============
