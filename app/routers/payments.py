@@ -93,12 +93,14 @@ async def get_payment_plans():
             "id": "essential",
             "name": "Essential",
             "description": "Plan básico para pequeñas empresas",
-            "price": 29.99,
-            "currency": "USD",
+            "price": 400.00,
+            "currency": "PEN",
             "billing_cycle": "monthly",
             "features": [
-                "5 verificaciones RUC por mes",
-                "Reporte básico",
+                "1,000 verificaciones RUC por mes",
+                "Historial 90 días",
+                "Comparar hasta 2 RUCs",
+                "PDF certs",
                 "Email support"
             ],
             "active": True
@@ -107,15 +109,18 @@ async def get_payment_plans():
             "id": "professional",
             "name": "Professional",
             "description": "Plan profesional con más capacidad",
-            "price": 99.99,
-            "currency": "USD",
+            "price": 800.00,
+            "currency": "PEN",
             "billing_cycle": "monthly",
             "features": [
-                "50 verificaciones RUC por mes",
-                "Reporte avanzado",
-                "Tags y categorización",
-                "Priority email support",
-                "API access"
+                "5,000 verificaciones RUC por mes",
+                "Historial ilimitado",
+                "Comparar hasta 5 RUCs",
+                "PDF certs",
+                "API access",
+                "Bulk upload",
+                "Priority support",
+                "Custom scoring"
             ],
             "active": True
         },
@@ -123,15 +128,17 @@ async def get_payment_plans():
             "id": "enterprise",
             "name": "Enterprise",
             "description": "Plan empresarial con capacidad ilimitada",
-            "price": 299.99,
-            "currency": "USD",
+            "price": 2500.00,
+            "currency": "PEN",
             "billing_cycle": "monthly",
             "features": [
-                "Verificaciones ilimitadas",
-                "Reporte personalizado",
-                "Tags, categorización y templates",
-                "24/7 phone support",
+                "100,000 verificaciones RUC por mes",
+                "Historial ilimitado",
+                "Comparar hasta 10 RUCs",
+                "PDF certs",
                 "API access sin límites",
+                "Webhooks",
+                "Dedicated manager",
                 "Compliance dashboard"
             ],
             "active": True

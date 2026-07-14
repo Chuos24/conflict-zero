@@ -15,6 +15,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # Legacy: support plaintext passwords prefixed with "temp:" (migration period)
+    if hashed_password.startswith("temp:"):
+        return plain_password == hashed_password[5:]
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:

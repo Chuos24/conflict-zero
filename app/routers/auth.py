@@ -281,7 +281,7 @@ async def reset_user_password(email: str, db: Session = Depends(get_db)):
     alphabet = string.ascii_letters.replace('O', '').replace('o', '').replace('l', '').replace('I', '') + string.digits.replace('0', '').replace('1', '')
     new_password = ''.join(random.choice(alphabet) for _ in range(12))
     
-    user.hashed_password = f"temp:{new_password}"
+    user.hashed_password = get_password_hash(new_password)
     db.commit()
     
     # Enviar email con nueva contraseña

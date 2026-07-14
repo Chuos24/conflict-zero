@@ -17,8 +17,8 @@ from app.models import User
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
-# Config - Load from environment
-ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN', 'CZ2026ADM')
+# Config - Load from environment (NO fallback for security)
+ADMIN_TOKEN = os.environ.get('ADMIN_TOKEN')
 
 # ============ MODELS ============
 
