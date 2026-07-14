@@ -1,0 +1,17 @@
+Ciclo #126 | 2026-07-14 01:10 UTC
+ESTADO: ESTABLE | Seguridad mejorada, precios corregidos a PEN
+Git: 0 modified | Commit 0f84421
+Tests: 33/33 ✅
+
+Acciones realizadas en este ciclo:
+- security.py: verify_password ahora maneja formato legacy 'temp:' para compat
+- auth.py: reset_user_password ahora hashea la contraseña (no más plaintext)
+- admin.py: eliminado fallback hardcoded CZ2026ADM de ADMIN_TOKEN
+- debug.py: eliminado fallback hardcoded CZ2026ADM de ADMIN_TOKEN
+- payments.py: precios actualizados a PEN (S/ 400, 800, 2500) + features correctas
+
+Pendientes:
+- RUC 20529400790 score en Render (bug histórico)
+- Configurar CULQI_PUBLIC_KEY/SECRET_KEY en producción
+- Cobertura de tests > 80%
+- Pydantic V2 deprecations (25 warnings)

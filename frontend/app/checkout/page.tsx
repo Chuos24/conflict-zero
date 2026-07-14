@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Check, CreditCard, Shield, Zap, Building2 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Check, CreditCard, Shield, Zap, Building2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
+import { payments } from '@/lib/api';
 
 interface Plan {
   id: string;
@@ -12,6 +13,13 @@ interface Plan {
   monthly_limit: number;
   features: string[];
   highlighted?: boolean;
+}
+
+interface CulqiConfig {
+  enabled: boolean;
+  public_key: string | null;
+  currency: string;
+  plans: Record<string, { price: number; name: string }>;
 }
 
 const plans: Plan[] = [
@@ -64,22 +72,159 @@ const plans: Plan[] = [
   }
 ];
 
+// Cargar script de Culqi.js dinámicamente
+function loadCulqiScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Window no disponible'));
+      return;
+    }
+    // @ts-ignore
+    if (window.Culqi) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://js.culqi.com/checkout-js/v4/checkout.js';
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('No se pudo cargar Culqi.js'));
+    document.head.appendChild(script);
+  });
+}
+
 export default function CheckoutPage() {
   const [selectedPlan, setSelectedPlan] = useState<string>('professional');
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'transfer'>('card');
   const [processing, setProcessing] = useState(false);
   const [step, setStep] = useState<'select' | 'payment' | 'success'>('select');
+  const [culqiConfig, setCulqiConfig] = useState<CulqiConfig | null>(null);
+  const [culqiLoaded, setCulqiLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const selectedPlanData = plans.find(p => p.id === selectedPlan);
 
+  // Obtener configuración de Culqi del backend
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const { data } = await payments.config();
+        setCulqiConfig(data);
+      } catch (err) {
+        console.warn('No se pudo obtener config de pagos:', err);
+      }
+    };
+    fetchConfig();
+  }, []);
+
+  // Cargar Culqi.js cuando se selecciona método de pago tarjeta
+  useEffect(() => {
+    if (paymentMethod === 'card' && culqiConfig?.enabled && !culqiLoaded) {
+      loadCulqiScript()
+        .then(() => setCulqiLoaded(true))
+        .catch(err => console.error('Error cargando Culqi:', err));
+    }
+  }, [paymentMethod, culqiConfig, culqiLoaded]);
+
   const handleContinue = () => {
     setStep('payment');
+    setError(null);
   };
+
+  // Inicializar y abrir Culqi Checkout
+  const openCulqiCheckout = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    // @ts-ignore
+    const Culqi = window.Culqi;
+    if (!Culqi || !culqiConfig?.public_key || !selectedPlanData) return;
+
+    const amount = selectedPlanData.price * 100; // Culqi usa céntimos
+
+    const settings = {
+      title: 'Conflict Zero',
+      currency: culqiConfig.currency || 'PEN',
+      amount: amount,
+      order: `plan-${selectedPlan}-${Date.now()}`,
+      xculqirsapublickey: culqiConfig.public_key,
+      description: `Plan ${selectedPlanData.name} — Conflict Zero`,
+      // @ts-ignore
+      clientId: ' conflict-zero-client',
+      paymentMethods: {
+        tarjeta: true,
+        yape: true,
+        billetera: false,
+        bancaMovil: false,
+        agente: false,
+        cuotealo: false,
+      },
+      options: {
+        lang: 'es',
+        modal: true,
+        buttons: true,
+        menubar: true,
+        installments: true,
+        paymentMethods: {
+          tarjeta: true,
+          yape: true,
+        },
+      },
+      // @ts-ignore
+      appearance: {
+        theme: 'dark',
+        rules: {
+          'body-background': '#0a0a0a',
+          'button-background': '#c9a050',
+          'button-text': '#0a0a0a',
+        }
+      }
+    };
+
+    Culqi.settings(settings);
+
+    // @ts-ignore
+    Culqi.error = function(error: any) {
+      console.error('Culqi error:', error);
+      setError(error.user_message || 'Error en el pago. Intente nuevamente.');
+      setProcessing(false);
+    };
+
+    // @ts-ignore
+    Culqi.token = async function(token: any) {
+      if (token.id) {
+        try {
+          const result = await payments.charge(token.id, selectedPlan);
+          if (result.data.success) {
+            setStep('success');
+          } else {
+            setError(result.data.detail || 'Error procesando el pago');
+          }
+        } catch (err: any) {
+          setError(err.response?.data?.detail || 'Error procesando el pago');
+        } finally {
+          setProcessing(false);
+        }
+      }
+    };
+
+    Culqi.open();
+  }, [culqiConfig, selectedPlan, selectedPlanData]);
 
   const handlePayment = async () => {
     setProcessing(true);
-    // Simulación de procesamiento
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setError(null);
+
+    if (paymentMethod === 'card') {
+      if (!culqiConfig?.enabled) {
+        setError('Pasarela de pagos no configurada. Contacte a soporte.');
+        setProcessing(false);
+        return;
+      }
+      openCulqiCheckout();
+      return; // Culqi maneja el callback
+    }
+
+    // Transferencia bancaria - simulación (requiere confirmación manual)
+    await new Promise(resolve => setTimeout(resolve, 1500));
     setProcessing(false);
     setStep('success');
   };
@@ -116,6 +261,13 @@ export default function CheckoutPage() {
           </h1>
         </div>
 
+        {error && (
+          <div className="max-w-xl mx-auto mb-6 p-4 border border-red-900/50 bg-red-900/10 flex items-center gap-3 text-red-400">
+            <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
         {step === 'select' ? (
           <>
             {/* Plan Selection */}
@@ -138,7 +290,7 @@ export default function CheckoutPage() {
                   <div className="p-6 pt-8">
                     <h3 className="text-lg font-light mb-2">{plan.name}</h3>
                     <div className="mb-6">
-                      <span className="text-4xl font-light">${plan.price}</span>
+                      <span className="text-4xl font-light">S/ {plan.price}</span>
                       <span className="text-[#5a5a5a]">/mes</span>
                     </div>
                     <ul className="space-y-3 mb-6">
@@ -180,11 +332,11 @@ export default function CheckoutPage() {
                         <p className="font-medium">{selectedPlanData.name}</p>
                         <p className="text-sm text-[#5a5a5a]">Suscripción mensual</p>
                       </div>
-                      <p className="text-xl">${selectedPlanData.price}</p>
+                      <p className="text-xl">S/ {selectedPlanData.price}</p>
                     </div>
                     <div className="flex items-center justify-between py-4">
                       <p className="font-medium">Total</p>
-                      <p className="text-2xl text-[#c9a050]">${selectedPlanData.price}</p>
+                      <p className="text-2xl text-[#c9a050]">S/ {selectedPlanData.price}</p>
                     </div>
                   </div>
                 )}
@@ -196,7 +348,7 @@ export default function CheckoutPage() {
                 
                 <div className="space-y-4 mb-6">
                   <button
-                    onClick={() => setPaymentMethod('card')}
+                    onClick={() => { setPaymentMethod('card'); setError(null); }}
                     className={`w-full flex items-center gap-4 p-4 border transition-colors ${
                       paymentMethod === 'card'
                         ? 'border-[#c9a050] bg-[#c9a050]/5'
@@ -206,7 +358,9 @@ export default function CheckoutPage() {
                     <CreditCard className="h-5 w-5 text-[#c9a050]" />
                     <div className="flex-1 text-left">
                       <p>Tarjeta de Crédito/Débito</p>
-                      <p className="text-xs text-[#5a5a5a]">Visa, Mastercard, Amex</p>
+                      <p className="text-xs text-[#5a5a5a]">
+                        {culqiConfig?.enabled ? 'Visa, Mastercard, Yape' : 'No disponible — configure CULQI_PUBLIC_KEY'}
+                      </p>
                     </div>
                     <div className={`w-4 h-4 border rounded-full ${
                       paymentMethod === 'card' ? 'border-[#c9a050] bg-[#c9a050]' : 'border-[#2a2a2a]'
@@ -214,7 +368,7 @@ export default function CheckoutPage() {
                   </button>
 
                   <button
-                    onClick={() => setPaymentMethod('transfer')}
+                    onClick={() => { setPaymentMethod('transfer'); setError(null); }}
                     className={`w-full flex items-center gap-4 p-4 border transition-colors ${
                       paymentMethod === 'transfer'
                         ? 'border-[#c9a050] bg-[#c9a050]/5'
@@ -224,7 +378,7 @@ export default function CheckoutPage() {
                     <Building2 className="h-5 w-5 text-[#c9a050]" />
                     <div className="flex-1 text-left">
                       <p>Transferencia Bancaria</p>
-                      <p className="text-xs text-[#5a5a5a]">Depósito o transferencia</p>
+                      <p className="text-xs text-[#5a5a5a]">Depósito o transferencia (activación manual)</p>
                     </div>
                     <div className={`w-4 h-4 border rounded-full ${
                       paymentMethod === 'transfer' ? 'border-[#c9a050] bg-[#c9a050]' : 'border-[#2a2a2a]'
@@ -232,36 +386,13 @@ export default function CheckoutPage() {
                   </button>
                 </div>
 
-                {paymentMethod === 'card' ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm text-[#8a8a8a] mb-2">Número de Tarjeta</label>
-                      <input
-                        type="text"
-                        placeholder="0000 0000 0000 0000"
-                        className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-[#8a8a8a] mb-2">Expiración</label>
-                        <input
-                          type="text"
-                          placeholder="MM/AA"
-                          className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-[#8a8a8a] mb-2">CVC</label>
-                        <input
-                          type="text"
-                          placeholder="123"
-                          className="w-full bg-transparent border border-[#2a2a2a] px-4 py-3 text-[#e8e6e3] focus:border-[#c9a050] focus:outline-none transition-colors"
-                        />
-                      </div>
-                    </div>
+                {paymentMethod === 'card' && !culqiConfig?.enabled && (
+                  <div className="p-4 border border-yellow-900/50 bg-yellow-900/10 text-yellow-400 text-sm mb-4">
+                    La pasarela de pagos no está configurada. Por favor use transferencia bancaria o contacte a soporte.
                   </div>
-                ) : (
+                )}
+
+                {paymentMethod === 'transfer' && (
                   <div className="p-4 border border-[#1a1a1a] bg-[#0f0f0f]">
                     <p className="text-sm text-[#8a8a8a] mb-2">Datos bancarios:</p>
                     <p className="font-mono text-sm">Banco: BCP</p>
@@ -280,11 +411,11 @@ export default function CheckoutPage() {
                   </Button>
                   <Button
                     onClick={handlePayment}
-                    disabled={processing}
+                    disabled={processing || (paymentMethod === 'card' && !culqiConfig?.enabled)}
                     variant="primary"
                     icon={processing ? <Zap className="h-4 w-4 animate-pulse" /> : undefined}
                   >
-                    {processing ? 'Procesando...' : `Pagar $${selectedPlanData?.price}`}
+                    {processing ? 'Procesando...' : `Pagar S/ ${selectedPlanData?.price}`}
                   </Button>
                 </div>
               </div>

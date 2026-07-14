@@ -104,4 +104,19 @@ export const network = {
     api.post('/network/alerts/mark-read', { alert_ids }),
 };
 
+// Payments / Culqi
+export const payments = {
+  // Obtener configuración de Culqi (public key, precios)
+  config: () =>
+    api.get('/payments/config'),
+  
+  // Procesar cargo con token de Culqi
+  charge: (token: string, plan: string, email?: string) =>
+    api.post('/payments/charge', { token, plan, email }),
+  
+  // Historial de pagos del usuario
+  history: () =>
+    api.get('/payments/history'),
+};
+
 export default api;
